@@ -187,10 +187,10 @@ gate the same way.
 
 The canonical copy of `dispatch`, `implement-ticket`,
 `adversarial-review`, `merge-queue`, and `decision-queue` lives once,
-in the parent "meta" studio repo that holds the individual project
-repos, at `plugins/factory/skills/<name>/`. There is deliberately no
-per-project fork to keep in sync — edit it there and the change lands in every
-repo at once.
+in the `mattwalters/skills` plugin marketplace repo, at
+`plugins/factory/skills/<name>/`. There is deliberately no per-project
+fork to keep in sync. Edit it there, and the change reaches every repo
+once it merges and each repo's installed marketplace is updated.
 
 Two mechanisms carry it into a project repo:
 

@@ -35,6 +35,29 @@ When someone trusts the project folder, Claude Code offers to install the
 marketplace and the enabled plugins. To pick up later changes, run
 `claude plugin marketplace update mattwalters`.
 
+### Opting in to `factory`
+
+The settings block installs `factory`, but installing it isn't enough to run
+it. The project also needs a `## Dispatch` section in its own `AGENTS.md`. If
+that section is missing, `dispatch` stops straight away instead of guessing.
+The other factory skills read the same section.
+
+The section declares:
+
+- **Linear team key**: the team whose `Todo` queue the project draws from.
+- **Check command**: what an implementer or fixer must run, and pass, before
+  pushing.
+- **Base branch**: what worktrees branch from and PRs merge into.
+- **Worktrees**: the directory per-ticket worktrees go in. Gitignore it.
+- **Run manifest**: the file `dispatch` keeps per-ticket state in, usually
+  inside the worktrees directory.
+- **Review invariants**: what a reviewer should be adversarial about in this
+  project. Reviewers bring no invariants of their own.
+- **Stop-list**: the paths and subjects whose merge always waits for a human,
+  whatever mode a run is in. A project that declares none has none.
+
+This repo's own [`AGENTS.md`](AGENTS.md) is a worked example.
+
 ## Plugins
 
 | Plugin | What it is |
@@ -64,3 +87,21 @@ add a plugin:
    exists, and that each `plugin.json` name matches its marketplace entry.
 
 Bump a plugin's `version` in its `plugin.json` when you change what it does.
+
+## Developing the factory with the factory
+
+This repo opts in to `factory` like any other project, so changes to the
+factory skills go through `dispatch` too. That's safe because a run never
+executes the files it is editing:
+
+- A dispatch run uses the **installed plugin**, the marketplace clone that
+  Claude Code manages. It doesn't use the files checked out in the worktree it
+  is changing. So a change is always planned, implemented and reviewed by the
+  version from *before* that change, and the pipeline can't modify itself
+  mid-run.
+- A change takes effect only after it merges **and** someone runs
+  `claude plugin marketplace update mattwalters`. That refresh is the gate.
+
+The catch: a change that breaks a skill won't show up in the run that wrote
+it. It shows up in the first run after the refresh. Treat that run as the real
+test, and run it supervised.
