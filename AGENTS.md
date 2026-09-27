@@ -26,11 +26,17 @@ section for its repo-specific configuration.
 - **Run manifest**:
   `$HOME/.local/state/factory/worktrees/skills/run-manifest.json`.
 
+Expand `$HOME` to an absolute path before writing either value into a
+prompt or using it in a file operation. A shell expands `$HOME` on its
+own (which is why `git worktree add` needs no change here), but a
+subagent's Read/Edit/Write calls and a prompt placeholder do not.
+
 Both paths are outside the repo, so nothing to gitignore. Per-run
 state stays on the machine that ran it. The directory is shared by
-every clone of this repo on the machine, so run dispatch against this
-repo from one clone at a time (a worktree already at
-`<runs-dir>/<TICKET>` belongs to whichever clone made it).
+every clone of this repo on the machine, so run any `factory` skill
+against this repo — whether as part of dispatch or standalone — from
+one clone at a time (a worktree already at `<runs-dir>/<TICKET>`
+belongs to whichever clone made it).
 
 ### Review invariants
 
