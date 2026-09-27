@@ -8,7 +8,7 @@ findings summary. Say plainly whether this is an ordinary round or
 anything. If this is a resumed attempt on a fixer that previously came
 back deferred, also fill in RESUME: which findings its uncommitted
 edits already address, which are still outstanding, and how many CI
-pushes have already been used.
+pushes *this round* had already used before it deferred.
 
 ---
 
@@ -79,8 +79,11 @@ an earlier, deferred fixer. Don't discard them and don't redo the
 findings they already cover. Re-run CHECK first to confirm nothing has
 drifted — a rebase or a since-pushed change can make an edit stale —
 then pick up whatever RESUME says is still outstanding. The
-three-attempt CI budget is per PR, not per attempt: pushes RESUME says
-were already used still count toward it.
+three-attempt CI budget belongs to this fixer round, the same round
+that deferred — not to the PR as a whole, and not reset by resuming.
+RESUME's push count is how many of this round's three this attempt
+already spent before it deferred; you get only the remainder, not a
+fresh three.
 
 ## Trivial-minors mode
 

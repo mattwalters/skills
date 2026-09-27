@@ -238,15 +238,30 @@ pass entirely while the write window is closed — a fixer spawned into
 a closed window would just come back `deferred` having pushed nothing.
 
 If it comes back `RESULT: deferred` instead — the window closed while
-it was working — discard its uncommitted edits (they were never
-committed, so `git checkout -- .`/`git clean` in WORKTREE is enough)
-rather than leaving the tree dirty. This pass is not a round, so there
-is no deferred-cycle resume path for it the way there is for an
-ordinary fixer round, and a dirty worktree sent on to `merge-queue`
-would make its rebase refuse to run. Report `ready` with the minors
-this pass had touched left open, exactly as if the pass had never run
-— the pass was optional, and discarding an unreviewed trivial edit
-costs nothing next to holding the PR on it.
+it was working — restore the worktree to the PR's remote head before
+doing anything else: `git fetch` and `git reset --hard origin/<branch>`
+in WORKTREE. That drops either kind of leftover the same way —
+uncommitted edits, or a local commit the pass made but didn't get to
+push — and leaves nothing for `merge-queue`'s rebase to trip on. This
+pass is not a round, so there is no deferred-cycle resume path for it
+the way there is for an ordinary fixer round.
+
+What you report next depends on whether the pass reached the remote
+before deferring:
+
+- **Never pushed.** Report `ready` with the minors it had touched left
+  open, exactly as if the pass had never run — the pass was optional,
+  and discarding an unreviewed trivial edit costs nothing next to
+  holding the PR on it.
+- **Pushed, then deferred before confirming CI.** The reset above
+  keeps that pushed commit — it is already part of `origin/<branch>`.
+  Check CI on that exact head. Report `ready` only if it is green
+  there, since `RESULT: ready` means CI green, not just findings
+  resolved. If CI is still running, red, or you can't tell, this cycle
+  is `deferred`, not `ready`: follow "On a deferred report" below
+  using this round's ledger, and note that the trivial-minors pass
+  left a pushed head whose CI still needs checking — that is the first
+  thing the next resume must confirm.
 
 **That pass is not a round and is not reviewed again.** Nothing about
 it changes the verdict. A fix that would need a review round to be

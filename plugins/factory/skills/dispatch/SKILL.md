@@ -1,6 +1,6 @@
 ---
 name: dispatch
-description: Batch-run the next tickets from Linear for the repo you are in. Picks 5–10 unblocked tickets from `Todo` by priority, stops for human approval on the selection, has each one planned into its ticket description, plans parallel vs serial execution, stops for approval again on the plans, then runs each ticket through the implement-ticket, adversarial-review, and merge-queue skills to a merged pull request. Its three gates — selection, plan, merge — are set by naming a mode at invocation: supervised, semi, or autonomous. Reads the host repo's `AGENTS.md` `## Dispatch` section for its Linear team, check command, base branch, write window, and worktree locations, and stops a stage short of any commit, push, or merge while that window is closed. Use when asked to run the queue, work the next tickets, dispatch a batch, or process Linear tickets in parallel. Do not use for a single ticket a human is already driving — use implement-ticket, adversarial-review, or merge-queue directly for that.
+description: Batch-run the next tickets from Linear for the repo you are in. Picks 5–10 unblocked tickets from `Todo` by priority, also offering any deferred tickets waiting in `In Progress`/`In Review` to resume at the stage that deferred them, stops for human approval on the selection, has each one planned into its ticket description, plans parallel vs serial execution, stops for approval again on the plans, then runs each ticket through the implement-ticket, adversarial-review, and merge-queue skills to a merged pull request. Its three gates — selection, plan, merge — are set by naming a mode at invocation: supervised, semi, or autonomous. Reads the host repo's `AGENTS.md` `## Dispatch` section for its Linear team, check command, base branch, write window, and worktree locations, and stops a stage short of any commit, push, or merge while that window is closed. Use when asked to run the queue, work the next tickets, dispatch a batch, or process Linear tickets in parallel. Do not use for a single ticket a human is already driving — use implement-ticket, adversarial-review, or merge-queue directly for that.
 ---
 
 # Dispatch
@@ -247,8 +247,18 @@ the check runs before the commit, not only before the push. Never
 re-date a commit (`GIT_AUTHOR_DATE`/`GIT_COMMITTER_DATE`,
 `--committer-date-is-author-date`, or the like) to get around a closed
 window — forging the record is worse than having it. Editing files,
-running the check command, reading, planning, and reviewing are never
-gated: they leave no public record.
+running the check command, reading, and planning are never gated: they
+leave no public record.
+
+Reviewing is not the same. `adversarial-review`'s reviewer posts
+inline PR review comments and a `gh pr review --comment` round
+summary every round, and a blocked fixer posts its options as a PR
+comment — all under the user's GitHub account, timestamped whenever
+that round runs. Those *are* a public record, closed window or not.
+This ticket leaves them ungated anyway: that's a scoped decision, not
+a claim that they're invisible. Gating PR reviews and comments the
+same way commits and pushes are gated is a reasonable follow-up, just
+not one this change makes.
 
 **Closed means stop dead.** Don't run the write, and don't wait,
 sleep, or schedule it for later. Leave the worktree exactly as it is

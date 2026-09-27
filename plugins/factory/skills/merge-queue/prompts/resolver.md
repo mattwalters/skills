@@ -42,15 +42,22 @@ If RESUME was filled in, WORKTREE already holds work from an earlier,
 deferred attempt — the rebase may already have completed (cleanly, or
 with a tier-1/2 resolution already committed), or it may have been
 aborted mid-conflict, or never started at all; RESUME says which.
-Check the window fresh before doing anything else. If RESUME says the
-rebase already completed, don't run it again: skip ahead to "Push and
-watch CI" below. If RESUME says a rebase was aborted mid-conflict,
-start from `git fetch origin && git rebase origin/BASE` as below, but
-use the tier and files RESUME names so you aren't re-deriving that
-judgment from scratch. If RESUME says the rebase never ran, treat this
-like a fresh spawn. Either way, the three-push CI budget is per PR,
-not per attempt: CI pushes RESUME says were already used still count
-toward it.
+Check the window fresh before doing anything else.
+
+Always re-fetch and rebase onto current `origin/BASE` below, whatever
+RESUME says about the earlier attempt: `git fetch origin && git
+rebase origin/BASE` is a no-op when `origin/BASE` hasn't moved since,
+so this costs nothing when RESUME says the rebase already completed
+and BASE is unchanged. It matters when BASE *has* moved — another PR
+can merge, and the queue reorder, while this one sits deferred, and
+skipping the rebase would push and test a head against a base CI
+never actually validated it against. If RESUME says a rebase was
+aborted mid-conflict, use the tier and files RESUME names if the same
+conflict reappears at the same tier; if BASE has moved since, treat
+any conflict fresh through the Tier 1/2 rules below instead. If RESUME
+says the rebase never ran, treat this like a fresh spawn. Either way,
+the three-push CI budget is per PR, not per attempt: CI pushes RESUME
+says were already used still count toward it.
 
 Rebase BRANCH onto current `origin/BASE` in WORKTREE. Work only there;
 never touch another branch or worktree.
