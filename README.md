@@ -58,11 +58,9 @@ add a plugin:
    `plugins/<name>/skills/`.
 2. Add an entry to `plugins` in `.claude-plugin/marketplace.json` with
    `"source": "./plugins/<name>"`.
-3. Validate the result:
-
-   ```sh
-   claude plugin validate --strict .
-   claude plugin validate --strict plugins/<name>
-   ```
+3. Run `bin/validate`, which CI also runs on every PR. It runs
+   `claude plugin validate --strict` on the marketplace and on each plugin. It
+   also checks that every plugin directory is listed, that every listed source
+   exists, and that each `plugin.json` name matches its marketplace entry.
 
 Bump a plugin's `version` in its `plugin.json` when you change what it does.

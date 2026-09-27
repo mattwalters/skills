@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+# Validates the marketplace and every plugin it lists.
+#
+# `claude plugin validate --strict` checks manifest syntax, unknown fields and
+# skill frontmatter. It does not check that a plugin's source directory exists,
+# or that plugin.json's name matches its marketplace entry, so this script
+# checks those too.
+#
+# Usage: bin/validate   (needs `claude` and `jq` on PATH)
+
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+marketplace=.claude-plugin/marketplace.json
+failed=0
+
+fail() {
+  echo "✘ $*" >&2
+  failed=1
+}
+
+claude plugin validate --strict . || failed=1
+
+while IFS=$'\t' read -r name source; do
+  echo
+  echo "── $name ($source)"
+
+  case "$source" in
+    ./plugins/*) ;;
+    *)
+      fail "$name: source must be a local path under ./plugins/, got '$source'"
+      continue
+      ;;
+  esac
+
+  if [[ ! -f "$source/.claude-plugin/plugin.json" ]]; then
+    fail "$name: $source/.claude-plugin/plugin.json does not exist"
+    continue
+  fi
+
+  manifest_name=$(jq -r '.name' "$source/.claude-plugin/plugin.json")
+  if [[ "$manifest_name" != "$name" ]]; then
+    fail "$name: plugin.json says name '$manifest_name', marketplace says '$name'"
+  fi
+
+  claude plugin validate --strict "$source" || failed=1
+done < <(jq -r '.plugins[] | [.name, (.source | if type == "string" then . else tojson end)] | @tsv' "$marketplace")
+
+# A plugin directory missing from the marketplace can't be installed.
+for dir in plugins/*/; do
+  dir="./${dir%/}"
+  if ! jq -e --arg dir "$dir" 'any(.plugins[]; .source == $dir)' "$marketplace" >/dev/null; then
+    fail "$dir is not listed in $marketplace"
+  fi
+done
+
+echo
+if [[ $failed -ne 0 ]]; then
+  echo "✘ Validation failed" >&2
+  exit 1
+fi
+echo "✔ All plugins valid"
