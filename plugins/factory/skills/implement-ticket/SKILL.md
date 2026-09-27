@@ -80,12 +80,18 @@ For blocked, the implementer has already commented the specific
 mismatch on the ticket, along with the options it saw and the one it
 would pick; relay those upward with the mismatch, since they are what
 makes the decision answerable by someone who hasn't read the code. For
-failed, it hasn't commented — do that yourself. Either way: add the `needs-attention` label to the ticket —
-leave its status where it is, the label is what flags it — and tell
-whoever is waiting on this: the human if you were invoked standalone,
-or your caller if a skill invoked you. Don't retry past the
-implementer's own three-attempt budget, and don't let one stuck ticket
-stop the others you were given.
+failed, it hasn't commented — do that yourself. Either way, in the same
+step that adds the `needs-attention` label, post a `factory: escalation`
+comment (see the `dispatch` skill's "Escalation comments") with stage
+`implementing` and the implementer's `OPTIONS` verbatim — `none
+recorded` for failed, since a mechanical CI wall gives no options. For
+blocked, post it in addition to the implementer's own mismatch comment;
+for failed, it replaces the plain comment you'd otherwise have written.
+Add the `needs-attention` label to the ticket — leave its status where
+it is, the label is what flags it — and tell whoever is waiting on
+this: the human if you were invoked standalone, or your caller if a
+skill invoked you. Don't retry past the implementer's own three-attempt
+budget, and don't let one stuck ticket stop the others you were given.
 
 ## On a deferred report
 
@@ -94,7 +100,8 @@ The implementer stopped before a gated write — a commit, a push, or
 (see the `dispatch` skill's "The write window"). Nothing is wrong:
 don't label the ticket, and leave its status exactly where it was.
 Post the short deferral note the `dispatch` skill's "The write window"
-defines, on the ticket, naming stage `implement`: what's left undone,
+defines (first line `**factory: deferred**`), on the ticket, naming
+stage `implement`: what's left undone,
 the worktree path, and when the window next opens. Tell whoever is
 waiting on this the same thing. There is no resume — `dispatch` never
 restarts a deferred ticket itself; a human re-invoking this skill

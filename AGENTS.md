@@ -23,23 +23,27 @@ section for its repo-specific configuration.
   detached worktree per ticket, named for the ticket — outside the
   repo so no `AGENTS.md`/`CLAUDE.md` above the checkout loads into a
   ticket's run.
-- **Run manifest**:
-  `$HOME/.local/state/factory/worktrees/skills/run-manifest.json`.
 - **Write window**: closed Monday–Friday 09:00–17:00
   America/Los_Angeles; open otherwise, including all weekend.
 
-Expand `$HOME` to an absolute path before writing either value into a
-prompt or using it in a file operation. A shell expands `$HOME` on its
-own (which is why `git worktree add` needs no change here), but a
-subagent's Read/Edit/Write calls and a prompt placeholder do not.
+This pipeline keeps no run manifest; per-ticket state lives in the
+orchestrator's own context for the life of a run, and whatever must
+outlive it is written to Linear or the PR instead (see `dispatch`'s
+"Escalation comments"). A `## Dispatch` section that still declares a
+**Run manifest** field is not in error — nothing reads it.
 
-Both paths are outside the repo, so nothing to gitignore. Per-run
-state stays on the machine that ran it. The directory is shared by
-every checkout of this repo on the machine — every clone, and every
-worktree of a clone — so run any `factory` skill against this repo —
-whether as part of dispatch or standalone — from one checkout at a
-time (a worktree already at `<runs-dir>/<TICKET>` belongs to whichever
-checkout made it).
+Expand `$HOME` to an absolute path before writing the worktrees value
+into a prompt or using it in a file operation. A shell expands `$HOME`
+on its own (which is why `git worktree add` needs no change here), but
+a subagent's Read/Edit/Write calls and a prompt placeholder do not.
+
+The worktrees path is outside the repo, so there's nothing to
+gitignore. Per-run state stays on the machine that ran it. The
+directory is shared by every checkout of this repo on the machine —
+every clone, and every worktree of a clone — so run any `factory` skill
+against this repo — whether as part of dispatch or standalone — from
+one checkout at a time (a worktree already at `<runs-dir>/<TICKET>`
+belongs to whichever checkout made it).
 
 ### Review invariants
 

@@ -1,6 +1,6 @@
 ---
 name: adversarial-review
-description: Run adversarial review rounds on one or more open pull requests — a fresh reviewer subagent each round, a fixer subagent addressing findings, capped at six rounds by default and stopped early when rounds stop making progress — and report which are ready to merge, meaning no major or medium findings left. Reviews against the host repo's own invariants, declared in its `AGENTS.md` `## Dispatch` section, which also declares a write window that stops the fixer short of any commit or push while it's closed. Use when asked to adversarially review a PR, run a review cycle, or review every open PR. Called by the dispatch skill right after implement-ticket reports a ticket green; equally fine invoked standalone against any open PR, ticket-linked or not.
+description: Run adversarial review rounds on one or more open pull requests — a fresh reviewer subagent each round, a fixer subagent addressing findings, capped at six rounds by default and stopped early when rounds stop making progress — and report which are ready to merge, meaning no major or medium findings left. Reviews against the host repo's own invariants, declared in its `AGENTS.md` `## Dispatch` section, which also declares a write window that stops the fixer short of any commit or push while it's closed. Labels and records a capped, blocked, or failed outcome, and a stop-list hold, on the linked ticket (or on the PR itself when none resolves). Use when asked to adversarially review a PR, run a review cycle, or review every open PR. Called by the dispatch skill right after implement-ticket reports a ticket green; equally fine invoked standalone against any open PR, ticket-linked or not.
 ---
 
 # Adversarial review
@@ -113,7 +113,8 @@ starting. Four fields matter most here:
   reports what it hits. This is not a review finding and says nothing
   about the change's quality; it routes the merge decision, and it is
   the check that catches a diff reaching files the plan never
-  predicted.
+  predicted. A hit is recorded as a `factory: stop-list hold` comment
+  (see "Recording a stop-list hit" below), not a label.
 - **Write window** — the weekday hours, if any, during which a commit
   or push is not allowed to happen. Pass it down to the fixer. See the
   `dispatch` skill's "The write window".
@@ -213,11 +214,18 @@ against.
    this context.
 
 When the budget runs out with major or medium findings still open, or
-the progress rule stops you first, leave the PR as it stands and
-report it to whoever is waiting: the findings summary, what each round
-fixed, and the ledger rows behind your read. `capped` is never a merge
-signal — a capped target waits for a human whatever mode the caller is
-in.
+the progress rule stops you first, leave the PR as it stands. If a
+ticket resolved, label it `needs-attention`, leaving it in `In Review`,
+and post a `factory: escalation` comment (see the `dispatch` skill's
+"Escalation comments") with stage `review round <n> of <budget>`,
+result `capped`, the ledger rows behind your read, and 2-3 options of
+your own — no subagent has one to give here, so write them yourself:
+for example, rule on the circling question and resume, grant more
+rounds, or rescope, with your pick. If no ticket resolves, post that
+comment on the PR instead. Either way, report it to whoever is
+waiting: the findings summary, what each round fixed, and the ledger
+rows behind your read. `capped` is never a merge signal — a capped
+target waits for a human whatever mode the caller is in.
 
 A clean round is a good round. Zero findings is an acceptable and
 expected result for a small, correct change, not a sign the review was
@@ -275,6 +283,19 @@ leave the minor open and say so — which is exactly what the fixer is
 told to do when it finds one. The pass is optional; skipping it costs
 nothing.
 
+## Recording a stop-list hit
+
+Whatever the result — ready, capped, blocked, failed, or deferred —
+check the target's final `STOPLIST` line, from whichever round's
+reviewer ran last. When it's non-empty, post a `factory: stop-list
+hold` comment (see the `dispatch` skill's "Escalation comments") on the
+resolved ticket, or on the PR if none resolved, naming the entries it
+hit and the round. Skip posting it if the ticket's or PR's latest hold
+comment already names the same entries — there's nothing new to record.
+Never add `needs-attention` for this: a stop-list hold is not an
+escalation (see the `dispatch` skill's "The stop-list"), and this
+comment is the only durable trace of it.
+
 ## On a blocked or failed report
 
 Blocked (from either subagent) means something about the target
@@ -285,10 +306,13 @@ would pick. Relay those with the mismatch; they are what makes this
 answerable by someone who has not read the diff. Failed means the
 fixer never got CI green after three honest attempts — a mechanical
 wall. Don't collapse the two when you relay this: say which one it was
-and why. Either way, stop this
-target's cycle, add the `needs-attention` label to the resolved ticket
-if there is one (leaving its status where it is), and don't let it
-block review of the others you were given.
+and why. Either way, stop this target's cycle, add the
+`needs-attention` label to the resolved ticket if there is one (leaving
+its status where it is), post a `factory: escalation` comment (see the
+`dispatch` skill's "Escalation comments") with stage `review round <n>
+of <budget>`, result `blocked` or `failed`, and the reviewer's or
+fixer's `OPTIONS` verbatim (on the PR itself if no ticket resolved),
+and don't let it block review of the others you were given.
 
 ## On a deferred report
 
@@ -298,7 +322,8 @@ window"). This is not blocked and not failed — nothing about the
 target is wrong, the clock is. Stop this target's cycle, same as a
 blocked or failed report, but don't add `needs-attention` and don't
 touch the ticket's status. If a ticket resolved, post the short
-deferral note the `dispatch` skill's "The write window" defines, on the
+deferral note the `dispatch` skill's "The write window" defines (first
+line `**factory: deferred**`), on the
 ticket — the same rule `implement-ticket` follows on its own deferred
 report. This is a stage-status note about the cycle pausing, not a
 review finding about the diff, so it belongs where the ticket's status
@@ -320,7 +345,11 @@ way. There is no resume: a later call restarts this cycle from round 1
     LAST_ROUND_FINDINGS: <count by severity, or 0 — omit if blocked>
     OPEN_MINORS: <count, one line each, or none>
     STOPLIST: <the entries this diff hits, or none>
-    OPTIONS: <for blocked: 2-3 options with consequences, and the pick>
+    OPTIONS: <for blocked: 2-3 options with consequences, and the pick;
+             for capped, the same shape but yours to write from the
+             ledger, since no subagent has one — e.g. rule on the
+             circling question and resume, grant N more rounds, or
+             rescope, with your pick>
     NOTES: <disputed findings, why capped, failed, or deferred, why you
            stopped where you did; for capped or deferred, the ledger
            rows behind that read>
