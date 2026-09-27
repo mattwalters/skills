@@ -915,8 +915,12 @@ plan so it can count the tickets serialized behind each item. Stops
 reach it only through the escalation comments the stage skills already
 posted (see "Escalation comments"), which is also why posting them
 promptly matters. A ticket that's ready and simply waiting at a *held*
-merge gate isn't a stop and doesn't belong in its queue — it stays in
-your status table above.
+merge gate, with no stop-list hit, isn't a stop and doesn't belong in
+its queue — it stays in your status table above. A stop-list hit is
+different: `adversarial-review` has already posted the `factory:
+stop-list hold` comment for it (see "The stop-list"), and
+`decision-queue` renders that as a queue item of its own — expect it
+there too, not only in this table.
 
 ## Escalation
 

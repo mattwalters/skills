@@ -220,9 +220,9 @@ and post a `factory: escalation` comment (see the `dispatch` skill's
 "Escalation comments") with stage `review round <n> of <budget>`,
 result `capped`, the ledger rows behind your read, and 2-3 options of
 your own — no subagent has one to give here, so write them yourself:
-for example, rule on the circling question and resume, grant more
-rounds, or rescope, with your pick. If no ticket resolves, post that
-comment on the PR instead. Either way, report it to whoever is
+for example, rule on the circling question and restart (fresh budget),
+grant more rounds, or rescope, with your pick. If no ticket resolves,
+post that comment on the PR instead. Either way, report it to whoever is
 waiting: the findings summary, what each round fixed, and the ledger
 rows behind your read. `capped` is never a merge signal — a capped
 target waits for a human whatever mode the caller is in.
@@ -348,8 +348,8 @@ way. There is no resume: a later call restarts this cycle from round 1
     OPTIONS: <for blocked: 2-3 options with consequences, and the pick;
              for capped, the same shape but yours to write from the
              ledger, since no subagent has one — e.g. rule on the
-             circling question and resume, grant N more rounds, or
-             rescope, with your pick>
+             circling question and restart (fresh budget), grant N
+             more rounds, or rescope, with your pick>
     NOTES: <disputed findings, why capped, failed, or deferred, why you
            stopped where you did; for capped or deferred, the ledger
            rows behind that read>

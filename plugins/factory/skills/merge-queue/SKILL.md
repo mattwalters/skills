@@ -262,15 +262,15 @@ show green before a PR is even queued — so no later call, targeted or
 swept, can pick it back up by re-running the resolver; `merge-queue
 <PR>` would reject it at Eligibility before the resolver ever ran.
 Don't say a restart will fix it. Instead, add `needs-attention` to the
-linked ticket (leaving its status where it is) and, in that same step,
-post a `factory: escalation` comment (see the `dispatch` skill's
-"Escalation comments") with stage `merge`, result `blocked`, and
-`Found` explaining the stuck head (pushed, and red, still running, or
-unverified) — this carries `needs-attention` like any other labelled
-stop, so it gets the same record. Say so in your
-report alongside the usual deferral note: a human has to get the
-pushed head's CI green, or decide what to do with it, before this PR
-can requeue at all.
+linked ticket (leaving its status where it is), or post on the PR
+itself if none is linked, and, in that same step, post a `factory:
+escalation` comment (see the `dispatch` skill's "Escalation comments")
+with stage `merge`, result `blocked`, and `Found` explaining the stuck
+head (pushed, and red, still running, or unverified) — this carries
+`needs-attention` like any other labelled stop, so it gets the same
+record. Say so in your report alongside the usual deferral note: a
+human has to get the pushed head's CI green, or decide what to do with
+it, before this PR can requeue at all.
 
 Everything else is an ordinary deferral — including a rebased,
 force-pushed head that's already green when the window closes, which

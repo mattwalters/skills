@@ -30,22 +30,45 @@ section still declares one.
 
 ## What goes in the queue
 
-Three sources, all of them read straight from Linear and GitHub:
+Three sources, all of them read straight from Linear and GitHub. A
+ticket can carry more than one marker comment at once — a deferred
+fixer's stop-list hold, a stuck `merge-queue`'s deferral and
+escalation — so read each kind's **latest** comment separately
+(`factory: escalation`, `factory: stop-list hold`, `factory: deferred`
+— see the `dispatch` skill's "Escalation comments": only the latest
+comment of *each kind* counts, never the latest of any kind across
+them), and decide which source applies with this fixed order, so the
+result never depends on which of two comments a stage happened to post
+second:
 
-1. The team's tickets carrying the **`needs-attention`** label,
-   excluding `Done` and `Canceled`, each paired with its **latest**
-   `factory: escalation` comment (see the `dispatch` skill's
-   "Escalation comments" for the comment's shape and how to find the
-   latest one). If a labelled ticket has no such comment, list it
-   anyway, with one line saying no escalation was recorded rather than
-   skipping it.
-2. The team's `In Review` tickets whose **latest** `factory:
-   stop-list hold` comment is on an open PR, and which don't yet carry
+1. An open **`needs-attention`** label with its latest `factory:
+   escalation` comment always wins, whatever else is posted — this is
+   a queue item (below), excluding `Done` and `Canceled` tickets. If a
+   labelled ticket has no such comment, list it anyway, with one line
+   saying no escalation was recorded rather than skipping it. This is
+   why a stuck `merge-queue` deferral — which also carries an
+   escalation and the label (see that skill's "On a deferred report")
+   — is always a queue item here and never the FYI deferred line
+   below, whichever of its two comments happened to post second.
+2. Otherwise, the team's `In Review` tickets whose latest `factory:
+   stop-list hold` comment is on an open PR, is newer than the PR's
+   latest ready review round or push, and don't yet carry
    **`approved-to-merge`** — once that label lands, the hold has been
-   cleared and the ticket drops out.
+   cleared and the ticket drops out. Skip this source when the
+   ticket's latest `factory: deferred` comment isn't older than the
+   hold — posted afterward, or as part of the same stopped round the
+   hold's `Round` field names (the two can post in either order within
+   one round) — since a deferred review never came back ready either
+   way; that ticket is the FYI deferred line below instead, not a
+   merge-approval question.
 3. Open PRs with no linked ticket that carry either marker comment,
-   found the same way `adversarial-review` and `merge-queue` post them:
-   on the PR itself, since there's no ticket to hold it.
+   found the same way `adversarial-review` and `merge-queue` post
+   them: on the PR itself, since there's no ticket to hold it. Since
+   there's no label here to clear it, a marker counts only while the
+   PR stays open **and** the marker is newer than both the PR's latest
+   commit and its latest approving review — a clean re-review or a
+   GitHub approval since the marker was posted clears it, the same way
+   a label clears sources 1 and 2.
 
 A ticket or PR that matches more than one of these is one item, not
 two.
@@ -91,6 +114,16 @@ comment: `Stopped at` is its `Stage` line, and the heading question is
 built from its `Question` line — you are rendering what the comment
 already says, not re-deriving it from the diff.
 
+A source 2 item (a stop-list hold) has no `Stage`, `Question`, or
+`Options` to read — the hold comment carries only `PR`, `Entries`, and
+`Round`. Build it in this fixed shape instead, every time: **Stopped
+at** is `ready, waiting on stop-list merge approval`; the heading
+question is `Merge PR <n>? It touches: <Entries>`; the options are
+always **A.** merge — clears the hold and lets it proceed, and **B.**
+don't merge yet — leaves it queued here. Never invent a `Stage` or
+extra options for this kind of item; this fixed shape is the whole of
+what a hold comment gives you.
+
 Two or three options. If the honest answer is that there are two and
 one of them is "drop the ticket", say that — a queue that dresses
 every decision up as interesting is a queue that stops being read.
@@ -112,17 +145,27 @@ no options. One line each.
 Two further kinds of line belong here too, since neither is a decision
 either:
 
-- **Deferred.** A ticket whose latest `factory:` comment is
-  `**factory: deferred**`, and whose status and PR haven't moved since
-  — nobody has restarted it yet. Show the restart invocation the
-  deferral note names (`implement-ticket <TICKET>`,
-  `adversarial-review <PR>`, or `merge-queue <PR>`) so a human reading
-  this doesn't have to go find it. Once a restart pushes something,
-  the ticket's state moves and this line stops applying.
+- **Deferred.** A ticket whose latest `factory: deferred` comment is
+  the source that applies under "What goes in the queue" above (no
+  open `needs-attention` escalation, and no stop-list hold that beats
+  it), and whose status and PR haven't moved since — nobody has
+  restarted it yet. The deferral note itself names no restart
+  invocation or PR number (see the `dispatch` skill's "The deferral
+  note"); derive one instead from the note's `Stage` line plus the
+  ticket id or its linked PR: `implement` → `implement-ticket
+  <TICKET>`, `review-fixer` or `trivial-minors` → `adversarial-review
+  <PR>`, `merge-resolver` or `merge` → `merge-queue <PR>`. A
+  `merge-queue` deferral that also carries `needs-attention` is the
+  stuck sub-case — that one is a queue item above (source 1), never
+  this line. Once a restart pushes something, the ticket's state moves
+  and this line stops applying.
 - **Awaiting merge approval, or still in review.** A ticket that's
-  `In Review` with an open PR, carrying neither `needs-attention` nor a
-  stop-list hold — it's simply ready and waiting, or still mid-review.
-  This is not a decision for the human either; it's here so the report
+  `In Review` with an open PR, carrying none of the three markers above
+  — it's simply ready and waiting, or still mid-review. A stop-list
+  hold is not this line even though it is also "waiting" in a sense —
+  it's a queue item (source 2) above, because clearing it takes a
+  specific human call rather than just watching a review finish. This
+  is not a decision for the human either; it's here so the report
   accounts for every ticket a run touched, not only the ones stuck.
 
 If the human asks for any of them to be filed, file into **`Backlog`**,
