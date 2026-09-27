@@ -2,23 +2,28 @@
 
 Fill in before spawning: WORKTREE (absolute path), BRANCH, BASE (the
 repo's base branch, from its `## Dispatch` config), PR (url or
-number), WINDOW (that config's write window).
+number), WINDOW (that config's write window). If this is a resumed
+attempt on a resolver that previously came back deferred, also fill in
+RESUME: whether the rebase had already run, the tier and files of any
+mid-rebase resolution it had found, and how many CI pushes have
+already been used.
 
 ---
 
 ## The write window
 
 WINDOW is this repo's declared write window: the closed periods, if
-any, during which the rebase or a push must not happen. If WINDOW is
-`none`, skip this section. If it names no timezone, or can't be read
-unambiguously, stop now and report back as blocked, the same way an
-unreadable BASE would.
+any, during which the rebase, a commit-creating command, or a push
+must not happen. If WINDOW is `none`, skip this section. If it names
+no timezone, or can't be read unambiguously, stop now and report back
+as blocked, the same way an unreadable BASE would.
 
 Otherwise, before you run the rebase below, before `git rebase
---continue` if resolving a conflict needs it, and again before every
-push (including every CI-retry push, not just the first), run
-`TZ=<zone> date '+%u %H:%M'` fresh — never a reading from earlier in
-this run — and check it against WINDOW.
+--continue` if resolving a conflict needs it, before any commit you
+make to fix a red CI run (see "Push and watch CI" below), and again
+before every push (including every CI-retry push, not just the
+first), run `TZ=<zone> date '+%u %H:%M'` fresh — never a reading from
+earlier in this run — and check it against WINDOW.
 
 If the window is closed at any of those points: don't run the rebase
 (it creates a commit), don't run `--continue` (it stamps the rewritten
@@ -30,6 +35,22 @@ or `failed`. In NOTES, say whether the rebase ran (and, if you
 aborted mid-conflict, which tier and files you'd resolved, so a
 resumed attempt doesn't redo that judgment from scratch) and how many
 CI pushes you'd already used, if any.
+
+## Resuming a deferred attempt
+
+If RESUME was filled in, WORKTREE already holds work from an earlier,
+deferred attempt — the rebase may already have completed (cleanly, or
+with a tier-1/2 resolution already committed), or it may have been
+aborted mid-conflict, or never started at all; RESUME says which.
+Check the window fresh before doing anything else. If RESUME says the
+rebase already completed, don't run it again: skip ahead to "Push and
+watch CI" below. If RESUME says a rebase was aborted mid-conflict,
+start from `git fetch origin && git rebase origin/BASE` as below, but
+use the tier and files RESUME names so you aren't re-deriving that
+judgment from scratch. If RESUME says the rebase never ran, treat this
+like a fresh spawn. Either way, the three-push CI budget is per PR,
+not per attempt: CI pushes RESUME says were already used still count
+toward it.
 
 Rebase BRANCH onto current `origin/BASE` in WORKTREE. Work only there;
 never touch another branch or worktree.
@@ -111,10 +132,13 @@ lease):
 
     git push --force-with-lease origin HEAD:BRANCH
 
-Then watch CI (`gh pr checks --watch`). Same rule as implementation:
-three pushes that reach CI; if the third is still red, stop and report
-back as failed — a mechanical wall, not a judgment call, so it's
-failed rather than blocked.
+Then watch CI (`gh pr checks --watch`). If CI fails: read the failure,
+fix it — checking the window before that commit too, same as any other
+commit-creating command (see "The write window" above) — and push
+again. Same rule as implementation: three pushes that reach CI,
+counting any RESUME says were already used toward that total; if the
+third is still red, stop and report back as failed — a mechanical
+wall, not a judgment call, so it's failed rather than blocked.
 
 Report back to the orchestrator in exactly this shape — no diffs, no
 logs:

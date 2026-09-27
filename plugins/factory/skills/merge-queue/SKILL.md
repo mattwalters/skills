@@ -113,7 +113,13 @@ skill's "The write window".
    mid-tier model, high effort (see the `dispatch` skill's Models and
    effort table for the harness mapping) — filling in WORKTREE,
    BRANCH, BASE (the repo's base branch), PR, and WINDOW (the repo's
-   write window). It rebases onto current `origin/<base>`, resolves
+   write window). If this PR's worktree was left by an earlier
+   resolver that reported `RESULT: deferred`, also fill in RESUME from
+   that report (its Linear comment if one exists, otherwise the report
+   itself): whether the rebase had already run, the tier and files of
+   any mid-rebase resolution, and how many CI pushes were already
+   used — the three-push budget carries across the resume, it doesn't
+   reset. It rebases onto current `origin/<base>`, resolves
    the conflicts its two declared tiers cover, pushes, and watches CI
    under the same three-attempt rule as implementing, checking the
    window again before the rebase and before every push. It reports

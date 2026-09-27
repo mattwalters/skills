@@ -197,8 +197,13 @@ hardcodes a timezone, hours, or a fallback of its own for any repo.
 
 **Format.** An IANA timezone plus closed periods, given as weekdays
 and a start–end time, or the literal `none`. The start is inclusive
-and the end exclusive. Illustration only, never a real repo's values:
-`closed Tuesday and Thursday 22:00–02:00 Asia/Tokyo; open otherwise`.
+and the end exclusive. A period whose end time is earlier than its
+start runs past midnight into the next day: it closes from the start
+time on its named day through the end time on the day *after* that
+day, not until midnight. Illustration only, never a real repo's
+values: `closed Tuesday and Thursday 22:00–02:00 Asia/Tokyo; open
+otherwise` — that closes from Tuesday 22:00 through Wednesday 02:00,
+and separately from Thursday 22:00 through Friday 02:00.
 
 **Required field.** A `## Dispatch` section with no **Write window**
 line is exactly like one with no check command: stop before the first
@@ -218,6 +223,15 @@ the same under BSD and GNU `date`. If the declaration has no
 timezone, or can't be read unambiguously, treat that as a config
 error: say so and stop before the first gated write. Never assume the
 window is open.
+
+Checking a same-day period (start before end) is one comparison:
+today is a named day and the time reads at or after the start and
+before the end. An overnight period (end before start, see "Format")
+needs two, either of which makes it closed: today is a named day and
+the time is at or after the start, **or** today is the day after a
+named day and the time is before the end — `7` wraps to `1`. Applied
+to the illustration, `3 01:00` (Wednesday 01:00) is closed: Wednesday
+is the day after Tuesday, a named day, and 01:00 is before 02:00.
 
 **Gated writes.** Anything that stamps a timestamp that becomes part
 of the public git history the moment it is *created*, not the moment
@@ -305,7 +319,9 @@ to it.
 
 Only Linear's stock statuses are used, plus two workspace labels:
 
-- `Todo` — the queue this skill draws from, and the only one.
+- `Todo` — the queue this skill draws new picks from, and the only
+  one for that; see Phase 1 for the separate, narrower check of
+  `In Progress`/`In Review` for tickets to offer back for resumption.
 - `In Progress` — being implemented.
 - `In Review` — a PR exists and is under review. This is a reading
   gate: a ticket rests here until its merge gate is passed.
@@ -363,6 +379,16 @@ coherent batch, can jump the line. Pick 5–10 — or everything eligible
 in `Todo` if it holds fewer. A short batch is a normal outcome, not a
 reason to reach further.
 
+Also check `In Progress` and `In Review` for tickets whose most recent
+Linear comment is a deferral (see "The write window") — a deferred
+ticket carries no label and a status-only glance at those columns
+won't distinguish it from one still genuinely in flight. Offer each
+one alongside this run's `Todo` picks, using the stage and resume
+invocation its deferral comment recorded rather than starting it over:
+it re-enters at whatever phase deferred it, not at Phase 3's planner.
+A deferred ticket nobody takes this run is left exactly as it is; nothing
+here forces it into every batch that follows.
+
 ### `Backlog`
 
 `Backlog` is where the human parks work they do not want started —
@@ -401,6 +427,10 @@ that is the next gate's job. Add, separately:
 - **Proposed promotions from `Backlog`**, if you made any, clearly
   marked as not picked and not promoted, one line each on why they
   look runnable now.
+- **Deferred tickets offered for resumption**, if you found any, one
+  line each: which stage deferred it and the invocation that resumes
+  it. Marked separately from this run's new picks — resuming one
+  re-enters at the deferred stage, not Phase 3's planner.
 - **What you skipped and why**, for anything a human would want to
   know about: blocked by an open ticket, carrying `needs-attention`,
   too vague, or too big.

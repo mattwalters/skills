@@ -237,6 +237,17 @@ trivial-minors mode, let it push, and confirm CI is green. Skip this
 pass entirely while the write window is closed — a fixer spawned into
 a closed window would just come back `deferred` having pushed nothing.
 
+If it comes back `RESULT: deferred` instead — the window closed while
+it was working — discard its uncommitted edits (they were never
+committed, so `git checkout -- .`/`git clean` in WORKTREE is enough)
+rather than leaving the tree dirty. This pass is not a round, so there
+is no deferred-cycle resume path for it the way there is for an
+ordinary fixer round, and a dirty worktree sent on to `merge-queue`
+would make its rebase refuse to run. Report `ready` with the minors
+this pass had touched left open, exactly as if the pass had never run
+— the pass was optional, and discarding an unreviewed trivial edit
+costs nothing next to holding the PR on it.
+
 **That pass is not a round and is not reviewed again.** Nothing about
 it changes the verdict. A fix that would need a review round to be
 trusted was not trivial, and the right move on one of those is to
@@ -268,9 +279,9 @@ target is wrong, the clock is. Stop this target's cycle, same as a
 blocked or failed report, but don't add `needs-attention` and don't
 touch the ticket's status. If a ticket resolved, post a Linear comment
 on it — the same rule `implement-ticket` follows on its own deferred
-report, not a comment or thread replies on the PR itself, which would
-be exactly the timestamped public record the window exists to prevent,
-posted at the one moment it's guaranteed to be closed — saying which
+report. This is a stage-status note about the cycle pausing, not a
+review finding about the diff, so it belongs where the ticket's status
+already lives, not as a comment or thread reply on the PR — say which
 round deferred, what's left undone, the worktree path, when the window
 next opens, the ledger rows so far, and the invocation that resumes
 it. For a ticketless PR there is no private place to put that: skip
