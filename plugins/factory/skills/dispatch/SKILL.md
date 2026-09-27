@@ -460,6 +460,21 @@ these apart from an ordinary comment, since the author can't:
 escalation*` all match). Only a ticket's **latest** comment of each
 kind counts — a new one supersedes, it doesn't append.
 
+Across all three kinds, **the newest comment of any kind is the
+ticket's (or unlinked PR's) current record**, whatever the other two
+say: a fresh escalation supersedes an older hold or deferral note, a
+fresh hold supersedes an older escalation or deferral note, and a
+fresh deferral note supersedes an older hold or escalation — whichever
+kind actually posted most recently decides it. There is no separate
+per-kind freshness rule beyond this one comparison; `decision-queue`
+reads every source this same way, ticketed or not. This is also why a
+stage never posts two of these at once for the same stop: only one can
+be newest, and posting a second immediately after the first would only
+contradict it (see "Who posts which record" below and each stage's own
+skill for where this matters — `adversarial-review`'s ready cycle posts
+only the hold, `merge-queue`'s stuck sub-case posts only the
+escalation).
+
 Two templates, plus a third that is really `factory: deferred`'s
 existing home (see "The write window"):
 
@@ -470,9 +485,16 @@ existing home (see "The write window"):
     Question: <the decision, as one question>
     Found: <1-2 sentences, from the report's NOTES>
     Options (verbatim from the <planner | implementer | reviewer | fixer
-             | adversarial-review | resolver | intent review> report):
-    <the OPTIONS block verbatim, pick included, or "none recorded" for
-     a failed result, which is a mechanical wall with no options>
+             | adversarial-review | resolver | intent review> report, or
+             written by the skill itself when there's no subagent report
+             to draw one from):
+    <the OPTIONS block verbatim, pick included; "none recorded" only for
+     a failed result, which is a mechanical wall with no options; or,
+     for an escalation the skill raises on its own reading rather than
+     relaying a subagent's — capped, a review round with no CI checks
+     reported, or merge-queue's stuck-head case — "written by <skill>
+     (no subagent options)" followed by 2-3 options the skill itself
+     wrote and its own pick, the same way capped already does>
     Ledger: <capped only: the ledger rows behind the read>
     Stop-list: <entries this result's diff hit, or none — this is how a
                blocked, failed, or capped review result records a hit
@@ -508,7 +530,11 @@ stop is the one that records it, so the two can never drift apart:
   `adversarial-review`.
 - Merge `blocked`, `failed`, or intent-review `dropped`: `merge-queue`.
 - `deferred`: whichever stage's write window closed on it, wherever
-  "The write window" has it post its deferral note.
+  "The write window" has it post its deferral note — except
+  `merge-queue`'s stuck sub-case, which posts a single `factory:
+  escalation` (result `blocked`) carrying what the deferral note would
+  have said instead of posting one at all; see that skill's "On a
+  deferred report".
 
 This is the canonical reference for what an escalation comment looks
 like, the way "Models and effort" is for models — `implement-ticket`,

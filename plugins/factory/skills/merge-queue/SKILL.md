@@ -241,16 +241,18 @@ the next PR, unless the whole queue was deferred at once because the
 window was already closed when this PR's turn came, in which case
 there is no next PR to move to.
 
-For each deferred PR, record it in your report's NOTES, and, if a
-ticket is linked, post the short deferral note the `dispatch` skill's
-"The write window" defines (first line `**factory: deferred**`) —
-stage `merge-resolver` for a deferral at
+For each deferred PR **other than the stuck sub-case below**, record it
+in your report's NOTES, and, if a ticket is linked, post the short
+deferral note the `dispatch` skill's "The write window" defines (first
+line `**factory: deferred**`) — stage `merge-resolver` for a deferral at
 or before the rebase, or `merge` for one at step 5's final pre-merge
 check — saying what's left undone, the worktree path, and when the
 window next opens. Ordinarily there is no resume: a later call re-runs
 this PR from step 2 above, which resets the worktree to the PR's
 remote head before spawning a fresh resolver. The one exception is the
-stuck sub-case below, where a later call can't get that far.
+stuck sub-case below, where a later call can't get that far and where
+the escalation comment carries that record instead — see there for why
+it posts no separate deferral note.
 
 What decides stuck versus ordinary is the state of the head when the
 window closes, not whether a push happened. A rebased head that's been
@@ -263,14 +265,21 @@ swept, can pick it back up by re-running the resolver; `merge-queue
 <PR>` would reject it at Eligibility before the resolver ever ran.
 Don't say a restart will fix it. Instead, add `needs-attention` to the
 linked ticket (leaving its status where it is), or post on the PR
-itself if none is linked, and, in that same step, post a `factory:
-escalation` comment (see the `dispatch` skill's "Escalation comments")
-with stage `merge`, result `blocked`, and `Found` explaining the stuck
-head (pushed, and red, still running, or unverified) — this carries
+itself if none is linked, and, in that same step, post a **single**
+`factory: escalation` comment (see the `dispatch` skill's "Escalation
+comments") — not a deferral note as well, since one marker per stop is
+the rule and the escalation is the newer, more informative of the two
+here — with stage `merge`, result `blocked`, `Found` explaining the
+stuck head (pushed, and red, still running, or unverified) plus what a
+deferral note would otherwise have carried (what's left undone and the
+worktree path), a `Stop-list` line (the resolver's `STOPLIST` if it had
+one in hand when it stopped, or `none`), and `Options` written by you —
+this is your own read of the stuck head, not a resolver's report, so
+write 2-3 options and your pick the same way a capped review round
+does, rather than reaching for "none recorded". This carries
 `needs-attention` like any other labelled stop, so it gets the same
-record. Say so in your report alongside the usual deferral note: a
-human has to get the pushed head's CI green, or decide what to do with
-it, before this PR can requeue at all.
+record. Say so in your report: a human has to get the pushed head's CI
+green, or decide what to do with it, before this PR can requeue at all.
 
 Everything else is an ordinary deferral — including a rebased,
 force-pushed head that's already green when the window closes, which
@@ -289,11 +298,13 @@ resolver's `TIER` and whether an intent review ran, and one line of
 why for anything not merged.
 
 For anything not merged, carry the resolver's or intent reviewer's
-options and pick through verbatim — they're also in the `factory:
-escalation` comment you already posted (see the `dispatch` skill's
-"Escalation comments"), which is what lets `decision-queue` render this
-as a question somebody can answer instead of a conflict somebody has to
-go read.
+options and pick through verbatim — or, for the stuck sub-case of a
+deferred report, the options you wrote yourself, since no subagent
+report covers that call — they're also in the `factory: escalation`
+comment you already posted (see the `dispatch` skill's "Escalation
+comments"), which is what lets `decision-queue` render this as a
+question somebody can answer instead of a conflict somebody has to go
+read.
 
 This skill never plans, implements, or reviews the change itself — it
 only merges what's already eligible, and the one review it does run is

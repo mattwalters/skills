@@ -189,7 +189,9 @@ against.
    green either — report `RESULT: blocked` with that as the reason and
    go to "On a blocked or failed report" below, same as a blocked
    reviewer report; don't call this round ready on the strength of an
-   absent signal.
+   absent signal. This is a call you're making yourself, not something
+   either subagent reported — see "On a blocked or failed report" for
+   what that means for the escalation's `Options` line.
 5. **Any major or medium finding** → spawn a fixer subagent with
    `prompts/fixer.md` in a worktree on the PR's branch. Apply "The
    worktree" rule above if this is the first thing in the cycle to
@@ -313,22 +315,30 @@ durable trace of it.
 
 ## On a blocked or failed report
 
-Blocked (from either subagent) means something about the target
-doesn't match what the review expected and needs a human's judgment
-call before this cycle can mean anything — the mismatch is already
-commented on the PR, with the options the subagent saw and the one it
-would pick. Relay those with the mismatch; they are what makes this
-answerable by someone who has not read the diff. Failed means the
-fixer never got CI green after three honest attempts — a mechanical
-wall. Don't collapse the two when you relay this: say which one it was
-and why. Either way, stop this target's cycle, add the
-`needs-attention` label to the resolved ticket if there is one (leaving
-its status where it is), post a `factory: escalation` comment (see the
-`dispatch` skill's "Escalation comments") with stage `review round <n>
-of <budget>`, result `blocked` or `failed`, this round's `STOPLIST` on
-its `Stop-list` line, and the reviewer's or fixer's `OPTIONS` verbatim
-(on the PR itself if no ticket resolved), and don't let it block review
-of the others you were given.
+Blocked, ordinarily, means a subagent (reviewer or fixer) found
+something about the target that doesn't match what the review expected
+and needs a human's judgment call before this cycle can mean anything —
+the mismatch is already commented on the PR, with the options the
+subagent saw and the one it would pick. Relay those with the mismatch;
+they are what makes this answerable by someone who has not read the
+diff. The one exception is step 4's no-checks-reported case: that
+`blocked` is your own call, not a subagent's, since neither the
+reviewer nor the fixer reported it — write 2-3 options yourself the
+same way a capped result's are written (see the `dispatch` skill's
+escalation template), rather than inventing subagent options that were
+never given or reaching for "none recorded", which is for a failed
+result's mechanical wall, not this. Failed means the fixer never got CI
+green after three honest attempts — a mechanical wall. Don't collapse
+blocked and failed when you relay this: say which one it was and why.
+Either way, stop this target's cycle, add the `needs-attention` label
+to the resolved ticket if there is one (leaving its status where it
+is), post a `factory: escalation` comment (see the `dispatch` skill's
+"Escalation comments") with stage `review round <n> of <budget>`,
+result `blocked` or `failed`, this round's `STOPLIST` on its
+`Stop-list` line, and the reviewer's or fixer's `OPTIONS` verbatim, or
+your own written options for the no-checks-reported case (on the PR
+itself if no ticket resolved), and don't let it block review of the
+others you were given.
 
 ## On a deferred report
 
@@ -364,11 +374,12 @@ way. There is no resume: a later call restarts this cycle from round 1
     LAST_ROUND_FINDINGS: <count by severity, or 0 — omit if blocked>
     OPEN_MINORS: <count, one line each, or none>
     STOPLIST: <the entries this diff hits, or none>
-    OPTIONS: <for blocked: 2-3 options with consequences, and the pick;
-             for capped, the same shape but yours to write from the
-             ledger, since no subagent has one — e.g. rule on the
-             circling question and restart (fresh budget), grant N
-             more rounds, or rescope, with your pick>
+    OPTIONS: <for blocked, ordinarily the reviewer's or fixer's own 2-3
+             options with consequences and their pick; for the
+             no-checks-reported blocked case and for capped, the same
+             shape but yours to write, since no subagent has one — e.g.
+             rule on the circling question and restart (fresh budget),
+             grant N more rounds, or rescope, with your pick>
     NOTES: <disputed findings, why capped, failed, or deferred, why you
            stopped where you did; for capped or deferred, the ledger
            rows behind that read>

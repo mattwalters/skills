@@ -31,67 +31,75 @@ section still declares one.
 ## What goes in the queue
 
 Three sources, all of them read straight from Linear and GitHub. A
-ticket can carry more than one marker comment at once — a deferred
-fixer's stop-list hold, a stuck `merge-queue`'s deferral and
+ticket (or unlinked PR) can carry more than one marker comment at
+once — a deferred fixer's stop-list hold, a stuck `merge-queue`'s
 escalation — so read each kind's **latest** comment separately
 (`factory: escalation`, `factory: stop-list hold`, `factory: deferred`
 — see the `dispatch` skill's "Escalation comments": only the latest
 comment of *each kind* counts, never the latest of any kind across
-them), and decide which source applies with this fixed order, so the
-result never depends on which of two comments a stage happened to post
-second:
+them), then apply the one rule that decides which source applies and
+whether it's still live: **the newest of the three latest comments is
+the ticket's (or PR's) current record**, whatever the older two say
+(see the `dispatch` skill's "Escalation comments"). There is no
+per-source freshness test beyond that single comparison, and it
+applies the same way to a ticket or an unlinked PR.
 
-1. An open **`needs-attention`** label with its latest `factory:
-   escalation` comment always wins, whatever else is posted — this is
-   a queue item (below), excluding `Done` and `Canceled` tickets. If a
-   labelled ticket has no such comment, list it anyway, with one line
-   saying no escalation was recorded rather than skipping it. This is
-   why a stuck `merge-queue` deferral — which also carries an
-   escalation and the label (see that skill's "On a deferred report")
-   — is always a queue item here and never the FYI deferred line
-   below, whichever of its two comments happened to post second. The
-   escalation comment can also carry a `Stop-list` line (see the
-   `dispatch` skill's "Escalation comments") when a blocked, failed, or
-   capped review result hit the stop-list; read it the same way you
-   read `Entries` on a hold comment.
-2. Otherwise, the team's `In Review` tickets with an open PR whose
-   latest `factory: stop-list hold` comment names at least one entry
-   (`Entries` is not `none`), that carry neither
-   **`approved-to-merge`** nor **`needs-attention`**. A hold is live
-   only if it is the newest of the ticket's latest hold, latest
-   escalation, and latest deferral note — any newer escalation or
-   deferral note supersedes it, the same way `approved-to-merge`
-   clears it, whatever either one says. Every ready cycle posts a
-   hold, `Entries: none` included (see `adversarial-review`'s
-   "Recording the stop-list hold"), so among holds alone the latest is
-   always the whole of the current truth: an `Entries: none` hold
-   clears an earlier hit as surely as a later non-empty hold
-   re-asserts it — but a newer escalation or deferral note still beats
-   it regardless. A ticket whose latest escalation or deferral note is
-   newer than its latest hold isn't this source: a newer escalation
-   means a standalone re-review has already moved past that hold (that
-   ticket is source 1 above if `needs-attention` is still open, the
-   FYI list otherwise), and a newer deferral note means a deferred
-   review never came back ready, so that ticket is the FYI deferred
-   line below instead — neither is a merge-approval question.
-3. Open PRs with no linked ticket that carry either marker comment,
-   found the same way `adversarial-review` and `merge-queue` post
-   them: on the PR itself, since there's no ticket to hold it. Same
-   shape as source 2, applied to the PR in place of a ticket: a hold
-   counts as live only while it names at least one entry and is the
-   newest of the PR's latest hold, latest escalation, and latest
-   deferral note — any newer escalation or deferral note supersedes
-   it, whatever either one says, the same way a later approving GitHub
-   review does; the PR closing clears it too. None of that turns on
-   the PR's commit history: a plain push with no marker, escalation,
-   deferral, or approval of its own changes nothing here. Every ready
-   cycle posts a hold, `Entries: none` included (see
-   `adversarial-review`'s "Recording the stop-list hold"), so among
-   holds alone a live one here never goes stale for want of a fresh
-   comment.
+1. **Newest marker is an escalation, ticketed.** An open
+   **`needs-attention`** label together with that escalation comment is
+   a queue item (below), excluding `Done` and `Canceled` tickets — the
+   label coming off is the human's own signal that they've looked, even
+   before any new marker is posted, so an escalation whose ticket has
+   already lost the label isn't a queue item. If a labelled ticket has
+   no escalation comment at all, list it anyway, with one line saying
+   no escalation was recorded rather than skipping it. This is why a
+   stuck `merge-queue` deferral — which posts only the escalation,
+   never a separate deferral note (see the `dispatch` skill's
+   "Escalation comments") — is always a queue item here for as long as
+   `needs-attention` stays on, whatever an older, now-superseded hold
+   or deferral note on the same ticket says. The escalation comment can
+   also carry a `Stop-list` line (see the `dispatch` skill's
+   "Escalation comments") when a blocked, failed, or capped review
+   result hit the stop-list; read it the same way you read `Entries` on
+   a hold comment.
+2. **Newest marker is a stop-list hold naming at least one entry,
+   ticketed.** The team's `In Review` tickets with an open PR whose
+   newest marker is a `factory: stop-list hold` comment with `Entries`
+   not `none`, that carry neither **`approved-to-merge`** nor
+   **`needs-attention`**. Every ready cycle posts a hold, `Entries:
+   none` included (see `adversarial-review`'s "Recording the stop-list
+   hold"), so among holds alone the latest is always the whole of the
+   current truth: an `Entries: none` hold becoming the newest marker
+   clears an earlier hit as surely as a later non-empty hold re-asserts
+   it. A ticket whose newest marker is instead an escalation or a
+   deferral note isn't this source: an escalation newer than the
+   ticket's latest hold means a standalone re-review has already moved
+   past that hold (that ticket is source 1 above if `needs-attention`
+   is still open, an FYI line otherwise), and a deferral note newer
+   than the latest hold means a deferred review never came back ready,
+   so that ticket is the FYI deferred line below instead — neither is a
+   merge-approval question.
+3. **Newest marker is an escalation, or a stop-list hold naming at
+   least one entry, on an open PR with no linked ticket.** Found the
+   same way `adversarial-review` and `merge-queue` post them: on the PR
+   itself, since there's no ticket to hold it. Whichever kind is newest
+   decides the item's shape — escalation-shaped per source 1's item
+   shape, or hold-shaped per source 2's — and either kind counts as
+   live only while the PR stays open and has gained no newer
+   *approving* GitHub review since: a later approving review clears an
+   unlinked PR's marker the same way `approved-to-merge` clears a
+   ticketed one, whatever the marker says, and the PR closing clears it
+   too. This is what keeps a capped or stuck review's question from
+   outliving its own answer: once a later cycle posts a newer marker —
+   a ready cycle's hold, `Entries: none` included, or a fresh
+   escalation of its own — that comment is what's newest, and the older
+   one it followed stops being read at all, whether or not the PR has
+   closed. None of that turns on the PR's commit history: a plain push
+   with no marker, escalation, deferral, or approval of its own changes
+   nothing here.
 
 A ticket or PR that matches more than one of these is one item, not
-two.
+two — it can't: the newest marker is a single comment, so only one
+bullet's condition is ever the one that applies.
 
 ## Ordering
 
@@ -171,35 +179,37 @@ no options. One line each.
 Two further kinds of line belong here too, since neither is a decision
 either:
 
-- **Deferred.** A ticket whose latest `factory: deferred` comment is
-  the source that applies under "What goes in the queue" above (no
-  open `needs-attention` escalation, and no stop-list hold that beats
-  it), and whose status and PR haven't moved since — nobody has
-  restarted it yet. The deferral note itself names no restart
-  invocation or PR number (see the `dispatch` skill's "The deferral
-  note"); derive one instead from the note's `Stage` line plus the
-  ticket id or its linked PR: `implement` → `implement-ticket
-  <TICKET>`, `review-fixer` or `trivial-minors` → `adversarial-review
-  <PR>`, `merge-resolver` or `merge` → `merge-queue <PR>`. A
-  `merge-queue` deferral that also carries `needs-attention` is the
-  stuck sub-case — that one is a queue item above (source 1), never
-  this line. Once a restart pushes something, the ticket's state moves
-  and this line stops applying.
+- **Deferred.** A ticket or unlinked PR whose newest marker (see "What
+  goes in the queue" above) is a `factory: deferred` comment, and whose
+  status and PR haven't moved since — nobody has restarted it yet. The
+  deferral note itself names no restart invocation or PR number (see
+  the `dispatch` skill's "The deferral note"); derive one instead from
+  the note's `Stage` line plus the ticket id or its linked PR:
+  `implement` → `implement-ticket <TICKET>`, `review-fixer` or
+  `trivial-minors` → `adversarial-review <PR>`, `merge-resolver` or
+  `merge` → `merge-queue <PR>`. `merge-queue`'s stuck sub-case posts
+  only the escalation, never a separate deferral note (see the
+  `dispatch` skill's "Escalation comments"), so it is never this line —
+  it's a queue item above (source 1) for as long as `needs-attention`
+  stays on. Once a restart posts anything at all, that new comment is
+  the newest marker and this line stops applying on its own, whether or
+  not the restart ever pushed a commit: a review that comes back ready
+  without pushing still posts a fresh hold (`Entries: none` included —
+  see `adversarial-review`'s "Recording the stop-list hold"), and that
+  hold outranks the older deferral note the moment it posts, moving the
+  ticket to the "Awaiting merge approval" line below instead.
 - **Awaiting merge approval, or still in review.** A ticket that's
-  `In Review` with an open PR, not carrying `needs-attention`, with no
-  live stop-list hold under source 2's rule above, and not already
-  covered by the Deferred line above — it's simply ready and waiting,
-  or still mid-review. A marker from an earlier, now-resolved stop
-  doesn't keep it off this line; only a currently live hold, an open
-  escalation, or a live deferral note does. A stop-list hold is not
-  this line even though it is also "waiting" in a sense — it's a queue
-  item (source 2) above, because clearing it takes a specific human
-  call rather than just watching a review finish. Nor is a live
-  deferral: that ticket isn't "still in review", it's stopped until a
-  human restarts it, which is exactly what the Deferred line already
-  says. This is not a decision for the human either; it's here so the
-  report accounts for every ticket a
-  run touched, not only the ones stuck.
+  `In Review` with an open PR, not carrying `needs-attention`, and
+  whose newest marker (see "What goes in the queue" above) is either
+  nothing at all or a stop-list hold naming no entries. A ticket isn't
+  this line if its newest marker is a live escalation or a non-empty
+  hold — those are queue items above instead, because clearing them
+  takes a specific human call rather than just watching a review
+  finish — and isn't this line if its newest marker is a deferral note —
+  that's the Deferred line above instead, since that ticket isn't
+  "still in review", it's stopped until a human restarts it. This is
+  not a decision for the human either; it's here so the report accounts
+  for every ticket a run touched, not only the ones stuck.
 
 If the human asks for any of them to be filed, file into **`Backlog`**,
 never `Todo`. `Backlog` is where they park what they have not started,
