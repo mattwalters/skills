@@ -115,11 +115,12 @@ skill's "The write window".
    BRANCH, BASE (the repo's base branch), PR, and WINDOW (the repo's
    write window). If this PR's worktree was left by an earlier
    resolver that reported `RESULT: deferred`, also fill in RESUME from
-   that report (its Linear comment if one exists, otherwise the report
-   itself): whether the rebase had already run, the tier and files of
-   any mid-rebase resolution, and how many CI pushes were already
-   used — the three-push budget carries across the resume, it doesn't
-   reset. It rebases onto current `origin/<base>`, resolves
+   the ticket's deferral record if one exists (see the `dispatch`
+   skill's "The write window"), otherwise from the report itself:
+   whether the rebase had already run, the tier and files of any
+   mid-rebase resolution, and how many CI pushes were already used —
+   the three-push budget carries across the resume, it doesn't reset.
+   It rebases onto current `origin/<base>`, resolves
    the conflicts its two declared tiers cover, pushes, and watches CI
    under the same three-attempt rule as implementing, checking the
    window again before the rebase and before every push. It reports
@@ -227,10 +228,15 @@ worktree as they stand and move to the next PR, unless the whole
 queue was deferred at once because the window was already closed when
 this PR's turn came, in which case there is no next PR to move to.
 
-For each deferred PR, record (in your report's NOTES and, if a ticket
-is linked, in a Linear comment) which stage it stopped at, what's left
-undone, the worktree path, when the window next opens, and the
-invocation that resumes it.
+For each deferred PR, record it in your report's NOTES, and, if a
+ticket is linked, post the deferral record the `dispatch` skill's "The
+write window" defines — stage `merge-resolver` for a deferral at or
+before the rebase, or `merge` for one at step 5's final pre-merge
+check, with the resolver's rebase state (not started / aborted /
+completed) plus the tier and files of any mid-rebase resolution, and
+CI pushes already used, alongside the fields every deferral carries.
+Step 3 above reads a resumed resolver's RESUME from this same record,
+so leave nothing it needs out.
 
 ## Report
 

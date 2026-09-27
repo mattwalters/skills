@@ -255,10 +255,10 @@ inline PR review comments and a `gh pr review --comment` round
 summary every round, and a blocked fixer posts its options as a PR
 comment — all under the user's GitHub account, timestamped whenever
 that round runs. Those *are* a public record, closed window or not.
-This ticket leaves them ungated anyway: that's a scoped decision, not
-a claim that they're invisible. Gating PR reviews and comments the
-same way commits and pushes are gated is a reasonable follow-up, just
-not one this change makes.
+Review comments and PR posts are deliberately not gated: they publish
+during closed hours by design, not by oversight. Gating them the same
+way commits and pushes are gated is a reasonable enhancement for a
+repo that wants it — this control simply doesn't do that today.
 
 **Closed means stop dead.** Don't run the write, and don't wait,
 sleep, or schedule it for later. Leave the worktree exactly as it is
@@ -276,11 +276,41 @@ not a gate and not an escalation: no mode, no released gate, and no
 plan-gate pre-authorization opens it, and a deferred ticket gets no
 `needs-attention` label and keeps whatever status it already had.
 
+**The deferral record.** Every stage that defers posts one, on the
+ticket if one resolved (for a ticketless PR, the stage's own report is
+all there is — see that stage's skill). It is the single place a
+deferred attempt's state lives once the deferring subagent's context
+is gone, and it has one fixed field list that every stage draws from,
+posting only the fields that apply to it rather than inventing its own
+partial one:
+
+- **Stage** — implement / review-fixer / trivial-minors /
+  merge-resolver / merge.
+- **What's undone** — uncommitted edits, unpushed commits, no PR yet,
+  or whatever is specific to the stage.
+- **Worktree path.**
+- **When the window next opens.**
+- **CI pushes used by the deferred attempt** — every stage that can
+  push reports this; it is the count a resume must not reset.
+- **Review rounds used** — `adversarial-review` only.
+- **Rebase state** — `merge-queue`'s resolver only: not started /
+  aborted / completed, plus the tier and files of any mid-rebase
+  resolution found or completed.
+- **Findings coverage and reply state** — the fixer only: which
+  findings its uncommitted local edits already address, and whether
+  this round's thread replies or rebuttals were already posted.
+- **The exact resume invocation.**
+
+A resume reads its RESUME state from the latest deferral record on the
+ticket — never from memory or a prior report, which a fresh invocation
+doesn't have.
+
 **Resume.** Re-invoke the same skill on the same target once the
 window is open; it reuses the existing worktree. A resumed stage
 **keeps its budget** — CI pushes already used still count toward the
 three, and review rounds already run still count toward the cap.
-Resuming never resets either, so no cap is silently lifted.
+Resuming never resets either, so no cap is silently lifted; it reads
+that budget from the deferral record above, not from anywhere else.
 
 **Echoing it.** When you echo the mode back in one line before the
 first gate (see "Modes"), include on the same line the window's

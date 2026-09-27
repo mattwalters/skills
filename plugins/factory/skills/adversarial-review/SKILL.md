@@ -90,16 +90,16 @@ learns something; "capped" alone does not.
 A resumed cycle is a fresh invocation of this skill — the round count
 and the ledger lived only in the deferred run's own context, and both
 are gone with it, the same as a reviewer knowing nothing of earlier
-rounds. Get them from the deferred report instead of guessing or
-restarting at round 1, which would silently lift the cap. If a ticket
-resolved, its Linear comment (see "On a deferred report" below) is
-where the rounds-used count and that round's ledger rows were left;
-read it before doing anything else. For a ticketless PR there is no
-such comment, so whoever resumes (ordinarily a human — `dispatch`
-itself does not resume within a run) supplies rounds-used and the
-ledger rows from the earlier report directly. Either way, start this
-call's count where the deferred one left off and seed the ledger from
-those rows before judging the first new round's progress against it.
+rounds. Get them from the ticket's deferral record (see the `dispatch`
+skill's "The write window" and "On a deferred report" below) instead
+of guessing or restarting at round 1, which would silently lift the
+cap — never from memory or the deferred run's own report, which a
+fresh invocation doesn't have. For a ticketless PR there is no such
+record, so whoever resumes (ordinarily a human — `dispatch` itself
+does not resume within a run) supplies rounds-used and the ledger rows
+from the earlier report directly. Either way, start this call's count
+where the deferred one left off and seed the ledger from those rows
+before judging the first new round's progress against it.
 
 Don't open the resumed cycle with a fresh reviewer round. The worktree
 still holds the deferred fixer's uncommitted edits, and a reviewer run
@@ -107,11 +107,13 @@ now would just re-raise every finding that tree already fixes
 locally — a round that closes nothing new, which the progress rule
 would read as a round making no progress at all. Resume at the fixer
 instead: spawn it on the existing worktree with the same findings it
-had and RESUME filled in (what its uncommitted edits already address,
-per the deferred report — see `prompts/fixer.md`). It picks up its own
-edits rather than discarding or redoing them, finishes, gets CI green,
-and pushes. Only once that push lands does the next round's fresh
-reviewer run, against what is now actually on the branch.
+had and RESUME filled in from the deferral record — which findings its
+uncommitted edits already address, this round's CI pushes already
+used, and whether it had already posted this round's thread replies
+(see `prompts/fixer.md`). It picks up its own edits rather than
+discarding or redoing them, finishes, gets CI green, and pushes. Only
+once that push lands does the next round's fresh reviewer run, against
+what is now actually on the branch.
 
 ## Repo configuration
 
@@ -292,16 +294,20 @@ write window was closed (see the `dispatch` skill's "The write
 window"). This is not blocked and not failed — nothing about the
 target is wrong, the clock is. Stop this target's cycle, same as a
 blocked or failed report, but don't add `needs-attention` and don't
-touch the ticket's status. If a ticket resolved, post a Linear comment
-on it — the same rule `implement-ticket` follows on its own deferred
+touch the ticket's status. If a ticket resolved, post the deferral
+record the `dispatch` skill's "The write window" defines, on the
+ticket — the same rule `implement-ticket` follows on its own deferred
 report. This is a stage-status note about the cycle pausing, not a
 review finding about the diff, so it belongs where the ticket's status
-already lives, not as a comment or thread reply on the PR — say which
-round deferred, what's left undone, the worktree path, when the window
-next opens, the ledger rows so far, and the invocation that resumes
-it. For a ticketless PR there is no private place to put that: skip
-the comment and rely on the report below. Tell whoever is waiting on
-this the same thing either way.
+already lives, not as a comment or thread reply on the PR. Post it
+with stage `review-fixer` (or `trivial-minors`, for a deferral from
+that pass) and the fields that apply: the round, what's left undone,
+the ledger rows so far, this round's CI pushes used, which findings
+the fixer's uncommitted edits already cover, and whether this round's
+thread replies or rebuttals were already posted — "Resuming a deferred
+cycle" above reads all of it back. For a ticketless PR there is no
+private place to put that: skip the comment and rely on the report
+below. Tell whoever is waiting on this the same thing either way.
 
 ## Report, per target
 

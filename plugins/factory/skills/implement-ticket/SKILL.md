@@ -49,9 +49,11 @@ declaration and is not the same as a missing one.
    ticket), BASE (the base branch), CHECK (the check command), and
    WINDOW (the write window) — mid-tier model, high effort (Sonnet on
    Claude Code; see the `dispatch` skill's Models and effort table for
-   other harnesses). When resuming a deferred ticket, also pass the
-   resume state from its last report: what was left undone and how
-   many CI pushes it had already used.
+   other harnesses). When resuming a deferred ticket, also pass RESUME:
+   what's left undone and CI pushes already used, read from the
+   ticket's deferral record (see the `dispatch` skill's "The write
+   window") — never from memory or a prior report, which a fresh
+   invocation doesn't have.
 
 The implementer's contract, enforced by the prompt: implement the
 ticket — its `## Plan` section if the description has one, otherwise
@@ -89,10 +91,11 @@ The implementer stopped before a gated write — a commit, a push, or
 `gh pr create` — because the repo's declared write window was closed
 (see the `dispatch` skill's "The write window"). Nothing is wrong:
 don't label the ticket, and leave its status exactly where it was.
-Post a Linear comment on the ticket saying which stage deferred it,
-what's left undone (uncommitted edits, unpushed commits, no PR yet),
-the worktree path, when the window next opens, and the invocation that
-resumes it. Tell whoever is waiting on this the same thing.
+Post the deferral record the `dispatch` skill's "The write window"
+defines, on the ticket, with stage `implement` and the fields that
+apply to it — including CI pushes already used, since that record is
+what a resume reads its budget from. Tell whoever is waiting on this
+the same thing.
 
 ## Report, per ticket
 

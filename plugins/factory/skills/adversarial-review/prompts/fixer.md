@@ -6,9 +6,11 @@ config), WINDOW (that config's write window), plus the reviewer's
 findings summary. Say plainly whether this is an ordinary round or
 **trivial-minors mode**; the two have different bars for touching
 anything. If this is a resumed attempt on a fixer that previously came
-back deferred, also fill in RESUME: which findings its uncommitted
-edits already address, which are still outstanding, and how many CI
-pushes *this round* had already used before it deferred.
+back deferred, also fill in RESUME, read from the ticket's deferral
+record (see the `dispatch` skill's "The write window"): which findings
+its uncommitted edits already address, which are still outstanding,
+how many CI pushes *this round* had already used before it deferred,
+and whether this round's thread replies were already posted.
 
 ---
 
@@ -24,9 +26,14 @@ knows a disputed finding is outstanding. Reply to every other thread
 saying what you did.
 
 Hold every one of those replies and rebuttals until after your push
-succeeds — don't post them as you go. A reply posted mid-round
-describes a fix nobody can see yet, and if you defer before that push
-lands, it would be describing one nobody may ever see.
+succeeds, whenever WINDOW is not `none` — don't post them as you go. A
+reply posted mid-round describes a fix nobody can see yet, and if you
+defer before that push lands, it would be describing one nobody may
+ever see. A round with no commit or push at all — every finding
+rebutted, nothing fixed — has no push to hold for either: post its
+replies and rebuttals once the round is done. If WINDOW is `none`
+there is no window to close and so nothing you could defer on: post
+replies as you finish each one.
 
 Minors count. The cycle exits at no major and no medium findings, so a
 minor will not hold the PR — but you are already in this file with
@@ -67,10 +74,15 @@ If the window is closed at any of those points: don't make the
 commit, don't push, and don't wait for it to reopen. Stop exactly
 where you are and report back `RESULT: deferred` instead of `blocked`
 or `failed` — leave the worktree as it is, uncommitted edits and all.
-**Post no PR thread replies when you defer.** Since replies and
-rebuttals are held until after the push (above), deferring means you
-have posted none yet — leave it that way. In NOTES, say exactly what's
-left undone and how many CI pushes you'd already used, if any.
+If you haven't posted this round's replies yet per the rule above,
+post none now — leave it that way. If an earlier push in this round
+already succeeded and you posted replies for it before this later
+commit or push hit the closed window, don't take that back — just say
+so in NOTES: whether this round's thread replies were already posted
+is part of the deferral record (see the `dispatch` skill's "The write
+window"), and a resumed fixer that finds it there won't repost them.
+In NOTES, also say exactly what's left undone and how many CI pushes
+you'd already used, if any.
 
 ## Resuming a deferred attempt
 
@@ -83,7 +95,10 @@ three-attempt CI budget belongs to this fixer round, the same round
 that deferred — not to the PR as a whole, and not reset by resuming.
 RESUME's push count is how many of this round's three this attempt
 already spent before it deferred; you get only the remainder, not a
-fresh three.
+fresh three. If RESUME says this round's replies were already posted,
+don't post them again for the findings they covered — reply only to
+what's left, held under the same rule as above until this attempt's
+own push succeeds (or, for rebut-only work, until you're done).
 
 ## Trivial-minors mode
 
@@ -128,7 +143,8 @@ logs:
                trivial-minors mode only>
     OPTIONS: <for blocked: 2-3 options with consequences, and your pick>
     NOTES: <anything weak, why blocked, why it failed, or — for
-           deferred — what's left undone and CI pushes already used>
+           deferred — what's left undone, CI pushes already used, and
+           whether this round's thread replies were already posted>
 
 Be exact about what you did with each finding. The orchestrator keeps
 a ledger across rounds, and "fixed", "rebutted" and "left open" are
