@@ -9,10 +9,20 @@ config's check command), and WINDOW (that config's write window).
 
 Implement TICKET, nothing more.
 
-Work only in WORKTREE. It is a detached worktree at `origin/BASE`; it
-shares the git directory with other concurrent work, so never check out
-a branch by bare name — stay detached and push with
-`git push origin HEAD:BRANCH`.
+Work only in WORKTREE. It shares the git directory with other
+concurrent work, so never check out a branch by bare name — stay
+detached and push with `git push origin HEAD:BRANCH`.
+
+Check first whether an open PR already exists for BRANCH
+(`gh pr list --head BRANCH`). If not, WORKTREE is a detached worktree
+at `origin/BASE`, and you'll open a fresh draft PR once CHECK passes
+(see "Commit, push, and open the PR" below). If one does exist —
+you're picking this ticket up after an earlier attempt already got a
+PR open — WORKTREE is already at that PR's head, implementation and
+all: read the brief as usual for context, then continue from the head
+instead of starting over — re-run CHECK, fix whatever's failing,
+commit, push, and watch CI, all under the write-window rules below.
+Don't run `gh pr create` again.
 
 Read TICKET in Linear. Its description — the `## Plan` section if it
 has one, otherwise the whole of it — is the brief.
@@ -60,17 +70,21 @@ inventing a command that happens to pass is worse than stopping.
 WINDOW is this repo's declared write window: the closed periods,
 if any, during which a commit, a push, or `gh pr create` must not
 happen. If WINDOW is `none`, skip this section — there is nothing to
-check. If it names no timezone, or can't be read unambiguously, stop
-now and report back as blocked, the same way a missing CHECK does.
+check. Evaluate it with the `dispatch` skill's "The write window"
+Evaluation two-step check (verify the zone once, then read the clock
+fresh each time) — never a bare `TZ=<zone> date`, which accepts a
+misspelled zone silently. If the zone fails that check, WINDOW names no
+timezone, or a reading can't be parsed unambiguously, stop now and
+report back as blocked, the same way a missing CHECK does.
 
 Otherwise, before every commit-creating command — the first commit,
 any later fix or CI-repair commit, and any `--amend`, not just the
 first one you happen to make — before every push, and before
-`gh pr create`, run `TZ=<zone> date '+%u %H:%M'` fresh — never reuse
-an earlier reading — and check it against WINDOW. Do this again before
-every CI-retry push and every CI-fix commit, not just the first one: a
-CI watch can take minutes on its own, long enough for the window to
-close underneath it.
+`gh pr create`, read the clock fresh with that same check — never
+reuse an earlier reading — and check it against WINDOW. Do this again
+before every CI-retry push and every CI-fix commit, not just the first
+one: a CI watch can take minutes on its own, long enough for the
+window to close underneath it.
 
 If the window is closed at any of those points: don't make the
 commit, don't push, don't open the PR, and don't wait for it to
@@ -86,10 +100,12 @@ not by continuing this attempt.
 ## Commit, push, and open the PR
 
 Commit your change (checking the window fresh first, as above, for
-this commit and any later one), then push and open a **draft** PR
-(`gh pr create --draft`) titled `TICKET: <short description>` — the
-title becomes the squash-merge subject on BASE, so the ticket id must
-be in it. Watch CI with `gh pr checks --watch`.
+this commit and any later one), then push. If no PR existed yet (see
+above), open a **draft** PR (`gh pr create --draft`) titled `TICKET:
+<short description>` — the title becomes the squash-merge subject on
+BASE, so the ticket id must be in it. If a PR already existed, this
+push just updates it — don't run `gh pr create` again. Either way,
+watch CI with `gh pr checks --watch`.
 
 If CI fails: read the failure, fix it — checking the window before
 that commit too — and push again. You get **three pushes that reach

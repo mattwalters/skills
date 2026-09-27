@@ -84,15 +84,14 @@ learns something; "capped" alone does not.
 ## Restarting a deferred cycle
 
 There is no resume. A cycle that comes back `deferred` is picked up
-later — a fresh invocation of this skill, whether run by a later
-`dispatch` batch or a human re-invoking it directly — and it starts
-over at round 1 with a fresh round count and an empty ledger, the same
-as any other call. Before spawning the first reviewer, reset the
-worktree to the PR's current remote head (`git fetch origin && git
-reset --hard origin/<branch>`) rather than building on whatever the
-deferred fixer left uncommitted — that tree may be stale, and nothing
-about this call knows what it still covers. Restarting a cycle that
-had already used some of its round budget does spend that budget
+later by a human re-invoking this skill directly against the PR —
+`dispatch` never restarts a deferred cycle itself — and it starts over
+at round 1 with a fresh round count and an empty ledger, the same as
+any other call. The worktree reset this needs is the one step 5
+already applies whenever it reuses a kept worktree: whatever the
+deferred fixer left uncommitted or unpushed there is stale, and
+nothing about this call knows what it still covers. Restarting a cycle
+that had already used some of its round budget does spend that budget
 again; that is the accepted cost of stopping dead at a window boundary
 rather than carrying state across a context nothing keeps alive. See
 the `dispatch` skill's "The write window".
@@ -160,11 +159,17 @@ against.
 4. **Zero major and zero medium findings** → this target is ready,
    whatever minors are open. See "When a target is ready" below.
 5. **Any major or medium finding** → spawn a fixer subagent with
-   `prompts/fixer.md` in a worktree on the PR's branch — reuse one at
-   `<runs-dir>/<TICKET>`
-   if it already exists (a caller may have left one from implementing),
-   otherwise make one:
+   `prompts/fixer.md` in a worktree on the PR's branch. The first time
+   this cycle needs one, reuse one at `<runs-dir>/<TICKET>` if it
+   already exists — a caller may have left one from implementing, or an
+   earlier, now-stale attempt at reviewing this same PR — but reset it
+   first, whether or not you know why it's there: `git fetch origin &&
+   git reset --hard origin/<branch> && git clean -fd`. If none exists,
+   make one instead:
    `git fetch origin && git worktree add <runs-dir>/<TICKET-or-PR#> origin/<branch>`.
+   On a later round within this same cycle, keep building in that same
+   worktree without resetting it again — it holds this cycle's own
+   accumulating work, not a leftover from somewhere else.
    Give it the repo's check command and write window (WINDOW) along
    with the findings — all of them, minors included, since a minor
    next to a major it is already editing around is cheap to take. The

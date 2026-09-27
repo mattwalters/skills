@@ -215,14 +215,28 @@ every gated write is allowed at any time.
 **closed** when they are not. Use only "open" and "closed" — never
 "inside/outside the window", which reads two ways.
 
-**Evaluation.** Run `TZ=<zone> date '+%u %H:%M'` fresh, immediately
-before each gated write — never reuse a reading from earlier in the
-run, since a CI watch alone can take minutes and the window can close
-underneath it. `%u` gives 1 (Monday) through 7 (Sunday) and behaves
-the same under BSD and GNU `date`. If the declaration has no
-timezone, or can't be read unambiguously, treat that as a config
-error: say so and stop before the first gated write. Never assume the
-window is open.
+**Evaluation.** This is a two-step check, and both steps matter —
+`TZ=<zone> date` accepts a misspelled zone silently, falling back to
+UTC with exit 0, so skipping the first step lets a typo'd zone read as
+an open window with no error to catch it:
+
+1. **Verify the zone exists**, once, before the first gated write:
+   `[ -f "/usr/share/zoneinfo/<zone>" ]` (present on both macOS and
+   Linux). A zone that fails this is a config error exactly like a
+   missing timezone: say so, name the field, and stop before the first
+   gated write.
+2. **Read the clock fresh**, immediately before *each* gated write —
+   never reuse a reading from earlier in the run, since a CI watch
+   alone can take minutes and the window can close underneath it:
+   `TZ=<zone> date '+%u %H:%M'`. `%u` gives 1 (Monday) through 7
+   (Sunday) and behaves the same under BSD and GNU `date`.
+
+If the declaration has no timezone, or a reading can't be parsed
+unambiguously, that is the same config error as a failed zone check:
+say so and stop before the first gated write. Never assume the window
+is open. Every prompt that checks the window (`implementer.md`,
+`fixer.md`, `resolver.md`) points back to this two-step check rather
+than repeating it.
 
 Checking a same-day period (start before end) is one comparison:
 today is a named day and the time reads at or after the start and
@@ -266,10 +280,11 @@ and report `RESULT: deferred`. A stage already in flight when the
 window closes stops there too, mid-ticket if need be — a push at
 09:05 is exactly the record this control exists to prevent, and
 letting a stage finish turns the window into a grace period of
-unknown length. The usual cost of stopping dead, an unpushed branch in
-a worktree about to be discarded, mostly doesn't apply here: see
-"Cleanup", which keeps a deferred ticket's worktree the same as any
-other stalled one.
+unknown length. Keeping the worktree afterward (see "Cleanup") isn't
+about saving the cost of stopping dead — a restart resets or discards
+it regardless, per "The one worktree rule" below — it's so a human can
+inspect or salvage whatever was left uncommitted or unpushed before
+that reset happens.
 
 Nothing releases the window except the repo's own declaration. It is
 not a gate and not an escalation: no mode, no released gate, and no
@@ -283,17 +298,25 @@ what's left undone, the worktree path, and when the window next opens.
 That is the whole record. There is no field-by-field state to preserve
 beyond it, because nothing carries over — see "Restarting" below.
 
-**Restarting.** There is no automatic resume. A deferred ticket sits
-where it stopped until someone deliberately picks it back up — a later
-`dispatch` run given it as an explicit target, or a human directly
-re-invoking whichever of `implement-ticket`, `adversarial-review`, or
-`merge-queue` deferred — and that stage starts from the start, with
-fresh budgets: a fresh three CI pushes, a fresh round count, a fresh
-ledger. Before building on a kept worktree, reset it first — `git
-fetch origin && git reset --hard origin/<branch>` if the ticket has a
-PR, or cut a fresh one from the base branch if it doesn't — rather than
-building on whatever the deferred attempt left uncommitted or
-unpushed. Say plainly, wherever this matters, that restarting a
+**Restarting.** There is no automatic resume, and `dispatch` never
+restarts a deferred ticket itself — Phase 1 draws only from `Todo`
+(see "Statuses and labels"). A deferred ticket sits where it stopped
+until a human deliberately picks it back up, by directly re-invoking
+whichever of `implement-ticket <TICKET>`, `adversarial-review <PR>`,
+or `merge-queue <PR>` deferred — and that stage starts from the start,
+with fresh budgets: a fresh three CI pushes, a fresh round count, a
+fresh ledger. A run's end-of-run report names each deferred ticket
+with that exact invocation (see "Status updates").
+
+**The one worktree rule.** Before any of those three skills reuses an
+existing `<runs-dir>/<TICKET>` worktree — `implement-ticket`'s step 2,
+`adversarial-review`'s step 5, `merge-queue`'s step 2 — reset it
+first: `git fetch origin && git reset --hard origin/<branch>` plus
+`git clean -fd` if the ticket has a PR, or cut a fresh one from the
+base branch if it doesn't. This applies whether or not the caller
+knows it's a restart: a worktree left behind by anything other than
+the current attempt is a prior attempt to discard, not a partial start
+to build on. Say plainly, wherever this matters, that restarting a
 deferred stage can reset a CI or review budget that had already been
 partly spent: that is the cost of stopping dead instead of promising to
 pick an attempt back up mid-stream, and it is cheap next to a run that
@@ -347,8 +370,9 @@ to it.
 Only Linear's stock statuses are used, plus two workspace labels:
 
 - `Todo` — the queue this skill draws new picks from, and the only
-  one for that; see Phase 1 for the separate, narrower check of
-  `In Progress`/`In Review` for tickets to offer back for resumption.
+  one for that. A ticket sitting `In Progress` or `In Review` with a
+  deferral comment is never picked up from here — see Phase 1 — and
+  dispatch never re-picks it itself either way.
 - `In Progress` — being implemented.
 - `In Review` — a PR exists and is under review. This is a reading
   gate: a ticket rests here until its merge gate is passed.
@@ -408,9 +432,9 @@ reason to reach further.
 
 A ticket sitting `In Progress` or `In Review` with a deferral comment
 (see "The write window") is not picked up here — Phase 1 only draws
-from `Todo`. Restarting a deferred ticket is a deliberate act: a later
-`dispatch` run that wants to work it again, or a human, re-invokes the
-stage directly (see "Restarting").
+from `Todo`, and dispatch never restarts a deferred ticket itself, in
+any mode. Restarting one is a human's deliberate act: they re-invoke
+the stage directly against the ticket or PR (see "Restarting").
 
 ### `Backlog`
 
@@ -687,9 +711,11 @@ it actually merges — that's the only automatic cleanup anywhere in
 this pipeline, and it's deliberate. A ticket that ends up blocked,
 failed, capped, deferred, or otherwise carrying `needs-attention`
 keeps its worktree and branch indefinitely, on purpose: that state is
-exactly the in-progress context a human or a later fixer (or, for
-deferred, the same skill resumed later) needs to pick the thread back
-up, and deleting it on a timer risks destroying something nobody's
+exactly the in-progress context a human needs to look at before
+deciding what happens next — for a deferred ticket, whatever was left
+uncommitted or unpushed before a human restarts the stage fresh (see
+"The write window"), which resets or discards that worktree regardless
+— and deleting it on a timer risks destroying something nobody's
 looked at yet.
 
 If a ticket is truly abandoned — cancelled, or the human decides not
@@ -732,10 +758,11 @@ fixing / ready for merge / queued to merge / merged / needs attention
 Nothing else; the details live on the PRs.
 
 At the end of a run, list any deferred tickets separately, one line
-each: which stage stopped and the worktree path — the table's status
-alone doesn't tell the human how to pick one back up. Restarting one
-means directly re-invoking that stage (see "Restarting"); this run
-does not do that on its own.
+each: which stage stopped, the worktree path, and the exact invocation
+that restarts it — `implement-ticket <TICKET>`, `adversarial-review
+<PR>`, or `merge-queue <PR>` — since the table's status alone doesn't
+tell the human how to pick one back up. That invocation is theirs to
+make (see "Restarting"); this run never restarts one itself.
 
 A run in semi or autonomous mode reports more, not less, because
 nobody is watching it happen: post a status update at the end of each

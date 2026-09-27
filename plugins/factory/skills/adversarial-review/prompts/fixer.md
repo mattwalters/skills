@@ -55,15 +55,19 @@ your report.
 
 WINDOW is this repo's declared write window: the closed periods, if
 any, during which a commit or push must not happen. If WINDOW is
-`none`, there is nothing to check. If it names no timezone, or can't
-be read unambiguously, stop now and report back as blocked, the same
+`none`, there is nothing to check. Evaluate it with the `dispatch`
+skill's "The write window" Evaluation two-step check (verify the zone
+once, then read the clock fresh each time) — never a bare
+`TZ=<zone> date`, which accepts a misspelled zone silently. If the
+zone fails that check, WINDOW names no timezone, or a reading can't be
+parsed unambiguously, stop now and report back as blocked, the same
 way a missing CHECK does.
 
 Otherwise, before every commit you make — the first fix, any later
 finding's commit, and any CI-repair commit, not just the first one —
-and before every push, including every CI-retry push, run
-`TZ=<zone> date '+%u %H:%M'` fresh, never a reading from earlier in
-the round, and check it against WINDOW.
+and before every push, including every CI-retry push, read the clock
+fresh with that same check, never a reading from earlier in the round,
+and check it against WINDOW.
 
 If the window is closed at any of those points: don't make the
 commit, don't push, and don't wait for it to reopen. Stop exactly

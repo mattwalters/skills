@@ -110,10 +110,10 @@ skill's "The write window".
    one on the PR's branch:
    `git fetch origin && git worktree add <runs-dir>/<TICKET-or-PR#> origin/<branch>`.
    If the worktree already existed, reset it to the PR's current remote
-   head first — `git fetch origin && git reset --hard origin/<branch>`
-   — regardless of why it was left there (an earlier resolver's
-   deferral included); this is a fresh attempt, not a continuation of
-   whatever that worktree held.
+   head first — `git fetch origin && git reset --hard origin/<branch>
+   && git clean -fd` — regardless of why it was left there (an earlier
+   resolver's deferral included); this is a fresh attempt, not a
+   continuation of whatever that worktree held.
 3. Spawn a **fresh** resolver subagent with `prompts/resolver.md` —
    mid-tier model, high effort (see the `dispatch` skill's Models and
    effort table for the harness mapping) — filling in WORKTREE,

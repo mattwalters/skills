@@ -41,11 +41,11 @@ declaration and is not the same as a missing one.
 2. Make an isolated worktree in the configured worktree directory:
    `git fetch origin && git worktree add --detach <runs-dir>/<TICKET> origin/<base-branch>`.
    Never let two tickets share one worktree. If a worktree already
-   exists at `<runs-dir>/<TICKET>` — left by an earlier attempt that
-   came back `deferred` — this is a fresh attempt with fresh budgets,
-   not a continuation: reset it per the `dispatch` skill's "The write
-   window" ("Restarting") before doing anything else — `git fetch
-   origin && git reset --hard origin/<branch>` if the ticket already
+   exists at `<runs-dir>/<TICKET>` — from an earlier attempt, whether or
+   not you know it came back `deferred` — this is a fresh attempt with
+   fresh budgets, not a continuation: reset it first, per the `dispatch`
+   skill's "The one worktree rule" — `git fetch origin && git reset
+   --hard origin/<branch>` plus `git clean -fd` if the ticket already
    has an open PR, or remove it and cut a fresh one from
    `origin/<base-branch>` if it doesn't.
 3. Spawn an implementer subagent with `prompts/implementer.md`, filling
@@ -94,9 +94,10 @@ don't label the ticket, and leave its status exactly where it was.
 Post the short deferral note the `dispatch` skill's "The write window"
 defines, on the ticket, naming stage `implement`: what's left undone,
 the worktree path, and when the window next opens. Tell whoever is
-waiting on this the same thing. There is no resume — a later attempt,
-whether run by a later `dispatch` batch or a human re-invoking this
-skill directly, starts over from step 1 with a fresh three-push budget.
+waiting on this the same thing. There is no resume — `dispatch` never
+restarts a deferred ticket itself; a human re-invoking this skill
+directly against the ticket starts over from step 1 with a fresh
+three-push budget.
 
 ## Report, per ticket
 

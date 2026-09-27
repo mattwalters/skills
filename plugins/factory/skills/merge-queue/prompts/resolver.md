@@ -13,16 +13,20 @@ may have left behind.
 
 WINDOW is this repo's declared write window: the closed periods, if
 any, during which the rebase, a commit-creating command, or a push
-must not happen. If WINDOW is `none`, skip this section. If it names
-no timezone, or can't be read unambiguously, stop now and report back
-as blocked, the same way an unreadable BASE would.
+must not happen. If WINDOW is `none`, skip this section. Evaluate it
+with the `dispatch` skill's "The write window" Evaluation two-step
+check (verify the zone once, then read the clock fresh each time) —
+never a bare `TZ=<zone> date`, which accepts a misspelled zone
+silently. If the zone fails that check, WINDOW names no timezone, or a
+reading can't be parsed unambiguously, stop now and report back as
+blocked, the same way an unreadable BASE would.
 
 Otherwise, before you run the rebase below, before `git rebase
 --continue` if resolving a conflict needs it, before any commit you
 make to fix a red CI run (see "Push and watch CI" below), and again
 before every push (including every CI-retry push, not just the
-first), run `TZ=<zone> date '+%u %H:%M'` fresh — never a reading from
-earlier in this run — and check it against WINDOW.
+first), read the clock fresh with that same check — never a reading
+from earlier in this run — and check it against WINDOW.
 
 If the window is closed at any of those points: don't run the rebase
 (it creates a commit), don't run `--continue` (it stamps the rewritten
