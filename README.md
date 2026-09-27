@@ -21,7 +21,7 @@ Add this to the project's `.claude/settings.json`:
     }
   },
   "enabledPlugins": {
-    "studio@mattwalters": true
+    "factory@mattwalters": true
   }
 }
 ```
@@ -39,7 +39,7 @@ marketplace and the enabled plugins. To pick up later changes, run
 
 | Plugin | What it is |
 |---|---|
-| `studio` | The ticket pipeline: `dispatch` runs `implement-ticket`, `adversarial-review` and `merge-queue` from Linear to a merged PR. The skills are being ported in (SKL-2). |
+| `factory` | Software factory skills: taking Linear tickets through implementation, review and merge. The first skills are being ported in (SKL-2). |
 
 ## Layout
 

@@ -1,8 +1,0 @@
-{
-  "name": "studio",
-  "description": "The ticket pipeline: dispatch orchestrates implement-ticket, adversarial-review and merge-queue from Linear to a merged PR.",
-  "version": "0.1.0",
-  "author": {
-    "name": "Matt Walters"
-  }
-}
