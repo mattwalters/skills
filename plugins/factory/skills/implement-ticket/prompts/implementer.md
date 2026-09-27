@@ -17,9 +17,11 @@ WORKTREE has already been set up for you per the `dispatch` skill's
 "The one worktree rule": if BRANCH already exists on the remote,
 WORKTREE is at its head, implementation and all — you're picking this
 ticket up after an earlier attempt, whether or not that attempt opened
-a PR. Read the brief as usual for context, then continue from the head
-instead of starting over — re-run CHECK, fix whatever's failing,
-commit, push, and watch CI, all under the write-window rules below. If
+a PR. The brief is authoritative, not background — read it and
+implement what the current brief says, treating the branch's existing
+commits as a starting point to keep, change, or undo as the brief
+requires, then get CHECK and CI green, all under the write-window
+rules below. If
 BRANCH doesn't exist yet, WORKTREE is a fresh detached worktree at
 `origin/BASE`, and you'll open a draft PR once CHECK passes (see
 "Commit, push, and open the PR" below).

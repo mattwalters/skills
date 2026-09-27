@@ -156,8 +156,12 @@ against.
    diverged base, a serious pre-existing bug) — stop the cycle for this
    target right there. Don't spawn a fixer; there's nothing for it to
    fix. Go to "On a blocked or failed report" below.
-4. **Zero major and zero medium findings** → this target is ready,
-   whatever minors are open. See "When a target is ready" below.
+4. **Zero major and zero medium findings** → before calling this
+   round clean, confirm CI is green on the PR's current head (`gh pr
+   checks`); if it's red, the round isn't clean — treat "CI red on
+   head" as a medium finding and fold it into step 5 for the fixer.
+   Otherwise this target is ready, whatever minors are open. See "When
+   a target is ready" below.
 5. **Any major or medium finding** → spawn a fixer subagent with
    `prompts/fixer.md` in a worktree on the PR's branch. The first time
    this cycle needs one, set it up at `<runs-dir>/<TICKET-or-PR#>` per
