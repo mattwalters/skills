@@ -1,6 +1,6 @@
 ---
 name: merge-queue
-description: Merge every eligible pull request — approved via GitHub review, or with its linked Linear ticket carrying the `approved-to-merge` label, and CI green — rebasing each onto the repo's base branch in an order chosen to minimize conflicts, resolving mechanical rebase conflicts itself, resolving a short enumerated list of one-step-beyond-mechanical conflicts under a scoped intent review, and surfacing anything needing new logic or a judgment call to the human instead of guessing. Reads the host repo's `AGENTS.md` `## Dispatch` section for its Linear team, base branch, and worktree directory. Use when asked to run the merge queue, merge everything that's approved, or merge eligible PRs. Called by the dispatch skill for its own batch's approved tickets; equally fine invoked standalone against any repo's open PRs.
+description: Merge every eligible pull request — approved via GitHub review, or with its linked Linear ticket carrying the `approved-to-merge` label, and CI green — rebasing each onto the repo's base branch in an order chosen to minimize conflicts, resolving mechanical rebase conflicts itself, resolving a short enumerated list of one-step-beyond-mechanical conflicts under a scoped intent review, and surfacing anything needing new logic or a judgment call to the human instead of guessing. Reads the host repo's `AGENTS.md` `## Dispatch` section for its Linear team, base branch, write window, and worktree directory, and stops short of any rebase, `gh pr ready`, or `gh pr merge` while that window is closed. Use when asked to run the merge queue, merge everything that's approved, or merge eligible PRs. Called by the dispatch skill for its own batch's approved tickets; equally fine invoked standalone against any repo's open PRs.
 ---
 
 # Merge queue
@@ -22,10 +22,13 @@ Read the `## Dispatch` section of the host repo's `AGENTS.md` first:
 it gives the Linear team key (so you can recognize `<KEY>-<n>` ticket
 ids in PR titles and branch names), the **base branch** everything
 rebases onto and merges into, the **worktree directory**
-(`<runs-dir>` below), and the **stop-list** — the paths and subjects
-whose merge always waits for a human. No `## Dispatch` section means
-the repo has not opted into this pipeline — say so and stop; do not
-assume a base branch.
+(`<runs-dir>` below), the **stop-list** — the paths and subjects
+whose merge always waits for a human — and the **write window**, the
+weekday hours, if any, during which a rebase, `gh pr ready`, or
+`gh pr merge` is not allowed to happen (see the `dispatch` skill's
+"The write window"). No `## Dispatch` section means the repo has not
+opted into this pipeline — say so and stop; do not assume a base
+branch.
 
 ## Eligibility
 
@@ -89,24 +92,42 @@ not a reason to serialize — that's exactly what the rebase absorbs.
 
 ## Per PR
 
+Step 1 is a Linear write, not a gated git write, so it always runs
+first, for every PR — a chat or plan-gate clearance must get its label
+before anything else, or a closed window strands it unlabeled and the
+next sweep can't find it. Check the write window only after step 1,
+before starting step 2 — the rebase itself creates commits, so this
+has to happen before step 2, not just before the push. If it's closed,
+don't start step 2 for this PR. The window won't reopen partway
+through the queue, so run step 1 for every PR still waiting (in case
+one of them just got cleared) and then report all of them as
+`deferred` in one pass rather than discovering it again on each one;
+see "On a deferred report" below and the `dispatch` skill's "The write
+window".
+
 1. Add the `approved-to-merge` label to a ticket cleared any of the
    three ways above if it isn't already there (skip if the PR has no
    linked ticket).
    Leave the ticket's status alone; it stays `In Review` until it
    merges.
-2. Reuse the worktree at `<runs-dir>/<TICKET>` if one exists (a caller
-   may have left one from implementing or reviewing); otherwise make
-   one on the PR's branch:
-   `git fetch origin && git worktree add <runs-dir>/<TICKET-or-PR#> origin/<branch>`.
+2. Set up the worktree at `<runs-dir>/<TICKET-or-PR#>` per the
+   `dispatch` skill's "The one worktree rule" — reset it to the PR's
+   current remote head if one's already there at that path (a caller
+   may have left one from implementing or reviewing, an earlier
+   resolver's deferral included), or create it fresh on the PR's branch
+   if not. Either way this is a fresh attempt, not a continuation of
+   whatever that worktree held.
 3. Spawn a **fresh** resolver subagent with `prompts/resolver.md` —
    mid-tier model, high effort (see the `dispatch` skill's Models and
    effort table for the harness mapping) — filling in WORKTREE,
-   BRANCH, BASE (the repo's base branch), PR. It rebases onto current
-   `origin/<base>`, resolves the conflicts its two declared tiers
-   cover, pushes, and watches CI under the same three-attempt rule as
-   implementing. It reports the highest **tier** it resolved at: `1`
-   for purely mechanical, `2` for one of four enumerated cases a step
-   beyond that, `none` if the rebase came out clean.
+   BRANCH, BASE (the repo's base branch), PR, and WINDOW (the repo's
+   write window). It rebases onto current `origin/<base>`, resolves
+   the conflicts its two declared tiers cover, pushes, and watches CI
+   under the same three-attempt rule as implementing, checking the
+   window again before the rebase and before every push. It reports
+   the highest **tier** it resolved at: `1` for purely mechanical, `2`
+   for one of four enumerated cases a step beyond that, `none` if the
+   rebase came out clean.
 4. **`RESULT: green` with `TIER: 2`** → run the intent review before
    anything else. Spawn a fresh subagent with `prompts/intent-review.md`
    — strongest model available, high effort — giving it the PR, the
@@ -132,8 +153,15 @@ not a reason to serialize — that's exactly what the rebase absorbs.
    insure against a class of mistake that tier is defined to exclude
    would slow the whole queue for nothing.
 
-5. **`RESULT: green`**, intent review passed or not required → mark
-   the PR ready and merge it:
+5. **`RESULT: green`**, intent review passed or not required → check
+   the write window once more, immediately before merging — it can
+   have closed since step 3 started, and `gh pr merge` is a gated
+   write in its own right, not covered by the resolver's checks. If
+   it's closed, stop here and report this PR `deferred` (see "On a
+   deferred report"): the rebase went green, but nothing gets merged
+   while the window is shut.
+
+   Mark the PR ready and merge it:
 
        gh pr merge <number> --squash
 
@@ -142,9 +170,18 @@ not a reason to serialize — that's exactly what the rebase absorbs.
    whenever that branch is checked out in another worktree — which,
    in this pipeline, it always is.
 
-   Then check whether the remote branch is still there, rather than
-   assuming either way — some repos auto-delete a branch on merge and
-   some don't:
+   Check the window a third time before the branch delete below. If it
+   closed after the merge went through but before you get here, the PR
+   is already merged — don't undo that — just report it merged, note
+   in NOTES that the remote branch was left in place, and skip only
+   the `git push origin --delete` step below. Everything else in this
+   step still happens: moving the ticket to `Done`, clearing
+   `approved-to-merge`, and removing the worktree are local or Linear
+   actions, not gated writes, so the window closing doesn't touch them.
+
+   Otherwise, check whether the remote branch is still there, rather
+   than assuming either way — some repos auto-delete a branch on merge
+   and some don't:
 
        git ls-remote --heads origin <branch>
 
@@ -178,13 +215,62 @@ not a reason to serialize — that's exactly what the rebase absorbs.
    this one, label it, tell the human, move on), but say which one it
    was — they read differently: blocked needs a decision, failed hit a
    mechanical wall.
+8. **`RESULT: deferred`** — the resolver stopped before the rebase or a
+   push because the write window closed. See "On a deferred report".
+
+## On a deferred report
+
+Whether it came from the window check at the top of this section, from
+a resolver's `RESULT: deferred`, or from step 5's own check
+immediately before merging, this is not blocked and not failed —
+nothing about the PR is wrong, the clock is (except the one stuck
+sub-case below, which is deferred *and* needs a human). Leave
+the ticket's status and the `approved-to-merge` label exactly as they
+are either way. Leave the PR and worktree as they stand and move to
+the next PR, unless the whole queue was deferred at once because the
+window was already closed when this PR's turn came, in which case
+there is no next PR to move to.
+
+For each deferred PR, record it in your report's NOTES, and, if a
+ticket is linked, post the short deferral note the `dispatch` skill's
+"The write window" defines — stage `merge-resolver` for a deferral at
+or before the rebase, or `merge` for one at step 5's final pre-merge
+check — saying what's left undone, the worktree path, and when the
+window next opens. Ordinarily there is no resume: a later call re-runs
+this PR from step 2 above, which resets the worktree to the PR's
+remote head before spawning a fresh resolver. The one exception is the
+stuck sub-case below, where a later call can't get that far.
+
+What decides stuck versus ordinary is the state of the head when the
+window closes, not whether a push happened. A rebased head that's been
+force-pushed and isn't (yet) green — red, or CI still running — is
+stuck rather than merely deferred: say explicitly that the rebase was
+pushed, and whether the head is red or its CI unverified. That head
+cannot satisfy this skill's own Eligibility check on its own — CI must
+show green before a PR is even queued — so no later call, targeted or
+swept, can pick it back up by re-running the resolver; `merge-queue
+<PR>` would reject it at Eligibility before the resolver ever ran.
+Don't say a restart will fix it. Instead, add `needs-attention` to the
+linked ticket (leaving its status where it is) and say so in your
+report alongside the usual deferral note: a human has to get the
+pushed head's CI green, or decide what to do with it, before this PR
+can requeue at all.
+
+Everything else is an ordinary deferral — including a rebased,
+force-pushed head that's already green when the window closes, which
+is exactly what step 5's final pre-merge check defers: the rebase
+succeeded and CI passed, only `gh pr merge` itself got cut off. That
+gets no label and is picked back up the normal way, by targeting the
+PR directly. It's also not invisible to a sweep: it still carries
+`approved-to-merge` and a green head, so the next "all eligible PRs"
+sweep picks it up too and merges it once the window is open.
 
 ## Report
 
 One line per PR as you go, plus a final table if you merged more than
-one: PR, ticket, `RESULT` (merged | blocked | failed), the resolver's
-`TIER` and whether an intent review ran, and one line of why for
-anything not merged.
+one: PR, ticket, `RESULT` (merged | blocked | failed | deferred), the
+resolver's `TIER` and whether an intent review ran, and one line of
+why for anything not merged.
 
 For anything not merged, carry the resolver's options and its pick
 through verbatim. They are what lets `decision-queue` render this as a

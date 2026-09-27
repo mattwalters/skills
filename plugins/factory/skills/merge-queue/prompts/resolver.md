@@ -2,9 +2,48 @@
 
 Fill in before spawning: WORKTREE (absolute path), BRANCH, BASE (the
 repo's base branch, from its `## Dispatch` config), PR (url or
-number).
+number), WINDOW (that config's write window). WORKTREE has already
+been reset to the PR's current remote head before you were spawned —
+treat this as a fresh attempt, whatever an earlier resolver on this PR
+may have left behind.
 
 ---
+
+## The write window
+
+WINDOW is this repo's declared write window: the closed periods, if
+any, during which the rebase, a commit-creating command, or a push
+must not happen. If WINDOW is `none`, skip this section. Otherwise,
+verify the zone exists once, before checking anything else —
+`[ -f "/usr/share/zoneinfo/<zone>" ]` — and if it doesn't, stop now and
+report back as blocked, the same way an unreadable BASE would: a
+misspelled zone is a config error, not an open window. The check
+itself, each time you run it: `TZ=<zone> date '+%u %H:%M'` (`%u` is
+1=Monday..7=Sunday), read fresh, never reused. A closed period's start
+is inclusive, its end exclusive; a period whose end time is earlier
+than its start runs past midnight into the next day — it stays closed
+from the start time on its named day through the end time on the day
+*after*. If WINDOW names no timezone, or a reading can't be parsed
+unambiguously, that's the same config error — stop now and report back
+as blocked.
+
+Otherwise, before you run the rebase below, before `git rebase
+--continue` if resolving a conflict needs it, before any commit you
+make to fix a red CI run (see "Push and watch CI" below), and again
+before every push (including every CI-retry push, not just the
+first), read the clock fresh with that same check — never a reading
+from earlier in this run — and check it against WINDOW.
+
+If the window is closed at any of those points: don't run the rebase
+(it creates a commit), don't run `--continue` (it stamps the rewritten
+commit the same way), and don't push. If you are mid-rebase when it
+closes, run `git rebase --abort` rather than leaving WORKTREE with a
+rebase in progress — otherwise leave WORKTREE untouched. Stop exactly
+where you are and report back `RESULT: deferred` instead of `blocked`
+or `failed`. In NOTES, say whether the rebase ran, and, if you aborted
+mid-conflict, which tier and files you'd resolved. There is no resume:
+a later attempt on this PR starts over from a worktree reset to the
+PR's remote head, not from here.
 
 Rebase BRANCH onto current `origin/BASE` in WORKTREE. Work only there;
 never touch another branch or worktree.
@@ -52,6 +91,16 @@ A tier-2 resolution gets a scoped review afterwards, so report which
 of the four cases it was, in which files, at which hunks — precisely
 enough that a reviewer finds them without asking you.
 
+Once you've resolved the conflict at whichever tier applies, `git add`
+the file and check the window again (see "The write window" above)
+before running `git rebase --continue` — resolving can take a while on
+its own, and `--continue` is what actually stamps the rewritten
+commit's committer date. If the window closed while you were
+resolving, don't run `--continue`: run `git rebase --abort` instead
+and report `RESULT: deferred` as described above, noting the tier and
+files in NOTES. If it's still open, run `git rebase --continue`, and
+if another conflict follows, come back to this paragraph for it too.
+
 ## Everything else
 
 If a conflict is neither tier 1 nor tier 2, or you are not confident
@@ -76,19 +125,26 @@ lease):
 
     git push --force-with-lease origin HEAD:BRANCH
 
-Then watch CI (`gh pr checks --watch`). Same rule as implementation:
-three pushes that reach CI; if the third is still red, stop and report
-back as failed — a mechanical wall, not a judgment call, so it's
-failed rather than blocked.
+Then watch CI (`gh pr checks --watch`). If CI fails: read the failure,
+fix it — checking the window before that commit too, same as any other
+commit-creating command (see "The write window" above) — and push
+again. Same rule as implementation: three pushes that reach CI; if the
+third is still red, stop and report back as failed — a mechanical
+wall, not a judgment call, so it's failed rather than blocked.
 
 Report back to the orchestrator in exactly this shape — no diffs, no
 logs:
 
     PR: <url or number>
     BRANCH: <name>
-    RESULT: green | blocked | failed
-    TIER: 1 | 2 | none — the highest tier you resolved at
+    RESULT: green | blocked | failed | deferred
+    TIER: 1 | 2 | none — the highest tier you resolved at; n/a if you
+          deferred before the rebase ran or aborted mid-rebase
     RESOLVED: <for tier 2: the case number, files and hunks; for tier 1:
-              the files; "clean" if the rebase did not conflict>
+              the files; "clean" if the rebase did not conflict; for a
+              mid-rebase deferral, the tier and files you'd found
+              before aborting>
     OPTIONS: <for blocked: 2-3 options with consequences, and your pick>
-    NOTES: <the conflict if blocked, or why it failed>
+    NOTES: <the conflict if blocked, why it failed, or — for deferred —
+           whether the rebase ran and, if a head was already pushed,
+           whether its CI is green>

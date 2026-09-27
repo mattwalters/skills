@@ -1,6 +1,6 @@
 ---
 name: adversarial-review
-description: Run adversarial review rounds on one or more open pull requests — a fresh reviewer subagent each round, a fixer subagent addressing findings, capped at six rounds by default and stopped early when rounds stop making progress — and report which are ready to merge, meaning no major or medium findings left. Reviews against the host repo's own invariants, declared in its `AGENTS.md` `## Dispatch` section. Use when asked to adversarially review a PR, run a review cycle, or review every open PR. Called by the dispatch skill right after implement-ticket reports a ticket green; equally fine invoked standalone against any open PR, ticket-linked or not.
+description: Run adversarial review rounds on one or more open pull requests — a fresh reviewer subagent each round, a fixer subagent addressing findings, capped at six rounds by default and stopped early when rounds stop making progress — and report which are ready to merge, meaning no major or medium findings left. Reviews against the host repo's own invariants, declared in its `AGENTS.md` `## Dispatch` section, which also declares a write window that stops the fixer short of any commit or push while it's closed. Use when asked to adversarially review a PR, run a review cycle, or review every open PR. Called by the dispatch skill right after implement-ticket reports a ticket green; equally fine invoked standalone against any open PR, ticket-linked or not.
 ---
 
 # Adversarial review
@@ -81,10 +81,26 @@ you stop before the cap, why. A human reading "capped at 6 of 10,
 rounds 4-6 kept re-raising the same nullability question, see ledger"
 learns something; "capped" alone does not.
 
+## Restarting a deferred cycle
+
+There is no resume. A cycle that comes back `deferred` is picked up
+later by a human re-invoking this skill directly against the PR —
+`dispatch` never restarts a deferred cycle itself — and it starts over
+at round 1 with a fresh round count and an empty ledger, the same as
+any other call. The worktree reset this needs is "The worktree" rule
+below, applied at whichever step first touches the worktree this time:
+whatever the deferred fixer left uncommitted or unpushed there is
+stale, and nothing about this call knows what it still covers.
+Restarting a cycle
+that had already used some of its round budget does spend that budget
+again; that is the accepted cost of stopping dead at a window boundary
+rather than carrying state across a context nothing keeps alive. See
+the `dispatch` skill's "The write window".
+
 ## Repo configuration
 
 Read the `## Dispatch` section of the host repo's `AGENTS.md` before
-starting. Three fields matter most here:
+starting. Four fields matter most here:
 
 - **Review invariants** — the properties this repo wants a reviewer to
   be adversarial about. This is the substance of the review; the
@@ -98,6 +114,9 @@ starting. Three fields matter most here:
   about the change's quality; it routes the merge decision, and it is
   the check that catches a diff reaching files the plan never
   predicted.
+- **Write window** — the weekday hours, if any, during which a commit
+  or push is not allowed to happen. Pass it down to the fixer. See the
+  `dispatch` skill's "The write window".
 
 Also take the base branch and the worktree directory (`<runs-dir>`)
 from that section. No `## Dispatch` section means the repo has not
@@ -105,6 +124,21 @@ opted in: say so and stop. If the invariants are missing, you can
 still review against the ticket brief and general correctness, but say
 plainly in your report that this repo declared no invariants, so the
 review was thinner than it should have been — don't paper over it.
+
+## The worktree
+
+Whichever step is the first in a cycle to touch
+`<runs-dir>/<TICKET-or-PR#>` — step 5's fixer on a major or medium
+finding, or the "one inline pass" at trivial minors in "When a target
+is ready" if the cycle reaches ready without step 5 ever running —
+applies the `dispatch` skill's "The one worktree rule" before making
+its first edit there: reset a worktree already at that path (a caller
+may have left one from implementing, or an earlier, now-stale attempt
+at reviewing this same PR, ticketed or not, deferred or otherwise), or
+create one fresh on the PR's branch if none exists. A later round or
+pass within the same cycle keeps building in that same worktree
+without resetting it again — it holds this cycle's own accumulating
+work, not a leftover from somewhere else.
 
 ## Resolving a target to a brief
 
@@ -138,20 +172,29 @@ against.
    diverged base, a serious pre-existing bug) — stop the cycle for this
    target right there. Don't spawn a fixer; there's nothing for it to
    fix. Go to "On a blocked or failed report" below.
-4. **Zero major and zero medium findings** → this target is ready,
-   whatever minors are open. See "When a target is ready" below.
+4. **Zero major and zero medium findings** → before calling this round
+   clean, check CI on the PR's current head (`gh pr checks`). Green:
+   this target is ready, whatever minors are open — see "When a target
+   is ready" below. Red: the round isn't clean — treat "CI red on
+   head" as a medium finding and fold it into step 5 for the fixer.
+   Pending: wait for it with `gh pr checks --watch`, then judge
+   whatever it settles on. No checks reported at all: that is not
+   green either — report `RESULT: blocked` with that as the reason and
+   go to "On a blocked or failed report" below, same as a blocked
+   reviewer report; don't call this round ready on the strength of an
+   absent signal.
 5. **Any major or medium finding** → spawn a fixer subagent with
-   `prompts/fixer.md` in a worktree on the PR's branch — reuse one at
-   `<runs-dir>/<TICKET>`
-   if it already exists (a caller may have left one from implementing),
-   otherwise make one:
-   `git fetch origin && git worktree add <runs-dir>/<TICKET-or-PR#> origin/<branch>`.
-   Give it the repo's check command along with the findings — all of
-   them, minors included, since a minor next to a major it is already
-   editing around is cheap to take. The fixer addresses every finding,
-   or rebuts one in the PR thread with a concrete reason and flags it
-   in its report as disputed. It gets CI green again under the
-   implementer's same three-attempt rule.
+   `prompts/fixer.md` in a worktree on the PR's branch. Apply "The
+   worktree" rule above if this is the first thing in the cycle to
+   touch it. On a later round within this same cycle, keep building in
+   that same worktree without resetting it again — it holds this
+   cycle's own accumulating work, not a leftover from somewhere else.
+   Give it the repo's check command and write window (WINDOW) along
+   with the findings — all of them, minors included, since a minor
+   next to a major it is already editing around is cheap to take. The
+   fixer addresses every finding, or rebuts one in the PR thread with a
+   concrete reason and flags it in its report as disputed. It gets CI
+   green again under the implementer's same three-attempt rule.
 
    Record what it did with each finding in the ledger — fixed,
    rebutted, still open — then run the next round with another fresh
@@ -161,6 +204,13 @@ against.
    If the fixer instead reports **blocked** — a finding can't be
    addressed without a judgment call outside its brief — stop the cycle
    here too, same as a blocked reviewer report.
+
+   If the fixer reports **deferred** — it stopped before a commit or
+   push because the write window was closed — stop this target's cycle
+   right there too, but treat it as neither blocked nor a failure: see
+   "On a deferred report" below. Keep the ledger rows built so far in
+   your report's NOTES, since the ledger itself doesn't survive past
+   this context.
 
 When the budget runs out with major or medium findings still open, or
 the progress rule stops you first, leave the PR as it stands and
@@ -190,8 +240,33 @@ later. They are not a reason to hold a correct change.
 
 Before declaring ready you may take **one inline pass** at minors that
 are trivially fixable — a wrong error string, a missed nil check, a
-name that contradicts the one three lines above it. Spawn the fixer in
-trivial-minors mode, let it push, and confirm CI is green.
+name that contradicts the one three lines above it. Apply "The
+worktree" rule above first if step 5 never ran this cycle — a cycle
+that reaches ready at round 1, or one restarted after a deferred
+fixer, has never had this pass reset a worktree that may be stale or
+missing. Then spawn the fixer in trivial-minors mode, let it push, and
+confirm CI is green. Skip this pass entirely while the write window is
+closed — a fixer spawned into a closed window would just come back
+`deferred` having pushed nothing.
+
+If it comes back `RESULT: deferred` instead — the window closed while
+it was working — reset the worktree to the PR's remote head before
+doing anything else: `git fetch origin && git reset --hard
+origin/<branch>` in WORKTREE. That drops either kind of leftover the
+same way — uncommitted edits, or a local commit the pass made but
+didn't get to push — and leaves nothing for `merge-queue`'s rebase to
+trip on.
+
+The PR's current head, after that reset, decides the verdict:
+
+- **CI is green there** (the pass either never pushed, so the head is
+  unchanged, or it pushed and CI has already come back clean). Report
+  `ready` with any minors the pass had touched left open — the pass was
+  optional, and an unreviewed trivial edit that didn't make it costs
+  nothing to drop.
+- **CI is red, still running, or you can't tell.** Report this cycle
+  `deferred`, not `ready` — `RESULT: ready` means CI green on the
+  current head, not just findings resolved. See "On a deferred report".
 
 **That pass is not a round and is not reviewed again.** Nothing about
 it changes the verdict. A fix that would need a review round to be
@@ -215,18 +290,40 @@ target's cycle, add the `needs-attention` label to the resolved ticket
 if there is one (leaving its status where it is), and don't let it
 block review of the others you were given.
 
+## On a deferred report
+
+The fixer stopped before a commit or push because the repo's declared
+write window was closed (see the `dispatch` skill's "The write
+window"). This is not blocked and not failed — nothing about the
+target is wrong, the clock is. Stop this target's cycle, same as a
+blocked or failed report, but don't add `needs-attention` and don't
+touch the ticket's status. If a ticket resolved, post the short
+deferral note the `dispatch` skill's "The write window" defines, on the
+ticket — the same rule `implement-ticket` follows on its own deferred
+report. This is a stage-status note about the cycle pausing, not a
+review finding about the diff, so it belongs where the ticket's status
+already lives, not as a comment or thread reply on the PR. Post it with
+stage `review-fixer` (or `trivial-minors`, for a deferral from that
+pass): what's left undone, the worktree path, and when the window next
+opens. For a ticketless PR
+there is no private place to put that: skip the comment and rely on the
+report below. Tell whoever is waiting on this the same thing either
+way. There is no resume: a later call restarts this cycle from round 1
+(see "Restarting a deferred cycle").
+
 ## Report, per target
 
     TICKET: <id or none>
     PR: <url>
-    RESULT: ready | blocked | capped | failed
-    ROUNDS: <n> of <budget>
+    RESULT: ready | blocked | capped | failed | deferred
+    ROUNDS: <n> of <budget, as used so far>
     LAST_ROUND_FINDINGS: <count by severity, or 0 — omit if blocked>
     OPEN_MINORS: <count, one line each, or none>
     STOPLIST: <the entries this diff hits, or none>
     OPTIONS: <for blocked: 2-3 options with consequences, and the pick>
-    NOTES: <disputed findings, why capped or failed, why you stopped
-           where you did; for capped, the ledger rows behind that read>
+    NOTES: <disputed findings, why capped, failed, or deferred, why you
+           stopped where you did; for capped or deferred, the ledger
+           rows behind that read>
 
 `RESULT: ready` means no major or medium findings on the latest round
 and CI green — it is not a merge, and it is not merge approval. This

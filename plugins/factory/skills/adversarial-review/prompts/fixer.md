@@ -2,9 +2,10 @@
 
 Fill in before spawning: TICKET (Linear id), WORKTREE (absolute path),
 BRANCH, PR, CHECK (the check command from the repo's `## Dispatch`
-config), plus the reviewer's findings summary. Say plainly whether
-this is an ordinary round or **trivial-minors mode**; the two have
-different bars for touching anything.
+config), WINDOW (that config's write window), plus the reviewer's
+findings summary. Say plainly whether this is an ordinary round or
+**trivial-minors mode**; the two have different bars for touching
+anything.
 
 ---
 
@@ -18,6 +19,16 @@ finding is wrong, do not silently skip it: rebut it in its PR thread
 with a concrete reason, and flag it in your report so the orchestrator
 knows a disputed finding is outstanding. Reply to every other thread
 saying what you did.
+
+Hold every one of those replies and rebuttals until after your push
+succeeds, whenever WINDOW is not `none` — don't post them as you go. A
+reply posted mid-round describes a fix nobody can see yet, and if you
+defer before that push lands, it would be describing one nobody may
+ever see. A round with no commit or push at all — every finding
+rebutted, nothing fixed — has no push to hold for either: post its
+replies and rebuttals once the round is done. If WINDOW is `none`
+there is no window to close and so nothing you could defer on: post
+replies as you finish each one.
 
 Minors count. The cycle exits at no major and no medium findings, so a
 minor will not hold the PR — but you are already in this file with
@@ -39,6 +50,43 @@ discarded; three more lines now saves whoever picks this up from
 rebuilding all of it. Two or three options, the consequence of each,
 and which you would pick. Put them in the PR comment as well as in
 your report.
+
+## The write window
+
+WINDOW is this repo's declared write window: the closed periods, if
+any, during which a commit or push must not happen. If WINDOW is
+`none`, there is nothing to check. Otherwise, verify the zone exists
+once, before checking anything else — `[ -f "/usr/share/zoneinfo/<zone>" ]`
+— and if it doesn't, stop now and report back as blocked, the same way
+a missing CHECK does: a misspelled zone is a config error, not an open
+window. The check itself, each time you run it: `TZ=<zone> date '+%u
+%H:%M'` (`%u` is 1=Monday..7=Sunday), read fresh, never reused. A
+closed period's start is inclusive, its end exclusive; a period whose
+end time is earlier than its start runs past midnight into the next
+day — it stays closed from the start time on its named day through the
+end time on the day *after*. If WINDOW names no timezone, or a reading
+can't be parsed unambiguously, that's the same config error — stop now
+and report back as blocked.
+
+Otherwise, before every commit you make — the first fix, any later
+finding's commit, and any CI-repair commit, not just the first one —
+and before every push, including every CI-retry push, read the clock
+fresh with that same check, never a reading from earlier in the round,
+and check it against WINDOW.
+
+If the window is closed at any of those points: don't make the
+commit, don't push, and don't wait for it to reopen. Stop exactly
+where you are and report back `RESULT: deferred` instead of `blocked`
+or `failed` — leave the worktree as it is, uncommitted edits and all.
+If you haven't posted this round's replies yet per the rule above,
+post none now — leave it that way; there is no resume, so nothing will
+read that state back. If an earlier push in this round already
+succeeded and you posted replies for it before this later commit or
+push hit the closed window, don't take that back — just say so in
+NOTES. In NOTES, also say exactly what's left undone. A later call
+that picks this cycle back up starts a fresh fixer round from scratch,
+not a continuation of this one — see the `dispatch` skill's "The write
+window" and `adversarial-review`'s "Restarting a deferred cycle".
 
 ## Trivial-minors mode
 
@@ -76,13 +124,15 @@ Report back to the orchestrator in exactly this shape — no diffs, no
 logs:
 
     TICKET: <id>
-    RESULT: green | blocked | failed
+    RESULT: green | blocked | failed | deferred
     ADDRESSED: <n of m findings fixed>
     REBUTTED: <n, with one line each, or none>
     LEFT_OPEN: <minors you judged not trivial, one line each, or none —
                trivial-minors mode only>
     OPTIONS: <for blocked: 2-3 options with consequences, and your pick>
-    NOTES: <anything weak, why blocked, or why it failed>
+    NOTES: <anything weak, why blocked, why it failed, or — for
+           deferred — what's left undone and whether this round's
+           thread replies were already posted>
 
 Be exact about what you did with each finding. The orchestrator keeps
 a ledger across rounds, and "fixed", "rebutted" and "left open" are
