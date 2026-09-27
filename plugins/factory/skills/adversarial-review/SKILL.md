@@ -160,15 +160,13 @@ against.
    whatever minors are open. See "When a target is ready" below.
 5. **Any major or medium finding** → spawn a fixer subagent with
    `prompts/fixer.md` in a worktree on the PR's branch. The first time
-   this cycle needs one, reuse one at `<runs-dir>/<TICKET>` if it
-   already exists — a caller may have left one from implementing, or an
-   earlier, now-stale attempt at reviewing this same PR — but reset it
-   first, whether or not you know why it's there: `git fetch origin &&
-   git reset --hard origin/<branch> && git clean -fd`. If none exists,
-   make one instead:
-   `git fetch origin && git worktree add <runs-dir>/<TICKET-or-PR#> origin/<branch>`.
-   On a later round within this same cycle, keep building in that same
-   worktree without resetting it again — it holds this cycle's own
+   this cycle needs one, set it up at `<runs-dir>/<TICKET-or-PR#>` per
+   the `dispatch` skill's "The one worktree rule" — reset it if one's
+   already there at that path (a caller may have left one from
+   implementing, or an earlier, now-stale attempt at reviewing this
+   same PR, ticketed or not), or create it fresh on the PR's branch if
+   not. On a later round within this same cycle, keep building in that
+   same worktree without resetting it again — it holds this cycle's own
    accumulating work, not a leftover from somewhere else.
    Give it the repo's check command and write window (WINDOW) along
    with the findings — all of them, minors included, since a minor

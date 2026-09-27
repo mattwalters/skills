@@ -13,13 +13,19 @@ may have left behind.
 
 WINDOW is this repo's declared write window: the closed periods, if
 any, during which the rebase, a commit-creating command, or a push
-must not happen. If WINDOW is `none`, skip this section. Evaluate it
-with the `dispatch` skill's "The write window" Evaluation two-step
-check (verify the zone once, then read the clock fresh each time) —
-never a bare `TZ=<zone> date`, which accepts a misspelled zone
-silently. If the zone fails that check, WINDOW names no timezone, or a
-reading can't be parsed unambiguously, stop now and report back as
-blocked, the same way an unreadable BASE would.
+must not happen. If WINDOW is `none`, skip this section. Otherwise,
+verify the zone exists once, before checking anything else —
+`[ -f "/usr/share/zoneinfo/<zone>" ]` — and if it doesn't, stop now and
+report back as blocked, the same way an unreadable BASE would: a
+misspelled zone is a config error, not an open window. The check
+itself, each time you run it: `TZ=<zone> date '+%u %H:%M'` (`%u` is
+1=Monday..7=Sunday), read fresh, never reused. A closed period's start
+is inclusive, its end exclusive; a period whose end time is earlier
+than its start runs past midnight into the next day — it stays closed
+from the start time on its named day through the end time on the day
+*after*. If WINDOW names no timezone, or a reading can't be parsed
+unambiguously, that's the same config error — stop now and report back
+as blocked.
 
 Otherwise, before you run the rebase below, before `git rebase
 --continue` if resolving a conflict needs it, before any commit you

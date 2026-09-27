@@ -105,15 +105,13 @@ skill's "The write window".
    linked ticket).
    Leave the ticket's status alone; it stays `In Review` until it
    merges.
-2. Reuse the worktree at `<runs-dir>/<TICKET>` if one exists (a caller
-   may have left one from implementing or reviewing); otherwise make
-   one on the PR's branch:
-   `git fetch origin && git worktree add <runs-dir>/<TICKET-or-PR#> origin/<branch>`.
-   If the worktree already existed, reset it to the PR's current remote
-   head first — `git fetch origin && git reset --hard origin/<branch>
-   && git clean -fd` — regardless of why it was left there (an earlier
-   resolver's deferral included); this is a fresh attempt, not a
-   continuation of whatever that worktree held.
+2. Set up the worktree at `<runs-dir>/<TICKET-or-PR#>` per the
+   `dispatch` skill's "The one worktree rule" — reset it to the PR's
+   current remote head if one's already there at that path (a caller
+   may have left one from implementing or reviewing, an earlier
+   resolver's deferral included), or create it fresh on the PR's branch
+   if not. Either way this is a fresh attempt, not a continuation of
+   whatever that worktree held.
 3. Spawn a **fresh** resolver subagent with `prompts/resolver.md` —
    mid-tier model, high effort (see the `dispatch` skill's Models and
    effort table for the harness mapping) — filling in WORKTREE,
@@ -219,28 +217,40 @@ skill's "The write window".
 
 Whether it came from the window check at the top of this section or
 from a resolver's `RESULT: deferred`, this is not blocked and not
-failed — nothing about the PR is wrong, the clock is. Don't add
-`needs-attention`, and leave the ticket's status and the
-`approved-to-merge` label exactly as they are. Leave the PR and
-worktree as they stand and move to the next PR, unless the whole
-queue was deferred at once because the window was already closed when
-this PR's turn came, in which case there is no next PR to move to.
+failed — nothing about the PR is wrong, the clock is (except the one
+stuck sub-case below, which is deferred *and* needs a human). Leave
+the ticket's status and the `approved-to-merge` label exactly as they
+are either way. Leave the PR and worktree as they stand and move to
+the next PR, unless the whole queue was deferred at once because the
+window was already closed when this PR's turn came, in which case
+there is no next PR to move to.
 
 For each deferred PR, record it in your report's NOTES, and, if a
 ticket is linked, post the short deferral note the `dispatch` skill's
 "The write window" defines — stage `merge-resolver` for a deferral at
 or before the rebase, or `merge` for one at step 5's final pre-merge
-check — saying what's left undone and the worktree path. There is no
-resume: a later call re-runs this PR from step 2 above, which resets
-the worktree to the PR's remote head before spawning a fresh resolver.
+check — saying what's left undone and the worktree path. Ordinarily
+there is no resume: a later call re-runs this PR from step 2 above,
+which resets the worktree to the PR's remote head before spawning a
+fresh resolver. The one exception is the stuck sub-case below, where a
+later call can't get that far.
 
-If the resolver had already force-pushed a rebase before deferring, say
-so explicitly, and say whether the PR's current head is red or its CI
-unverified. That head will not satisfy this skill's own Eligibility
-check on its own, so an "all eligible PRs" sweep will not pick this PR
-back up by itself — a later run has to target it directly
-(`merge-queue <PR>`), which re-runs the resolver, re-rebasing (a no-op
-if the base hasn't moved) and re-verifying CI, before it can merge.
+If the resolver had already force-pushed a rebase before deferring,
+this one combination is stuck rather than merely deferred: say
+explicitly that the rebase was pushed, and whether the PR's current
+head is red or its CI unverified. That head cannot satisfy this
+skill's own Eligibility check on its own — CI must show green before a
+PR is even queued — so no later call, targeted or swept, can pick it
+back up by re-running the resolver; `merge-queue <PR>` would reject it
+at Eligibility before the resolver ever ran. Don't say a restart will
+fix it. Instead, add `needs-attention` to the linked ticket (leaving
+its status where it is) and say so in your report alongside the usual
+deferral note: a human has to get the pushed head's CI green, or
+decide what to do with it, before this PR can requeue at all. An
+ordinary deferral — the window closed before any rebase ran — gets no
+label and is picked back up the normal way, by targeting the PR
+directly; it just won't appear in an "all eligible PRs" sweep either,
+since nothing changed for it to be found by.
 
 ## Report
 

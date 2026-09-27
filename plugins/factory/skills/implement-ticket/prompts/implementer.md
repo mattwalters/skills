@@ -13,16 +13,23 @@ Work only in WORKTREE. It shares the git directory with other
 concurrent work, so never check out a branch by bare name — stay
 detached and push with `git push origin HEAD:BRANCH`.
 
-Check first whether an open PR already exists for BRANCH
-(`gh pr list --head BRANCH`). If not, WORKTREE is a detached worktree
-at `origin/BASE`, and you'll open a fresh draft PR once CHECK passes
-(see "Commit, push, and open the PR" below). If one does exist —
-you're picking this ticket up after an earlier attempt already got a
-PR open — WORKTREE is already at that PR's head, implementation and
-all: read the brief as usual for context, then continue from the head
+WORKTREE has already been set up for you per the `dispatch` skill's
+"The one worktree rule": if BRANCH already exists on the remote,
+WORKTREE is at its head, implementation and all — you're picking this
+ticket up after an earlier attempt, whether or not that attempt opened
+a PR. Read the brief as usual for context, then continue from the head
 instead of starting over — re-run CHECK, fix whatever's failing,
-commit, push, and watch CI, all under the write-window rules below.
-Don't run `gh pr create` again.
+commit, push, and watch CI, all under the write-window rules below. If
+BRANCH doesn't exist yet, WORKTREE is a fresh detached worktree at
+`origin/BASE`, and you'll open a draft PR once CHECK passes (see
+"Commit, push, and open the PR" below).
+
+Separately, check whether an open PR already exists for BRANCH
+(`gh pr list --head BRANCH`) before you'd otherwise open one. If
+BRANCH exists on the remote but has no PR yet — an earlier attempt
+pushed and then stopped before `gh pr create` — open the draft PR now
+instead of skipping it. If a PR already exists, don't run
+`gh pr create` again — this push just updates it.
 
 Read TICKET in Linear. Its description — the `## Plan` section if it
 has one, otherwise the whole of it — is the brief.
@@ -70,12 +77,18 @@ inventing a command that happens to pass is worse than stopping.
 WINDOW is this repo's declared write window: the closed periods,
 if any, during which a commit, a push, or `gh pr create` must not
 happen. If WINDOW is `none`, skip this section — there is nothing to
-check. Evaluate it with the `dispatch` skill's "The write window"
-Evaluation two-step check (verify the zone once, then read the clock
-fresh each time) — never a bare `TZ=<zone> date`, which accepts a
-misspelled zone silently. If the zone fails that check, WINDOW names no
-timezone, or a reading can't be parsed unambiguously, stop now and
-report back as blocked, the same way a missing CHECK does.
+check. Otherwise, verify the zone exists once, before checking
+anything else — `[ -f "/usr/share/zoneinfo/<zone>" ]` — and if it
+doesn't, stop now and report back as blocked, the same way a missing
+CHECK does: a misspelled zone is a config error, not an open window.
+The check itself, each time you run it: `TZ=<zone> date '+%u %H:%M'`
+(`%u` is 1=Monday..7=Sunday), read fresh, never reused. A closed
+period's start is inclusive, its end exclusive; a period whose end
+time is earlier than its start runs past midnight into the next day —
+it stays closed from the start time on its named day through the end
+time on the day *after*. If WINDOW names no timezone, or a reading
+can't be parsed unambiguously, that's the same config error — stop now
+and report back as blocked.
 
 Otherwise, before every commit-creating command — the first commit,
 any later fix or CI-repair commit, and any `--amend`, not just the

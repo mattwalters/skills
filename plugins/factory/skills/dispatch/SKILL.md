@@ -234,9 +234,12 @@ an open window with no error to catch it:
 If the declaration has no timezone, or a reading can't be parsed
 unambiguously, that is the same config error as a failed zone check:
 say so and stop before the first gated write. Never assume the window
-is open. Every prompt that checks the window (`implementer.md`,
-`fixer.md`, `resolver.md`) points back to this two-step check rather
-than repeating it.
+is open. This section is the canonical definition. Every prompt that
+checks the window (`implementer.md`, `fixer.md`, `resolver.md`) carries
+its own short inline copy of this same two-step check instead of
+pointing back here, because a subagent spawned into another host
+repo's context never sees this file's text. Keep those copies in sync
+with this section whenever either changes.
 
 Checking a same-day period (start before end) is one comparison:
 today is a named day and the time reads at or after the start and
@@ -289,7 +292,10 @@ that reset happens.
 Nothing releases the window except the repo's own declaration. It is
 not a gate and not an escalation: no mode, no released gate, and no
 plan-gate pre-authorization opens it, and a deferred ticket gets no
-`needs-attention` label and keeps whatever status it already had.
+`needs-attention` label and keeps whatever status it already had — with
+one named exception, where `merge-queue` finds the PR actually stuck
+rather than merely waiting on the clock (see Phase 8 and
+`merge-queue`'s "On a deferred report").
 
 **The deferral note.** Every stage that defers posts one short comment,
 on the ticket if one resolved (for a ticketless PR, the stage's own
@@ -308,19 +314,35 @@ with fresh budgets: a fresh three CI pushes, a fresh round count, a
 fresh ledger. A run's end-of-run report names each deferred ticket
 with that exact invocation (see "Status updates").
 
-**The one worktree rule.** Before any of those three skills reuses an
-existing `<runs-dir>/<TICKET>` worktree — `implement-ticket`'s step 2,
-`adversarial-review`'s step 5, `merge-queue`'s step 2 — reset it
-first: `git fetch origin && git reset --hard origin/<branch>` plus
-`git clean -fd` if the ticket has a PR, or cut a fresh one from the
-base branch if it doesn't. This applies whether or not the caller
-knows it's a restart: a worktree left behind by anything other than
-the current attempt is a prior attempt to discard, not a partial start
-to build on. Say plainly, wherever this matters, that restarting a
-deferred stage can reset a CI or review budget that had already been
-partly spent: that is the cost of stopping dead instead of promising to
-pick an attempt back up mid-stream, and it is cheap next to a run that
-finished on time.
+**The one worktree rule.** All three skills set up their worktree the
+same way, at the same path, whatever state they find it in —
+`implement-ticket`'s step 2, `adversarial-review`'s step 5,
+`merge-queue`'s step 2:
+
+    git fetch origin
+    if origin/<BRANCH> exists:
+        a worktree already at <runs-dir>/<TICKET-or-PR#>?
+          -> reset it: git reset --hard origin/<BRANCH> && git clean -fd
+          -> otherwise: git worktree add --detach <path> origin/<BRANCH>
+    else:
+        cut it fresh from origin/<BASE>, removing anything already
+        at <runs-dir>/<TICKET-or-PR#> first
+
+The path is always `<runs-dir>/<TICKET-or-PR#>` — the ticket id when
+one resolved, the PR number when none did — so a ticketless PR's
+worktree is found and reset the same way a ticketed one is, never
+mistaken for empty and re-created into a collision. This applies
+whether or not the caller knows it's a restart: a worktree left behind
+by anything other than the current attempt is a prior attempt to
+discard, not a partial start to build on. It also means a stage that
+reads "if the remote branch exists, continue from its head" can say so
+unconditionally — the worktree is set up before that stage's own logic
+runs, so the branch's existence, not what a caller happened to leave
+behind, is what decides where WORKTREE starts. Say plainly, wherever
+this matters, that restarting a deferred stage can reset a CI or
+review budget that had already been partly spent: that is the cost of
+stopping dead instead of promising to pick an attempt back up
+mid-stream, and it is cheap next to a run that finished on time.
 
 **Echoing it.** When you echo the mode back in one line before the
 first gate (see "Modes"), include on the same line the window's
@@ -582,9 +604,13 @@ ticket never stops the others.
 On `RESULT: deferred`, `implement-ticket` stopped before a gated write
 because the repo's write window was closed, and no `needs-attention`
 label was added. What's left undone varies by when it stopped —
-uncommitted edits, unpushed commits, or a PR already open — and its
-NOTES say which; don't assume it means nothing was committed or
-pushed. Record what's undone and the worktree path on the manifest
+uncommitted edits, unpushed commits, a branch pushed with no PR opened
+yet, or a PR already open — and its NOTES say which; don't assume it
+means nothing was committed or pushed. A restart handles the
+pushed-but-no-PR case on its own — the one worktree rule continues
+from the pushed branch, and the implementer opens the PR it never got
+to — so there's nothing extra for you to do about it beyond relaying
+it here. Record what's undone and the worktree path on the manifest
 entry and carry on with the rest of the batch; don't retry it within
 this run — a restart is a fresh `implement-ticket` invocation with a
 fresh budget, not something this run does mid-batch. See "The write
@@ -696,13 +722,18 @@ On `RESULT: deferred`, `merge-queue` stopped a PR before the rebase,
 `gh pr ready`, or `gh pr merge` because the write window was closed —
 a released merge gate does not open the window, so this can happen on
 a batch whose merges were already authorized. Nothing merged, but the
-PR is not necessarily untouched: if the resolver had already pushed a
-rebase before deferring, say so, and say whether its NOTES call the
-current head's CI red or unverified — that head will not clear
-`merge-queue`'s own eligibility check on its own, so a later run has to
-target this PR directly rather than finding it again in an "all
-eligible PRs" sweep. Carry on with the rest of the queue. See "The
-write window".
+PR is not necessarily untouched: if the resolver had already
+force-pushed a rebase before deferring, `merge-queue` treats that one
+combination as stuck rather than merely deferred — a head that isn't
+green fails its own Eligibility check, so no later `merge-queue <PR>`
+call can pick it back up by re-running the resolver — and it will
+already have added `needs-attention` to the linked ticket and said so
+in its report. Relay that plainly: a human needs to get the pushed
+head's CI green, or decide what to do with it, before this PR can
+requeue; it won't surface again in an "all eligible PRs" sweep either.
+Otherwise — the window closed before any rebase ran — this is an
+ordinary deferral: no `needs-attention`, carry on with the rest of the
+queue. See "The write window".
 
 ## Cleanup
 
@@ -801,8 +832,10 @@ A `RESULT: deferred` is neither of those and is not an escalation at
 all — nothing went wrong, the write window was simply closed. Relay it
 as its own thing: which stage deferred it, what's left undone, and the
 worktree path. It carries no `needs-attention` label and no status
-change, so don't fold it into a count of what stalled. See "The write
-window" for how it gets picked back up.
+change, so don't fold it into a count of what stalled — except the one
+`merge-queue` case that comes back both deferred and stuck (Phase 8),
+which does get the label and does belong in that count. See "The write
+window" for how an ordinary deferral gets picked back up.
 
 Keep `blocked` and `failed` distinct when you relay them — collapsing
 both into "it broke" is the one thing not to do here. Blocked means a

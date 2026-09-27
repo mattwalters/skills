@@ -38,16 +38,18 @@ declaration and is not the same as a missing one.
    there (a caller may have moved it during its own planning/approval
    step). If it carries the `needs-attention` label from an earlier
    run, remove it — someone is on it again.
-2. Make an isolated worktree in the configured worktree directory:
-   `git fetch origin && git worktree add --detach <runs-dir>/<TICKET> origin/<base-branch>`.
-   Never let two tickets share one worktree. If a worktree already
-   exists at `<runs-dir>/<TICKET>` — from an earlier attempt, whether or
-   not you know it came back `deferred` — this is a fresh attempt with
-   fresh budgets, not a continuation: reset it first, per the `dispatch`
-   skill's "The one worktree rule" — `git fetch origin && git reset
-   --hard origin/<branch>` plus `git clean -fd` if the ticket already
-   has an open PR, or remove it and cut a fresh one from
-   `origin/<base-branch>` if it doesn't.
+2. Set up an isolated worktree at `<runs-dir>/<TICKET>` per the
+   `dispatch` skill's "The one worktree rule": `git fetch origin`, then
+   if `origin/<BRANCH>` exists, (re)set the worktree to it — reset
+   `--hard` plus `git clean -fd` if one's already there at that path,
+   otherwise `git worktree add --detach <runs-dir>/<TICKET>
+   origin/<BRANCH>` — or, if `origin/<BRANCH>` doesn't exist yet, cut
+   the worktree fresh from `origin/<base-branch>`, removing anything
+   already at that path first. Never let two tickets share one
+   worktree. This applies whether or not you know it's a restart: a
+   worktree already there is a prior attempt with a spent budget, not a
+   partial start to build on, and this is a fresh attempt with fresh
+   budgets regardless of what it held.
 3. Spawn an implementer subagent with `prompts/implementer.md`, filling
    in TICKET, WORKTREE, BRANCH (Linear's suggested branch name for the
    ticket), BASE (the base branch), CHECK (the check command), and
