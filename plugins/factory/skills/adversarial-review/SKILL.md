@@ -279,7 +279,8 @@ report. This is a stage-status note about the cycle pausing, not a
 review finding about the diff, so it belongs where the ticket's status
 already lives, not as a comment or thread reply on the PR. Post it with
 stage `review-fixer` (or `trivial-minors`, for a deferral from that
-pass): what's left undone and the worktree path. For a ticketless PR
+pass): what's left undone, the worktree path, and when the window next
+opens. For a ticketless PR
 there is no private place to put that: skip the comment and rely on the
 report below. Tell whoever is waiting on this the same thing either
 way. There is no resume: a later call restarts this cycle from round 1

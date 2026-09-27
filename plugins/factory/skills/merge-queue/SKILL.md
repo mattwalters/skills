@@ -215,10 +215,11 @@ skill's "The write window".
 
 ## On a deferred report
 
-Whether it came from the window check at the top of this section or
-from a resolver's `RESULT: deferred`, this is not blocked and not
-failed — nothing about the PR is wrong, the clock is (except the one
-stuck sub-case below, which is deferred *and* needs a human). Leave
+Whether it came from the window check at the top of this section, from
+a resolver's `RESULT: deferred`, or from step 5's own check
+immediately before merging, this is not blocked and not failed —
+nothing about the PR is wrong, the clock is (except the one stuck
+sub-case below, which is deferred *and* needs a human). Leave
 the ticket's status and the `approved-to-merge` label exactly as they
 are either way. Leave the PR and worktree as they stand and move to
 the next PR, unless the whole queue was deferred at once because the
@@ -229,28 +230,35 @@ For each deferred PR, record it in your report's NOTES, and, if a
 ticket is linked, post the short deferral note the `dispatch` skill's
 "The write window" defines — stage `merge-resolver` for a deferral at
 or before the rebase, or `merge` for one at step 5's final pre-merge
-check — saying what's left undone and the worktree path. Ordinarily
-there is no resume: a later call re-runs this PR from step 2 above,
-which resets the worktree to the PR's remote head before spawning a
-fresh resolver. The one exception is the stuck sub-case below, where a
-later call can't get that far.
+check — saying what's left undone, the worktree path, and when the
+window next opens. Ordinarily there is no resume: a later call re-runs
+this PR from step 2 above, which resets the worktree to the PR's
+remote head before spawning a fresh resolver. The one exception is the
+stuck sub-case below, where a later call can't get that far.
 
-If the resolver had already force-pushed a rebase before deferring,
-this one combination is stuck rather than merely deferred: say
-explicitly that the rebase was pushed, and whether the PR's current
-head is red or its CI unverified. That head cannot satisfy this
-skill's own Eligibility check on its own — CI must show green before a
-PR is even queued — so no later call, targeted or swept, can pick it
-back up by re-running the resolver; `merge-queue <PR>` would reject it
-at Eligibility before the resolver ever ran. Don't say a restart will
-fix it. Instead, add `needs-attention` to the linked ticket (leaving
-its status where it is) and say so in your report alongside the usual
-deferral note: a human has to get the pushed head's CI green, or
-decide what to do with it, before this PR can requeue at all. An
-ordinary deferral — the window closed before any rebase ran — gets no
-label and is picked back up the normal way, by targeting the PR
-directly; it just won't appear in an "all eligible PRs" sweep either,
-since nothing changed for it to be found by.
+What decides stuck versus ordinary is the state of the head when the
+window closes, not whether a push happened. A rebased head that's been
+force-pushed and isn't (yet) green — red, or CI still running — is
+stuck rather than merely deferred: say explicitly that the rebase was
+pushed, and whether the head is red or its CI unverified. That head
+cannot satisfy this skill's own Eligibility check on its own — CI must
+show green before a PR is even queued — so no later call, targeted or
+swept, can pick it back up by re-running the resolver; `merge-queue
+<PR>` would reject it at Eligibility before the resolver ever ran.
+Don't say a restart will fix it. Instead, add `needs-attention` to the
+linked ticket (leaving its status where it is) and say so in your
+report alongside the usual deferral note: a human has to get the
+pushed head's CI green, or decide what to do with it, before this PR
+can requeue at all.
+
+Everything else is an ordinary deferral — including a rebased,
+force-pushed head that's already green when the window closes, which
+is exactly what step 5's final pre-merge check defers: the rebase
+succeeded and CI passed, only `gh pr merge` itself got cut off. That
+gets no label and is picked back up the normal way, by targeting the
+PR directly. It's also not invisible to a sweep: it still carries
+`approved-to-merge` and a green head, so the next "all eligible PRs"
+sweep picks it up too and merges it once the window is open.
 
 ## Report
 

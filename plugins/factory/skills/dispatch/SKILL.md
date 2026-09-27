@@ -718,22 +718,29 @@ new logic or a judgment call, not just combining both sides) or
 which one it was and why — `merge-queue` already left the PR and
 worktree as they were — and carry on with the rest of the queue.
 
-On `RESULT: deferred`, `merge-queue` stopped a PR before the rebase,
-`gh pr ready`, or `gh pr merge` because the write window was closed —
-a released merge gate does not open the window, so this can happen on
-a batch whose merges were already authorized. Nothing merged, but the
-PR is not necessarily untouched: if the resolver had already
-force-pushed a rebase before deferring, `merge-queue` treats that one
-combination as stuck rather than merely deferred — a head that isn't
-green fails its own Eligibility check, so no later `merge-queue <PR>`
-call can pick it back up by re-running the resolver — and it will
-already have added `needs-attention` to the linked ticket and said so
-in its report. Relay that plainly: a human needs to get the pushed
-head's CI green, or decide what to do with it, before this PR can
-requeue; it won't surface again in an "all eligible PRs" sweep either.
-Otherwise — the window closed before any rebase ran — this is an
-ordinary deferral: no `needs-attention`, carry on with the rest of the
-queue. See "The write window".
+On `RESULT: deferred`, `merge-queue` stopped a PR before a rebase, `gh
+pr ready`, `gh pr merge`, or at its own final check immediately before
+merging, because the write window was closed — a released merge gate
+does not open the window, so this can happen on a batch whose merges
+were already authorized. Nothing merged, but the PR is not necessarily
+untouched: `merge-queue` keys stuck versus ordinary on the state of the
+head when the window closed, not on whether a push happened. If a
+rebased head has been force-pushed and isn't (yet) green — red, or CI
+still running — `merge-queue` treats that as stuck rather than merely
+deferred: such a head fails its own Eligibility check on its own, so no
+later `merge-queue <PR>` call can pick it back up by re-running the
+resolver — and it will already have added `needs-attention` to the
+linked ticket and said so in its report. Relay that plainly: a human
+needs to get the pushed head's CI green, or decide what to do with it,
+before this PR can requeue.
+
+Everything else is an ordinary deferral, including a rebased,
+force-pushed head that's already green when the window closes — the
+last-step case, where only `gh pr merge` itself got cut off. No
+`needs-attention`; the PR keeps `approved-to-merge` and a green head,
+so it stays eligible and either a targeted `merge-queue <PR>` call or
+an "all eligible PRs" sweep merges it once the window is open. Carry on
+with the rest of the queue either way. See "The write window".
 
 ## Cleanup
 
