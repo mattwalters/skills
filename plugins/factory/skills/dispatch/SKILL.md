@@ -465,6 +465,10 @@ existing home (see "The write window"):
     <the OPTIONS block verbatim, pick included, or "none recorded" for
      a failed result, which is a mechanical wall with no options>
     Ledger: <capped only: the ledger rows behind the read>
+    Stop-list: <entries this result's diff hit, or none — this is how a
+               blocked, failed, or capped review result records a hit
+               durably; a ready result posts the separate stop-list
+               hold comment below instead of filling this line>
 
     **factory: stop-list hold**
     PR: <url>
@@ -729,9 +733,11 @@ finish.
 The human can name a different budget at invocation; theirs wins.
 
 Every report comes back with a `STOPLIST` line. A non-empty one holds
-that ticket's merge gate for the human whatever the mode —
-`adversarial-review` has already posted the `factory: stop-list hold`
-comment for it; carry it into Phase 8.
+that ticket's merge gate for the human whatever the mode. On
+`RESULT: ready`, `adversarial-review` has already posted the `factory:
+stop-list hold` comment for it; carry it into Phase 8. On any other
+result, it's instead recorded on that result's `factory: escalation`
+comment, in its `Stop-list` line — see "Escalation comments".
 
 On `RESULT: ready`, go to Phase 8. Ready means no major and no medium
 findings, not zero findings: open minors come back listed in the

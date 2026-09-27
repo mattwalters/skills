@@ -113,8 +113,11 @@ starting. Four fields matter most here:
   reports what it hits. This is not a review finding and says nothing
   about the change's quality; it routes the merge decision, and it is
   the check that catches a diff reaching files the plan never
-  predicted. A hit is recorded as a `factory: stop-list hold` comment
-  (see "Recording a stop-list hit" below), not a label.
+  predicted. On a ready result, a hit is recorded as a `factory:
+  stop-list hold` comment (see "Recording a stop-list hit" below); on
+  any other result it goes on the `factory: escalation` comment's
+  `Stop-list` line instead (see the `dispatch` skill's "Escalation
+  comments"). Neither is a label.
 - **Write window** — the weekday hours, if any, during which a commit
   or push is not allowed to happen. Pass it down to the fixer. See the
   `dispatch` skill's "The write window".
@@ -218,8 +221,9 @@ the progress rule stops you first, leave the PR as it stands. If a
 ticket resolved, label it `needs-attention`, leaving it in `In Review`,
 and post a `factory: escalation` comment (see the `dispatch` skill's
 "Escalation comments") with stage `review round <n> of <budget>`,
-result `capped`, the ledger rows behind your read, and 2-3 options of
-your own — no subagent has one to give here, so write them yourself:
+result `capped`, the latest round's `STOPLIST` on its `Stop-list` line,
+the ledger rows behind your read, and 2-3 options of your own — no
+subagent has one to give here, so write them yourself:
 for example, rule on the circling question and restart (fresh budget),
 grant more rounds, or rescope, with your pick. If no ticket resolves,
 post that comment on the PR instead. Either way, report it to whoever is
@@ -285,7 +289,7 @@ nothing.
 
 ## Recording a stop-list hit
 
-Once this cycle ends **ready** (see "When a target is ready" below),
+Once this cycle ends **ready** (see "When a target is ready" above),
 check the target's final `STOPLIST` line, from whichever round's
 reviewer ran last. When it's non-empty, post a `factory: stop-list
 hold` comment (see the `dispatch` skill's "Escalation comments") on the
@@ -312,9 +316,10 @@ and why. Either way, stop this target's cycle, add the
 `needs-attention` label to the resolved ticket if there is one (leaving
 its status where it is), post a `factory: escalation` comment (see the
 `dispatch` skill's "Escalation comments") with stage `review round <n>
-of <budget>`, result `blocked` or `failed`, and the reviewer's or
-fixer's `OPTIONS` verbatim (on the PR itself if no ticket resolved),
-and don't let it block review of the others you were given.
+of <budget>`, result `blocked` or `failed`, this round's `STOPLIST` on
+its `Stop-list` line, and the reviewer's or fixer's `OPTIONS` verbatim
+(on the PR itself if no ticket resolved), and don't let it block review
+of the others you were given.
 
 ## On a deferred report
 
