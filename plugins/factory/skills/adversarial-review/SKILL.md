@@ -85,6 +85,34 @@ you stop before the cap, why. A human reading "capped at 6 of 10,
 rounds 4-6 kept re-raising the same nullability question, see ledger"
 learns something; "capped" alone does not.
 
+## Resuming a deferred cycle
+
+A resumed cycle is a fresh invocation of this skill — the round count
+and the ledger lived only in the deferred run's own context, and both
+are gone with it, the same as a reviewer knowing nothing of earlier
+rounds. Get them from the deferred report instead of guessing or
+restarting at round 1, which would silently lift the cap. If a ticket
+resolved, its Linear comment (see "On a deferred report" below) is
+where the rounds-used count and that round's ledger rows were left;
+read it before doing anything else. For a ticketless PR there is no
+such comment, so whoever resumes (ordinarily a human — `dispatch`
+itself does not resume within a run) supplies rounds-used and the
+ledger rows from the earlier report directly. Either way, start this
+call's count where the deferred one left off and seed the ledger from
+those rows before judging the first new round's progress against it.
+
+Don't open the resumed cycle with a fresh reviewer round. The worktree
+still holds the deferred fixer's uncommitted edits, and a reviewer run
+now would just re-raise every finding that tree already fixes
+locally — a round that closes nothing new, which the progress rule
+would read as a round making no progress at all. Resume at the fixer
+instead: spawn it on the existing worktree with the same findings it
+had and RESUME filled in (what its uncommitted edits already address,
+per the deferred report — see `prompts/fixer.md`). It picks up its own
+edits rather than discarding or redoing them, finishes, gets CI green,
+and pushes. Only once that push lands does the next round's fresh
+reviewer run, against what is now actually on the branch.
+
 ## Repo configuration
 
 Read the `## Dispatch` section of the host repo's `AGENTS.md` before
@@ -238,12 +266,16 @@ write window was closed (see the `dispatch` skill's "The write
 window"). This is not blocked and not failed — nothing about the
 target is wrong, the clock is. Stop this target's cycle, same as a
 blocked or failed report, but don't add `needs-attention` and don't
-touch the ticket's status. Post a comment on the PR — not thread
-replies on individual findings, which would describe fixes nobody can
-see yet — saying which round deferred, what's left undone, the
-worktree path, when the window next opens, and the invocation that
-resumes it. Tell whoever is waiting on this the same thing, along with
-the ledger rows so far.
+touch the ticket's status. If a ticket resolved, post a Linear comment
+on it — the same rule `implement-ticket` follows on its own deferred
+report, not a comment or thread replies on the PR itself, which would
+be exactly the timestamped public record the window exists to prevent,
+posted at the one moment it's guaranteed to be closed — saying which
+round deferred, what's left undone, the worktree path, when the window
+next opens, the ledger rows so far, and the invocation that resumes
+it. For a ticketless PR there is no private place to put that: skip
+the comment and rely on the report below. Tell whoever is waiting on
+this the same thing either way.
 
 ## Report, per target
 

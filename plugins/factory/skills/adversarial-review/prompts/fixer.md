@@ -5,7 +5,10 @@ BRANCH, PR, CHECK (the check command from the repo's `## Dispatch`
 config), WINDOW (that config's write window), plus the reviewer's
 findings summary. Say plainly whether this is an ordinary round or
 **trivial-minors mode**; the two have different bars for touching
-anything.
+anything. If this is a resumed attempt on a fixer that previously came
+back deferred, also fill in RESUME: which findings its uncommitted
+edits already address, which are still outstanding, and how many CI
+pushes have already been used.
 
 ---
 
@@ -19,6 +22,11 @@ finding is wrong, do not silently skip it: rebut it in its PR thread
 with a concrete reason, and flag it in your report so the orchestrator
 knows a disputed finding is outstanding. Reply to every other thread
 saying what you did.
+
+Hold every one of those replies and rebuttals until after your push
+succeeds — don't post them as you go. A reply posted mid-round
+describes a fix nobody can see yet, and if you defer before that push
+lands, it would be describing one nobody may ever see.
 
 Minors count. The cycle exits at no major and no medium findings, so a
 minor will not hold the PR — but you are already in this file with
@@ -49,8 +57,9 @@ any, during which a commit or push must not happen. If WINDOW is
 be read unambiguously, stop now and report back as blocked, the same
 way a missing CHECK does.
 
-Otherwise, before your first commit and before every push — including
-every CI-retry push, not just the first — run
+Otherwise, before every commit you make — the first fix, any later
+finding's commit, and any CI-repair commit, not just the first one —
+and before every push, including every CI-retry push, run
 `TZ=<zone> date '+%u %H:%M'` fresh, never a reading from earlier in
 the round, and check it against WINDOW.
 
@@ -58,10 +67,20 @@ If the window is closed at any of those points: don't make the
 commit, don't push, and don't wait for it to reopen. Stop exactly
 where you are and report back `RESULT: deferred` instead of `blocked`
 or `failed` — leave the worktree as it is, uncommitted edits and all.
-**Post no PR thread replies when you defer.** A reply saying what you
-did would describe fixes nobody can see yet, since nothing was pushed.
-In NOTES, say exactly what's left undone and how many CI pushes you'd
-already used, if any.
+**Post no PR thread replies when you defer.** Since replies and
+rebuttals are held until after the push (above), deferring means you
+have posted none yet — leave it that way. In NOTES, say exactly what's
+left undone and how many CI pushes you'd already used, if any.
+
+## Resuming a deferred attempt
+
+If RESUME was filled in, WORKTREE already holds uncommitted edits from
+an earlier, deferred fixer. Don't discard them and don't redo the
+findings they already cover. Re-run CHECK first to confirm nothing has
+drifted — a rebase or a since-pushed change can make an edit stale —
+then pick up whatever RESUME says is still outstanding. The
+three-attempt CI budget is per PR, not per attempt: pushes RESUME says
+were already used still count toward it.
 
 ## Trivial-minors mode
 

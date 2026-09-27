@@ -191,17 +191,14 @@ gate the same way.
 A repo's `## Dispatch` section declares a **write window** — when
 gated writes (below) are allowed to actually happen. It exists so a
 commit's timestamp is never the evidence of when someone worked, not
-because a run needs supervision at those hours. The default
-assumption for a personal project is weekdays outside roughly
-09:00–17:00 local, weekends fully open — but the repo's own
-declaration is the whole of what gets checked, and no skill or prompt
-hardcodes this or any repo's timezone or hours.
+because a run needs supervision at those hours. The repo's own
+declaration is the whole of what gets checked: no skill or prompt
+hardcodes a timezone, hours, or a fallback of its own for any repo.
 
 **Format.** An IANA timezone plus closed periods, given as weekdays
 and a start–end time, or the literal `none`. The start is inclusive
 and the end exclusive. Illustration only, never a real repo's values:
-`closed Monday–Friday 09:00–17:00 America/Los_Angeles; open
-otherwise`.
+`closed Tuesday and Thursday 22:00–02:00 Asia/Tokyo; open otherwise`.
 
 **Required field.** A `## Dispatch` section with no **Write window**
 line is exactly like one with no check command: stop before the first
@@ -510,11 +507,14 @@ never went green — and carry on with the rest of the batch. One stuck
 ticket never stops the others.
 
 On `RESULT: deferred`, `implement-ticket` stopped before a gated write
-because the repo's write window was closed — nothing was committed or
-pushed, no PR exists yet, and no `needs-attention` label was added.
-Record the resume state on the manifest entry (what's undone, the
-worktree path, when the window next opens) and carry on with the rest
-of the batch; don't retry it within this run. See "The write window".
+because the repo's write window was closed, and no `needs-attention`
+label was added. What's left undone varies by when it stopped —
+uncommitted edits, unpushed commits, or a PR already open with some of
+its three CI retries already used — and its NOTES say which; don't
+assume it means nothing was committed or pushed. Record that resume
+state from NOTES on the manifest entry (what's undone, the worktree
+path, when the window next opens) and carry on with the rest of the
+batch; don't retry it within this run. See "The write window".
 
 ## Phase 7 — Adversarial review
 
@@ -608,21 +608,21 @@ instructions cover ordering, rebasing, mechanical conflict resolution,
 and the squash merge, so nothing here duplicates them.
 
 On `RESULT: merged`, per PR: kick off the next wave's tickets whose
-prerequisites just landed, and post a status update. On `RESULT:
-blocked` (a rebase conflict needs new logic or a judgment call, not
-just combining both sides) or `failed` (CI never went green on the
-rebased head), tell the human which one it was and why — `merge-queue`
-already left the PR and worktree as they were — and carry on with the
-rest of the queue.
+prerequisites just landed, and post a status update — note in it if
+NOTES says the remote branch was left in place (the window closed
+between the merge and the delete; `merge-queue` still reports that PR
+merged, not deferred). On `RESULT: blocked` (a rebase conflict needs
+new logic or a judgment call, not just combining both sides) or
+`failed` (CI never went green on the rebased head), tell the human
+which one it was and why — `merge-queue` already left the PR and
+worktree as they were — and carry on with the rest of the queue.
 
 On `RESULT: deferred`, `merge-queue` stopped a PR before the rebase,
 `gh pr ready`, or `gh pr merge` because the write window was closed —
 a released merge gate does not open the window, so this can happen on
 a batch whose merges were already authorized. The PR and worktree are
-left as they were (or, if it merged before the window closed but
-couldn't delete the remote branch afterward, `merge-queue`'s report
-says so). Record the resume state and carry on with the rest of the
-queue. See "The write window".
+left exactly as they were: nothing merged. Record the resume state and
+carry on with the rest of the queue. See "The write window".
 
 ## Cleanup
 

@@ -165,8 +165,11 @@ skill's "The write window".
    Check the window a third time before the branch delete below. If it
    closed after the merge went through but before you get here, the PR
    is already merged — don't undo that — just report it merged, note
-   in NOTES that the remote branch was left in place, and skip deleting
-   it.
+   in NOTES that the remote branch was left in place, and skip only
+   the `git push origin --delete` step below. Everything else in this
+   step still happens: moving the ticket to `Done`, clearing
+   `approved-to-merge`, and removing the worktree are local or Linear
+   actions, not gated writes, so the window closing doesn't touch them.
 
    Otherwise, check whether the remote branch is still there, rather
    than assuming either way — some repos auto-delete a branch on merge

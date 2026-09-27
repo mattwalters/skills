@@ -66,11 +66,14 @@ happen. If WINDOW is `none`, skip this section — there is nothing to
 check. If it names no timezone, or can't be read unambiguously, stop
 now and report back as blocked, the same way a missing CHECK does.
 
-Otherwise, before your first commit, before every push, and before
+Otherwise, before every commit-creating command — the first commit,
+any later fix or CI-repair commit, and any `--amend`, not just the
+first one you happen to make — before every push, and before
 `gh pr create`, run `TZ=<zone> date '+%u %H:%M'` fresh — never reuse
 an earlier reading — and check it against WINDOW. Do this again before
-every CI-retry push, not just the first one: a CI watch can take
-minutes on its own, long enough for the window to close underneath it.
+every CI-retry push and every CI-fix commit, not just the first one: a
+CI watch can take minutes on its own, long enough for the window to
+close underneath it.
 
 If the window is closed at any of those points: don't make the
 commit, don't push, don't open the PR, and don't wait for it to
@@ -89,16 +92,24 @@ then pick up whatever RESUME says is left undone. The three-push CI
 budget is per ticket, not per attempt: pushes RESUME says were already
 used still count toward it.
 
-Then push and open a **draft** PR (`gh pr create --draft`) titled
-`TICKET: <short description>` — the title becomes the squash-merge
-subject on BASE, so the ticket id must be in it. Watch CI with
+## Commit, push, and open the PR
+
+This section applies whether or not RESUME was filled in — it is the
+rest of the job either way, not a continuation of the resume case
+above. Commit your change (checking the window fresh first, as
+above, for this commit and any later one), then push and open a
+**draft** PR (`gh pr create --draft`) titled `TICKET: <short
+description>` — the title becomes the squash-merge subject on BASE,
+so the ticket id must be in it. If RESUME says a PR is already open,
+skip opening a second one; push to update it instead. Watch CI with
 `gh pr checks --watch`.
 
-If CI fails: read the failure, fix it, push again. You get **three
-pushes that reach CI**. If the third is still red, the problem is
-systemic, not a typo — stop and report back as failed rather than
-thrashing. Unlike blocked, failed means you tried the documented path
-and hit a mechanical wall, not a mismatch that needs a judgment call.
+If CI fails: read the failure, fix it — checking the window before
+that commit too — and push again. You get **three pushes that reach
+CI**. If the third is still red, the problem is systemic, not a
+typo — stop and report back as failed rather than thrashing. Unlike
+blocked, failed means you tried the documented path and hit a
+mechanical wall, not a mismatch that needs a judgment call.
 
 Report back to the orchestrator in exactly this shape, and keep it
 under ~20 lines — no diffs, no logs:

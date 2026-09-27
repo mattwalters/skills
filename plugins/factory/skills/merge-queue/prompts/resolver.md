@@ -14,17 +14,22 @@ any, during which the rebase or a push must not happen. If WINDOW is
 unambiguously, stop now and report back as blocked, the same way an
 unreadable BASE would.
 
-Otherwise, before you run the rebase below, and again before every
+Otherwise, before you run the rebase below, before `git rebase
+--continue` if resolving a conflict needs it, and again before every
 push (including every CI-retry push, not just the first), run
 `TZ=<zone> date '+%u %H:%M'` fresh — never a reading from earlier in
 this run — and check it against WINDOW.
 
-If the window is closed at either point: don't run the rebase (it
-creates a commit) and don't push. Stop exactly where you are — leaving
-WORKTREE untouched if the window was already closed before you
-started — and report back `RESULT: deferred` instead of `blocked` or
-`failed`. In NOTES, say whether the rebase itself ran and how many CI
-pushes you'd already used, if any.
+If the window is closed at any of those points: don't run the rebase
+(it creates a commit), don't run `--continue` (it stamps the rewritten
+commit the same way), and don't push. If you are mid-rebase when it
+closes, run `git rebase --abort` rather than leaving WORKTREE with a
+rebase in progress — otherwise leave WORKTREE untouched. Stop exactly
+where you are and report back `RESULT: deferred` instead of `blocked`
+or `failed`. In NOTES, say whether the rebase ran (and, if you
+aborted mid-conflict, which tier and files you'd resolved, so a
+resumed attempt doesn't redo that judgment from scratch) and how many
+CI pushes you'd already used, if any.
 
 Rebase BRANCH onto current `origin/BASE` in WORKTREE. Work only there;
 never touch another branch or worktree.
@@ -72,6 +77,16 @@ A tier-2 resolution gets a scoped review afterwards, so report which
 of the four cases it was, in which files, at which hunks — precisely
 enough that a reviewer finds them without asking you.
 
+Once you've resolved the conflict at whichever tier applies, `git add`
+the file and check the window again (see "The write window" above)
+before running `git rebase --continue` — resolving can take a while on
+its own, and `--continue` is what actually stamps the rewritten
+commit's committer date. If the window closed while you were
+resolving, don't run `--continue`: run `git rebase --abort` instead
+and report `RESULT: deferred` as described above, noting the tier and
+files in NOTES. If it's still open, run `git rebase --continue`, and
+if another conflict follows, come back to this paragraph for it too.
+
 ## Everything else
 
 If a conflict is neither tier 1 nor tier 2, or you are not confident
@@ -108,9 +123,11 @@ logs:
     BRANCH: <name>
     RESULT: green | blocked | failed | deferred
     TIER: 1 | 2 | none — the highest tier you resolved at; n/a if you
-          deferred before the rebase ran
+          deferred before the rebase ran or aborted mid-rebase
     RESOLVED: <for tier 2: the case number, files and hunks; for tier 1:
-              the files; "clean" if the rebase did not conflict>
+              the files; "clean" if the rebase did not conflict; for a
+              mid-rebase deferral, the tier and files you'd found
+              before aborting>
     OPTIONS: <for blocked: 2-3 options with consequences, and your pick>
     NOTES: <the conflict if blocked, why it failed, or — for deferred —
            whether the rebase ran and CI pushes already used>
