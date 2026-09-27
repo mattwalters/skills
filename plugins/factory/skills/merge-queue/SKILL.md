@@ -92,13 +92,18 @@ not a reason to serialize — that's exactly what the rebase absorbs.
 
 ## Per PR
 
-Check the write window before starting each PR's turn — the rebase
-itself creates commits, so this has to happen before step 2, not just
-before the push. If it's closed, don't start this PR. The window
-won't reopen partway through the queue, so report this PR and every
-PR still waiting as `deferred` in one pass rather than discovering it
-again on each one; see "On a deferred report" below and the `dispatch`
-skill's "The write window".
+Step 1 is a Linear write, not a gated git write, so it always runs
+first, for every PR — a chat or plan-gate clearance must get its label
+before anything else, or a closed window strands it unlabeled and the
+next sweep can't find it. Check the write window only after step 1,
+before starting step 2 — the rebase itself creates commits, so this
+has to happen before step 2, not just before the push. If it's closed,
+don't start step 2 for this PR. The window won't reopen partway
+through the queue, so run step 1 for every PR still waiting (in case
+one of them just got cleared) and then report all of them as
+`deferred` in one pass rather than discovering it again on each one;
+see "On a deferred report" below and the `dispatch` skill's "The write
+window".
 
 1. Add the `approved-to-merge` label to a ticket cleared any of the
    three ways above if it isn't already there (skip if the PR has no

@@ -179,8 +179,10 @@ against.
    head" as a medium finding and fold it into step 5 for the fixer.
    Pending: wait for it with `gh pr checks --watch`, then judge
    whatever it settles on. No checks reported at all: that is not
-   green either — say so plainly in your report and do not call this
-   round ready on the strength of an absent signal.
+   green either — report `RESULT: blocked` with that as the reason and
+   go to "On a blocked or failed report" below, same as a blocked
+   reviewer report; don't call this round ready on the strength of an
+   absent signal.
 5. **Any major or medium finding** → spawn a fixer subagent with
    `prompts/fixer.md` in a worktree on the PR's branch. Apply "The
    worktree" rule above if this is the first thing in the cycle to
