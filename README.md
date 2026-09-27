@@ -48,9 +48,15 @@ The section declares:
 - **Check command**: what an implementer or fixer must run, and pass, before
   pushing.
 - **Base branch**: what worktrees branch from and PRs merge into.
-- **Worktrees**: the directory per-ticket worktrees go in. Gitignore it.
+- **Worktrees**: the directory per-ticket worktrees go in. An absolute path
+  outside the repo is recommended, so no ancestor `AGENTS.md`/`CLAUDE.md` can
+  load into a run; it's shared across every clone of the repo on the machine.
+  Namespace it per repo (this repo's own field uses
+  `.../worktrees/skills/`) — two adopting repos pointed at the same shared
+  directory would collide on one run manifest. A path inside the repo must
+  be gitignored.
 - **Run manifest**: the file `dispatch` keeps per-ticket state in, usually
-  inside the worktrees directory.
+  next to the worktrees, inside that same per-repo directory.
 - **Review invariants**: what a reviewer should be adversarial about in this
   project. Reviewers bring no invariants of their own.
 - **Stop-list**: the paths and subjects whose merge always waits for a human,

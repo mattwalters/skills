@@ -19,12 +19,25 @@ section for its repo-specific configuration.
 - **Check command**: `bin/validate`. It needs `claude` and `jq` on
   PATH. CI runs the same script on every PR.
 - **Base branch**: `main`.
-- **Worktrees**: `.claude/worktrees/`, one detached worktree per
-  ticket, named for the ticket.
-- **Run manifest**: `.claude/worktrees/run-manifest.json`.
+- **Worktrees**: `$HOME/.local/state/factory/worktrees/skills/`, one
+  detached worktree per ticket, named for the ticket — outside the
+  repo so no `AGENTS.md`/`CLAUDE.md` above the checkout loads into a
+  ticket's run.
+- **Run manifest**:
+  `$HOME/.local/state/factory/worktrees/skills/run-manifest.json`.
 
-Both paths are gitignored. Per-run state stays on the machine that
-ran it.
+Expand `$HOME` to an absolute path before writing either value into a
+prompt or using it in a file operation. A shell expands `$HOME` on its
+own (which is why `git worktree add` needs no change here), but a
+subagent's Read/Edit/Write calls and a prompt placeholder do not.
+
+Both paths are outside the repo, so nothing to gitignore. Per-run
+state stays on the machine that ran it. The directory is shared by
+every checkout of this repo on the machine — every clone, and every
+worktree of a clone — so run any `factory` skill against this repo —
+whether as part of dispatch or standalone — from one checkout at a
+time (a worktree already at `<runs-dir>/<TICKET>` belongs to whichever
+checkout made it).
 
 ### Review invariants
 
