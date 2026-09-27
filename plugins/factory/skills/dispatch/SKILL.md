@@ -796,11 +796,17 @@ fixing / ready for merge / queued to merge / merged / needs attention
 Nothing else; the details live on the PRs.
 
 At the end of a run, list any deferred tickets separately, one line
-each: which stage stopped, the worktree path, and the exact invocation
-that restarts it — `implement-ticket <TICKET>`, `adversarial-review
-<PR>`, or `merge-queue <PR>` — since the table's status alone doesn't
-tell the human how to pick one back up. That invocation is theirs to
-make (see "Restarting"); this run never restarts one itself.
+each: which stage stopped, the worktree path, and how to pick it back
+up — since the table's status alone doesn't tell the human that. For
+`implement-ticket`, `adversarial-review`, and an ordinary `merge-queue`
+deferral, that's the exact invocation that restarts it —
+`implement-ticket <TICKET>`, `adversarial-review <PR>`, or
+`merge-queue <PR>`. For the one `merge-queue` case that comes back both
+deferred and stuck (Phase 8) — a rebased, force-pushed head that isn't
+green — a bare restart can't fix it: say instead that it needs a human
+to get the rebased head's CI green, then re-run `merge-queue <PR>`.
+Either way, that action is theirs to make (see "Restarting"); this run
+never restarts one itself.
 
 A run in semi or autonomous mode reports more, not less, because
 nobody is watching it happen: post a status update at the end of each

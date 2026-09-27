@@ -87,10 +87,11 @@ There is no resume. A cycle that comes back `deferred` is picked up
 later by a human re-invoking this skill directly against the PR —
 `dispatch` never restarts a deferred cycle itself — and it starts over
 at round 1 with a fresh round count and an empty ledger, the same as
-any other call. The worktree reset this needs is the one step 5
-already applies whenever it reuses a kept worktree: whatever the
-deferred fixer left uncommitted or unpushed there is stale, and
-nothing about this call knows what it still covers. Restarting a cycle
+any other call. The worktree reset this needs is "The worktree" rule
+below, applied at whichever step first touches the worktree this time:
+whatever the deferred fixer left uncommitted or unpushed there is
+stale, and nothing about this call knows what it still covers.
+Restarting a cycle
 that had already used some of its round budget does spend that budget
 again; that is the accepted cost of stopping dead at a window boundary
 rather than carrying state across a context nothing keeps alive. See
@@ -124,6 +125,21 @@ still review against the ticket brief and general correctness, but say
 plainly in your report that this repo declared no invariants, so the
 review was thinner than it should have been — don't paper over it.
 
+## The worktree
+
+Whichever step is the first in a cycle to touch
+`<runs-dir>/<TICKET-or-PR#>` — step 5's fixer on a major or medium
+finding, or the "one inline pass" at trivial minors in "When a target
+is ready" if the cycle reaches ready without step 5 ever running —
+applies the `dispatch` skill's "The one worktree rule" before making
+its first edit there: reset a worktree already at that path (a caller
+may have left one from implementing, or an earlier, now-stale attempt
+at reviewing this same PR, ticketed or not, deferred or otherwise), or
+create one fresh on the PR's branch if none exists. A later round or
+pass within the same cycle keeps building in that same worktree
+without resetting it again — it holds this cycle's own accumulating
+work, not a leftover from somewhere else.
+
 ## Resolving a target to a brief
 
 A reviewer needs the ticket's brief — its description, `## Plan`
@@ -156,22 +172,21 @@ against.
    diverged base, a serious pre-existing bug) — stop the cycle for this
    target right there. Don't spawn a fixer; there's nothing for it to
    fix. Go to "On a blocked or failed report" below.
-4. **Zero major and zero medium findings** → before calling this
-   round clean, confirm CI is green on the PR's current head (`gh pr
-   checks`); if it's red, the round isn't clean — treat "CI red on
+4. **Zero major and zero medium findings** → before calling this round
+   clean, check CI on the PR's current head (`gh pr checks`). Green:
+   this target is ready, whatever minors are open — see "When a target
+   is ready" below. Red: the round isn't clean — treat "CI red on
    head" as a medium finding and fold it into step 5 for the fixer.
-   Otherwise this target is ready, whatever minors are open. See "When
-   a target is ready" below.
+   Pending: wait for it with `gh pr checks --watch`, then judge
+   whatever it settles on. No checks reported at all: that is not
+   green either — say so plainly in your report and do not call this
+   round ready on the strength of an absent signal.
 5. **Any major or medium finding** → spawn a fixer subagent with
-   `prompts/fixer.md` in a worktree on the PR's branch. The first time
-   this cycle needs one, set it up at `<runs-dir>/<TICKET-or-PR#>` per
-   the `dispatch` skill's "The one worktree rule" — reset it if one's
-   already there at that path (a caller may have left one from
-   implementing, or an earlier, now-stale attempt at reviewing this
-   same PR, ticketed or not), or create it fresh on the PR's branch if
-   not. On a later round within this same cycle, keep building in that
-   same worktree without resetting it again — it holds this cycle's own
-   accumulating work, not a leftover from somewhere else.
+   `prompts/fixer.md` in a worktree on the PR's branch. Apply "The
+   worktree" rule above if this is the first thing in the cycle to
+   touch it. On a later round within this same cycle, keep building in
+   that same worktree without resetting it again — it holds this
+   cycle's own accumulating work, not a leftover from somewhere else.
    Give it the repo's check command and write window (WINDOW) along
    with the findings — all of them, minors included, since a minor
    next to a major it is already editing around is cheap to take. The
@@ -223,10 +238,14 @@ later. They are not a reason to hold a correct change.
 
 Before declaring ready you may take **one inline pass** at minors that
 are trivially fixable — a wrong error string, a missed nil check, a
-name that contradicts the one three lines above it. Spawn the fixer in
-trivial-minors mode, let it push, and confirm CI is green. Skip this
-pass entirely while the write window is closed — a fixer spawned into
-a closed window would just come back `deferred` having pushed nothing.
+name that contradicts the one three lines above it. Apply "The
+worktree" rule above first if step 5 never ran this cycle — a cycle
+that reaches ready at round 1, or one restarted after a deferred
+fixer, has never had this pass reset a worktree that may be stale or
+missing. Then spawn the fixer in trivial-minors mode, let it push, and
+confirm CI is green. Skip this pass entirely while the write window is
+closed — a fixer spawned into a closed window would just come back
+`deferred` having pushed nothing.
 
 If it comes back `RESULT: deferred` instead — the window closed while
 it was working — reset the worktree to the PR's remote head before
