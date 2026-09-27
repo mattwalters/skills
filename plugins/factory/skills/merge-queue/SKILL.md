@@ -109,18 +109,16 @@ skill's "The write window".
    may have left one from implementing or reviewing); otherwise make
    one on the PR's branch:
    `git fetch origin && git worktree add <runs-dir>/<TICKET-or-PR#> origin/<branch>`.
+   If the worktree already existed, reset it to the PR's current remote
+   head first — `git fetch origin && git reset --hard origin/<branch>`
+   — regardless of why it was left there (an earlier resolver's
+   deferral included); this is a fresh attempt, not a continuation of
+   whatever that worktree held.
 3. Spawn a **fresh** resolver subagent with `prompts/resolver.md` —
    mid-tier model, high effort (see the `dispatch` skill's Models and
    effort table for the harness mapping) — filling in WORKTREE,
    BRANCH, BASE (the repo's base branch), PR, and WINDOW (the repo's
-   write window). If this PR's worktree was left by an earlier
-   resolver that reported `RESULT: deferred`, also fill in RESUME from
-   the ticket's deferral record if one exists (see the `dispatch`
-   skill's "The write window"), otherwise from the report itself:
-   whether the rebase had already run, the tier and files of any
-   mid-rebase resolution, and how many CI pushes were already used —
-   the three-push budget carries across the resume, it doesn't reset.
-   It rebases onto current `origin/<base>`, resolves
+   write window). It rebases onto current `origin/<base>`, resolves
    the conflicts its two declared tiers cover, pushes, and watches CI
    under the same three-attempt rule as implementing, checking the
    window again before the rebase and before every push. It reports
@@ -229,14 +227,20 @@ queue was deferred at once because the window was already closed when
 this PR's turn came, in which case there is no next PR to move to.
 
 For each deferred PR, record it in your report's NOTES, and, if a
-ticket is linked, post the deferral record the `dispatch` skill's "The
-write window" defines — stage `merge-resolver` for a deferral at or
-before the rebase, or `merge` for one at step 5's final pre-merge
-check, with the resolver's rebase state (not started / aborted /
-completed) plus the tier and files of any mid-rebase resolution, and
-CI pushes already used, alongside the fields every deferral carries.
-Step 3 above reads a resumed resolver's RESUME from this same record,
-so leave nothing it needs out.
+ticket is linked, post the short deferral note the `dispatch` skill's
+"The write window" defines — stage `merge-resolver` for a deferral at
+or before the rebase, or `merge` for one at step 5's final pre-merge
+check — saying what's left undone and the worktree path. There is no
+resume: a later call re-runs this PR from step 2 above, which resets
+the worktree to the PR's remote head before spawning a fresh resolver.
+
+If the resolver had already force-pushed a rebase before deferring, say
+so explicitly, and say whether the PR's current head is red or its CI
+unverified. That head will not satisfy this skill's own Eligibility
+check on its own, so an "all eligible PRs" sweep will not pick this PR
+back up by itself — a later run has to target it directly
+(`merge-queue <PR>`), which re-runs the resolver, re-rebasing (a no-op
+if the base hasn't moved) and re-verifying CI, before it can merge.
 
 ## Report
 

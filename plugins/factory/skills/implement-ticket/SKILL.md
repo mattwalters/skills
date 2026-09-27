@@ -40,20 +40,20 @@ declaration and is not the same as a missing one.
    run, remove it — someone is on it again.
 2. Make an isolated worktree in the configured worktree directory:
    `git fetch origin && git worktree add --detach <runs-dir>/<TICKET> origin/<base-branch>`.
-   Never let two tickets share one worktree. If you're resuming a
-   ticket that came back `deferred` last time, reuse its existing
-   worktree at `<runs-dir>/<TICKET>` instead — it was kept for exactly
-   this.
+   Never let two tickets share one worktree. If a worktree already
+   exists at `<runs-dir>/<TICKET>` — left by an earlier attempt that
+   came back `deferred` — this is a fresh attempt with fresh budgets,
+   not a continuation: reset it per the `dispatch` skill's "The write
+   window" ("Restarting") before doing anything else — `git fetch
+   origin && git reset --hard origin/<branch>` if the ticket already
+   has an open PR, or remove it and cut a fresh one from
+   `origin/<base-branch>` if it doesn't.
 3. Spawn an implementer subagent with `prompts/implementer.md`, filling
    in TICKET, WORKTREE, BRANCH (Linear's suggested branch name for the
    ticket), BASE (the base branch), CHECK (the check command), and
    WINDOW (the write window) — mid-tier model, high effort (Sonnet on
    Claude Code; see the `dispatch` skill's Models and effort table for
-   other harnesses). When resuming a deferred ticket, also pass RESUME:
-   what's left undone and CI pushes already used, read from the
-   ticket's deferral record (see the `dispatch` skill's "The write
-   window") — never from memory or a prior report, which a fresh
-   invocation doesn't have.
+   other harnesses).
 
 The implementer's contract, enforced by the prompt: implement the
 ticket — its `## Plan` section if the description has one, otherwise
@@ -91,11 +91,12 @@ The implementer stopped before a gated write — a commit, a push, or
 `gh pr create` — because the repo's declared write window was closed
 (see the `dispatch` skill's "The write window"). Nothing is wrong:
 don't label the ticket, and leave its status exactly where it was.
-Post the deferral record the `dispatch` skill's "The write window"
-defines, on the ticket, with stage `implement` and the fields that
-apply to it — including CI pushes already used, since that record is
-what a resume reads its budget from. Tell whoever is waiting on this
-the same thing.
+Post the short deferral note the `dispatch` skill's "The write window"
+defines, on the ticket, naming stage `implement`: what's left undone,
+the worktree path, and when the window next opens. Tell whoever is
+waiting on this the same thing. There is no resume — a later attempt,
+whether run by a later `dispatch` batch or a human re-invoking this
+skill directly, starts over from step 1 with a fresh three-push budget.
 
 ## Report, per ticket
 

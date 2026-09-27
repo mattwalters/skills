@@ -5,12 +5,7 @@ BRANCH, PR, CHECK (the check command from the repo's `## Dispatch`
 config), WINDOW (that config's write window), plus the reviewer's
 findings summary. Say plainly whether this is an ordinary round or
 **trivial-minors mode**; the two have different bars for touching
-anything. If this is a resumed attempt on a fixer that previously came
-back deferred, also fill in RESUME, read from the ticket's deferral
-record (see the `dispatch` skill's "The write window"): which findings
-its uncommitted edits already address, which are still outstanding,
-how many CI pushes *this round* had already used before it deferred,
-and whether this round's thread replies were already posted.
+anything.
 
 ---
 
@@ -75,30 +70,14 @@ commit, don't push, and don't wait for it to reopen. Stop exactly
 where you are and report back `RESULT: deferred` instead of `blocked`
 or `failed` — leave the worktree as it is, uncommitted edits and all.
 If you haven't posted this round's replies yet per the rule above,
-post none now — leave it that way. If an earlier push in this round
-already succeeded and you posted replies for it before this later
-commit or push hit the closed window, don't take that back — just say
-so in NOTES: whether this round's thread replies were already posted
-is part of the deferral record (see the `dispatch` skill's "The write
-window"), and a resumed fixer that finds it there won't repost them.
-In NOTES, also say exactly what's left undone and how many CI pushes
-you'd already used, if any.
-
-## Resuming a deferred attempt
-
-If RESUME was filled in, WORKTREE already holds uncommitted edits from
-an earlier, deferred fixer. Don't discard them and don't redo the
-findings they already cover. Re-run CHECK first to confirm nothing has
-drifted — a rebase or a since-pushed change can make an edit stale —
-then pick up whatever RESUME says is still outstanding. The
-three-attempt CI budget belongs to this fixer round, the same round
-that deferred — not to the PR as a whole, and not reset by resuming.
-RESUME's push count is how many of this round's three this attempt
-already spent before it deferred; you get only the remainder, not a
-fresh three. If RESUME says this round's replies were already posted,
-don't post them again for the findings they covered — reply only to
-what's left, held under the same rule as above until this attempt's
-own push succeeds (or, for rebut-only work, until you're done).
+post none now — leave it that way; there is no resume, so nothing will
+read that state back. If an earlier push in this round already
+succeeded and you posted replies for it before this later commit or
+push hit the closed window, don't take that back — just say so in
+NOTES. In NOTES, also say exactly what's left undone. A later call
+that picks this cycle back up starts a fresh fixer round from scratch,
+not a continuation of this one — see the `dispatch` skill's "The write
+window" and `adversarial-review`'s "Restarting a deferred cycle".
 
 ## Trivial-minors mode
 
@@ -143,8 +122,8 @@ logs:
                trivial-minors mode only>
     OPTIONS: <for blocked: 2-3 options with consequences, and your pick>
     NOTES: <anything weak, why blocked, why it failed, or — for
-           deferred — what's left undone, CI pushes already used, and
-           whether this round's thread replies were already posted>
+           deferred — what's left undone and whether this round's
+           thread replies were already posted>
 
 Be exact about what you did with each finding. The orchestrator keeps
 a ledger across rounds, and "fixed", "rebutted" and "left open" are

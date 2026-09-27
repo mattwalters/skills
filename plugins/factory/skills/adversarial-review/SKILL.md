@@ -29,10 +29,6 @@ instead — "up to ten rounds, your judgment", which is what the
 `dispatch` skill passes in semi and autonomous modes. Under a
 discretionary budget the number is a ceiling, not a target.
 
-A cycle resumed after a `deferred` report continues against the same
-budget it started with — the rounds it already ran still count toward
-the cap. Resuming never resets it.
-
 Either way, the rule that ends a cycle early is the same one, and it
 is not the round count.
 
@@ -85,35 +81,21 @@ you stop before the cap, why. A human reading "capped at 6 of 10,
 rounds 4-6 kept re-raising the same nullability question, see ledger"
 learns something; "capped" alone does not.
 
-## Resuming a deferred cycle
+## Restarting a deferred cycle
 
-A resumed cycle is a fresh invocation of this skill — the round count
-and the ledger lived only in the deferred run's own context, and both
-are gone with it, the same as a reviewer knowing nothing of earlier
-rounds. Get them from the ticket's deferral record (see the `dispatch`
-skill's "The write window" and "On a deferred report" below) instead
-of guessing or restarting at round 1, which would silently lift the
-cap — never from memory or the deferred run's own report, which a
-fresh invocation doesn't have. For a ticketless PR there is no such
-record, so whoever resumes (ordinarily a human — `dispatch` itself
-does not resume within a run) supplies rounds-used and the ledger rows
-from the earlier report directly. Either way, start this call's count
-where the deferred one left off and seed the ledger from those rows
-before judging the first new round's progress against it.
-
-Don't open the resumed cycle with a fresh reviewer round. The worktree
-still holds the deferred fixer's uncommitted edits, and a reviewer run
-now would just re-raise every finding that tree already fixes
-locally — a round that closes nothing new, which the progress rule
-would read as a round making no progress at all. Resume at the fixer
-instead: spawn it on the existing worktree with the same findings it
-had and RESUME filled in from the deferral record — which findings its
-uncommitted edits already address, this round's CI pushes already
-used, and whether it had already posted this round's thread replies
-(see `prompts/fixer.md`). It picks up its own edits rather than
-discarding or redoing them, finishes, gets CI green, and pushes. Only
-once that push lands does the next round's fresh reviewer run, against
-what is now actually on the branch.
+There is no resume. A cycle that comes back `deferred` is picked up
+later — a fresh invocation of this skill, whether run by a later
+`dispatch` batch or a human re-invoking it directly — and it starts
+over at round 1 with a fresh round count and an empty ledger, the same
+as any other call. Before spawning the first reviewer, reset the
+worktree to the PR's current remote head (`git fetch origin && git
+reset --hard origin/<branch>`) rather than building on whatever the
+deferred fixer left uncommitted — that tree may be stale, and nothing
+about this call knows what it still covers. Restarting a cycle that
+had already used some of its round budget does spend that budget
+again; that is the accepted cost of stopping dead at a window boundary
+rather than carrying state across a context nothing keeps alive. See
+the `dispatch` skill's "The write window".
 
 ## Repo configuration
 
@@ -240,30 +222,23 @@ pass entirely while the write window is closed — a fixer spawned into
 a closed window would just come back `deferred` having pushed nothing.
 
 If it comes back `RESULT: deferred` instead — the window closed while
-it was working — restore the worktree to the PR's remote head before
-doing anything else: `git fetch` and `git reset --hard origin/<branch>`
-in WORKTREE. That drops either kind of leftover the same way —
-uncommitted edits, or a local commit the pass made but didn't get to
-push — and leaves nothing for `merge-queue`'s rebase to trip on. This
-pass is not a round, so there is no deferred-cycle resume path for it
-the way there is for an ordinary fixer round.
+it was working — reset the worktree to the PR's remote head before
+doing anything else: `git fetch origin && git reset --hard
+origin/<branch>` in WORKTREE. That drops either kind of leftover the
+same way — uncommitted edits, or a local commit the pass made but
+didn't get to push — and leaves nothing for `merge-queue`'s rebase to
+trip on.
 
-What you report next depends on whether the pass reached the remote
-before deferring:
+The PR's current head, after that reset, decides the verdict:
 
-- **Never pushed.** Report `ready` with the minors it had touched left
-  open, exactly as if the pass had never run — the pass was optional,
-  and discarding an unreviewed trivial edit costs nothing next to
-  holding the PR on it.
-- **Pushed, then deferred before confirming CI.** The reset above
-  keeps that pushed commit — it is already part of `origin/<branch>`.
-  Check CI on that exact head. Report `ready` only if it is green
-  there, since `RESULT: ready` means CI green, not just findings
-  resolved. If CI is still running, red, or you can't tell, this cycle
-  is `deferred`, not `ready`: follow "On a deferred report" below
-  using this round's ledger, and note that the trivial-minors pass
-  left a pushed head whose CI still needs checking — that is the first
-  thing the next resume must confirm.
+- **CI is green there** (the pass either never pushed, so the head is
+  unchanged, or it pushed and CI has already come back clean). Report
+  `ready` with any minors the pass had touched left open — the pass was
+  optional, and an unreviewed trivial edit that didn't make it costs
+  nothing to drop.
+- **CI is red, still running, or you can't tell.** Report this cycle
+  `deferred`, not `ready` — `RESULT: ready` means CI green on the
+  current head, not just findings resolved. See "On a deferred report".
 
 **That pass is not a round and is not reviewed again.** Nothing about
 it changes the verdict. A fix that would need a review round to be
@@ -294,20 +269,18 @@ write window was closed (see the `dispatch` skill's "The write
 window"). This is not blocked and not failed — nothing about the
 target is wrong, the clock is. Stop this target's cycle, same as a
 blocked or failed report, but don't add `needs-attention` and don't
-touch the ticket's status. If a ticket resolved, post the deferral
-record the `dispatch` skill's "The write window" defines, on the
+touch the ticket's status. If a ticket resolved, post the short
+deferral note the `dispatch` skill's "The write window" defines, on the
 ticket — the same rule `implement-ticket` follows on its own deferred
 report. This is a stage-status note about the cycle pausing, not a
 review finding about the diff, so it belongs where the ticket's status
-already lives, not as a comment or thread reply on the PR. Post it
-with stage `review-fixer` (or `trivial-minors`, for a deferral from
-that pass) and the fields that apply: the round, what's left undone,
-the ledger rows so far, this round's CI pushes used, which findings
-the fixer's uncommitted edits already cover, and whether this round's
-thread replies or rebuttals were already posted — "Resuming a deferred
-cycle" above reads all of it back. For a ticketless PR there is no
-private place to put that: skip the comment and rely on the report
-below. Tell whoever is waiting on this the same thing either way.
+already lives, not as a comment or thread reply on the PR. Post it with
+stage `review-fixer` (or `trivial-minors`, for a deferral from that
+pass): what's left undone and the worktree path. For a ticketless PR
+there is no private place to put that: skip the comment and rely on the
+report below. Tell whoever is waiting on this the same thing either
+way. There is no resume: a later call restarts this cycle from round 1
+(see "Restarting a deferred cycle").
 
 ## Report, per target
 

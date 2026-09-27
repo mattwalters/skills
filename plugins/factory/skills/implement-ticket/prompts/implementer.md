@@ -3,10 +3,7 @@
 Fill in before spawning: TICKET (Linear id), WORKTREE (absolute path),
 BRANCH (use Linear's suggested branch name for the ticket), BASE (the
 repo's base branch, from its `## Dispatch` config), CHECK (that
-config's check command), and WINDOW (that config's write window). If
-this is a resumed attempt on a ticket that previously came back
-deferred, also fill in RESUME: what was left undone and how many CI
-pushes have already been used.
+config's check command), and WINDOW (that config's write window).
 
 ---
 
@@ -80,29 +77,19 @@ commit, don't push, don't open the PR, and don't wait for it to
 reopen. Stop exactly where you are, leave the worktree as it is —
 uncommitted edits and all — and report back `RESULT: deferred`
 instead of `blocked` or `failed`. In NOTES, say exactly what's left
-undone (uncommitted edits, unpushed commits, no PR yet) and how many
-CI pushes you'd already used, if any. This is not a mismatch with the
-brief and not a stall; it needs no comment on TICKET.
-
-## Resuming a deferred attempt
-
-If RESUME was filled in, WORKTREE already holds work from an earlier,
-deferred attempt. Re-run CHECK first to confirm nothing has drifted,
-then pick up whatever RESUME says is left undone. The three-push CI
-budget is per ticket, not per attempt: pushes RESUME says were already
-used still count toward it.
+undone (uncommitted edits, unpushed commits, no PR yet). This is not a
+mismatch with the brief and not a stall; it needs no comment on
+TICKET. There is no resume: a deferred ticket is picked up later by a
+fresh implementer run, starting over with a fresh three-push budget,
+not by continuing this attempt.
 
 ## Commit, push, and open the PR
 
-This section applies whether or not RESUME was filled in — it is the
-rest of the job either way, not a continuation of the resume case
-above. Commit your change (checking the window fresh first, as
-above, for this commit and any later one), then push and open a
-**draft** PR (`gh pr create --draft`) titled `TICKET: <short
-description>` — the title becomes the squash-merge subject on BASE,
-so the ticket id must be in it. If RESUME says a PR is already open,
-skip opening a second one; push to update it instead. Watch CI with
-`gh pr checks --watch`.
+Commit your change (checking the window fresh first, as above, for
+this commit and any later one), then push and open a **draft** PR
+(`gh pr create --draft`) titled `TICKET: <short description>` — the
+title becomes the squash-merge subject on BASE, so the ticket id must
+be in it. Watch CI with `gh pr checks --watch`.
 
 If CI fails: read the failure, fix it — checking the window before
 that commit too — and push again. You get **three pushes that reach
@@ -122,4 +109,4 @@ under ~20 lines — no diffs, no logs:
     FILES: <paths touched>
     OPTIONS: <for blocked: 2-3 options with consequences, and your pick>
     NOTES: <anything you know is weak, why blocked, why it failed, or —
-           for deferred — what's left undone and CI pushes already used>
+           for deferred — what's left undone>

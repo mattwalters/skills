@@ -2,11 +2,10 @@
 
 Fill in before spawning: WORKTREE (absolute path), BRANCH, BASE (the
 repo's base branch, from its `## Dispatch` config), PR (url or
-number), WINDOW (that config's write window). If this is a resumed
-attempt on a resolver that previously came back deferred, also fill in
-RESUME: whether the rebase had already run, the tier and files of any
-mid-rebase resolution it had found, and how many CI pushes have
-already been used.
+number), WINDOW (that config's write window). WORKTREE has already
+been reset to the PR's current remote head before you were spawned —
+treat this as a fresh attempt, whatever an earlier resolver on this PR
+may have left behind.
 
 ---
 
@@ -31,33 +30,10 @@ commit the same way), and don't push. If you are mid-rebase when it
 closes, run `git rebase --abort` rather than leaving WORKTREE with a
 rebase in progress — otherwise leave WORKTREE untouched. Stop exactly
 where you are and report back `RESULT: deferred` instead of `blocked`
-or `failed`. In NOTES, say whether the rebase ran (and, if you
-aborted mid-conflict, which tier and files you'd resolved, so a
-resumed attempt doesn't redo that judgment from scratch) and how many
-CI pushes you'd already used, if any.
-
-## Resuming a deferred attempt
-
-If RESUME was filled in, WORKTREE already holds work from an earlier,
-deferred attempt — the rebase may already have completed (cleanly, or
-with a tier-1/2 resolution already committed), or it may have been
-aborted mid-conflict, or never started at all; RESUME says which.
-Check the window fresh before doing anything else.
-
-Always re-fetch and rebase onto current `origin/BASE` below, whatever
-RESUME says about the earlier attempt: `git fetch origin && git
-rebase origin/BASE` is a no-op when `origin/BASE` hasn't moved since,
-so this costs nothing when RESUME says the rebase already completed
-and BASE is unchanged. It matters when BASE *has* moved — another PR
-can merge, and the queue reorder, while this one sits deferred, and
-skipping the rebase would push and test a head against a base CI
-never actually validated it against. If RESUME says a rebase was
-aborted mid-conflict, use the tier and files RESUME names if the same
-conflict reappears at the same tier; if BASE has moved since, treat
-any conflict fresh through the Tier 1/2 rules below instead. If RESUME
-says the rebase never ran, treat this like a fresh spawn. Either way,
-the three-push CI budget is per PR, not per attempt: CI pushes RESUME
-says were already used still count toward it.
+or `failed`. In NOTES, say whether the rebase ran, and, if you aborted
+mid-conflict, which tier and files you'd resolved. There is no resume:
+a later attempt on this PR starts over from a worktree reset to the
+PR's remote head, not from here.
 
 Rebase BRANCH onto current `origin/BASE` in WORKTREE. Work only there;
 never touch another branch or worktree.
@@ -142,8 +118,7 @@ lease):
 Then watch CI (`gh pr checks --watch`). If CI fails: read the failure,
 fix it — checking the window before that commit too, same as any other
 commit-creating command (see "The write window" above) — and push
-again. Same rule as implementation: three pushes that reach CI,
-counting any RESUME says were already used toward that total; if the
+again. Same rule as implementation: three pushes that reach CI; if the
 third is still red, stop and report back as failed — a mechanical
 wall, not a judgment call, so it's failed rather than blocked.
 
@@ -161,4 +136,5 @@ logs:
               before aborting>
     OPTIONS: <for blocked: 2-3 options with consequences, and your pick>
     NOTES: <the conflict if blocked, why it failed, or — for deferred —
-           whether the rebase ran and CI pushes already used>
+           whether the rebase ran and, if a head was already pushed,
+           whether its CI is green>

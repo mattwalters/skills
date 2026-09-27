@@ -1,6 +1,6 @@
 ---
 name: dispatch
-description: Batch-run the next tickets from Linear for the repo you are in. Picks 5–10 unblocked tickets from `Todo` by priority, also offering any deferred tickets waiting in `In Progress`/`In Review` to resume at the stage that deferred them, stops for human approval on the selection, has each one planned into its ticket description, plans parallel vs serial execution, stops for approval again on the plans, then runs each ticket through the implement-ticket, adversarial-review, and merge-queue skills to a merged pull request. Its three gates — selection, plan, merge — are set by naming a mode at invocation: supervised, semi, or autonomous. Reads the host repo's `AGENTS.md` `## Dispatch` section for its Linear team, check command, base branch, write window, and worktree locations, and stops a stage short of any commit, push, or merge while that window is closed. Use when asked to run the queue, work the next tickets, dispatch a batch, or process Linear tickets in parallel. Do not use for a single ticket a human is already driving — use implement-ticket, adversarial-review, or merge-queue directly for that.
+description: Batch-run the next tickets from Linear for the repo you are in. Picks 5–10 unblocked tickets from `Todo` by priority, stops for human approval on the selection, has each one planned into its ticket description, plans parallel vs serial execution, stops for approval again on the plans, then runs each ticket through the implement-ticket, adversarial-review, and merge-queue skills to a merged pull request. Its three gates — selection, plan, merge — are set by naming a mode at invocation: supervised, semi, or autonomous. Reads the host repo's `AGENTS.md` `## Dispatch` section for its Linear team, check command, base branch, write window, and worktree locations, and stops a stage short of any commit, push, or merge while that window is closed. Use when asked to run the queue, work the next tickets, dispatch a batch, or process Linear tickets in parallel. Do not use for a single ticket a human is already driving — use implement-ticket, adversarial-review, or merge-queue directly for that.
 ---
 
 # Dispatch
@@ -276,41 +276,28 @@ not a gate and not an escalation: no mode, no released gate, and no
 plan-gate pre-authorization opens it, and a deferred ticket gets no
 `needs-attention` label and keeps whatever status it already had.
 
-**The deferral record.** Every stage that defers posts one, on the
-ticket if one resolved (for a ticketless PR, the stage's own report is
-all there is — see that stage's skill). It is the single place a
-deferred attempt's state lives once the deferring subagent's context
-is gone, and it has one fixed field list that every stage draws from,
-posting only the fields that apply to it rather than inventing its own
-partial one:
+**The deferral note.** Every stage that defers posts one short comment,
+on the ticket if one resolved (for a ticketless PR, the stage's own
+report is all there is — see that stage's skill): which stage stopped,
+what's left undone, the worktree path, and when the window next opens.
+That is the whole record. There is no field-by-field state to preserve
+beyond it, because nothing carries over — see "Restarting" below.
 
-- **Stage** — implement / review-fixer / trivial-minors /
-  merge-resolver / merge.
-- **What's undone** — uncommitted edits, unpushed commits, no PR yet,
-  or whatever is specific to the stage.
-- **Worktree path.**
-- **When the window next opens.**
-- **CI pushes used by the deferred attempt** — every stage that can
-  push reports this; it is the count a resume must not reset.
-- **Review rounds used** — `adversarial-review` only.
-- **Rebase state** — `merge-queue`'s resolver only: not started /
-  aborted / completed, plus the tier and files of any mid-rebase
-  resolution found or completed.
-- **Findings coverage and reply state** — the fixer only: which
-  findings its uncommitted local edits already address, and whether
-  this round's thread replies or rebuttals were already posted.
-- **The exact resume invocation.**
-
-A resume reads its RESUME state from the latest deferral record on the
-ticket — never from memory or a prior report, which a fresh invocation
-doesn't have.
-
-**Resume.** Re-invoke the same skill on the same target once the
-window is open; it reuses the existing worktree. A resumed stage
-**keeps its budget** — CI pushes already used still count toward the
-three, and review rounds already run still count toward the cap.
-Resuming never resets either, so no cap is silently lifted; it reads
-that budget from the deferral record above, not from anywhere else.
+**Restarting.** There is no automatic resume. A deferred ticket sits
+where it stopped until someone deliberately picks it back up — a later
+`dispatch` run given it as an explicit target, or a human directly
+re-invoking whichever of `implement-ticket`, `adversarial-review`, or
+`merge-queue` deferred — and that stage starts from the start, with
+fresh budgets: a fresh three CI pushes, a fresh round count, a fresh
+ledger. Before building on a kept worktree, reset it first — `git
+fetch origin && git reset --hard origin/<branch>` if the ticket has a
+PR, or cut a fresh one from the base branch if it doesn't — rather than
+building on whatever the deferred attempt left uncommitted or
+unpushed. Say plainly, wherever this matters, that restarting a
+deferred stage can reset a CI or review budget that had already been
+partly spent: that is the cost of stopping dead instead of promising to
+pick an attempt back up mid-stream, and it is cheap next to a run that
+finished on time.
 
 **Echoing it.** When you echo the mode back in one line before the
 first gate (see "Modes"), include on the same line the window's
@@ -419,15 +406,11 @@ coherent batch, can jump the line. Pick 5–10 — or everything eligible
 in `Todo` if it holds fewer. A short batch is a normal outcome, not a
 reason to reach further.
 
-Also check `In Progress` and `In Review` for tickets whose most recent
-Linear comment is a deferral (see "The write window") — a deferred
-ticket carries no label and a status-only glance at those columns
-won't distinguish it from one still genuinely in flight. Offer each
-one alongside this run's `Todo` picks, using the stage and resume
-invocation its deferral comment recorded rather than starting it over:
-it re-enters at whatever phase deferred it, not at Phase 3's planner.
-A deferred ticket nobody takes this run is left exactly as it is; nothing
-here forces it into every batch that follows.
+A ticket sitting `In Progress` or `In Review` with a deferral comment
+(see "The write window") is not picked up here — Phase 1 only draws
+from `Todo`. Restarting a deferred ticket is a deliberate act: a later
+`dispatch` run that wants to work it again, or a human, re-invokes the
+stage directly (see "Restarting").
 
 ### `Backlog`
 
@@ -467,10 +450,6 @@ that is the next gate's job. Add, separately:
 - **Proposed promotions from `Backlog`**, if you made any, clearly
   marked as not picked and not promoted, one line each on why they
   look runnable now.
-- **Deferred tickets offered for resumption**, if you found any, one
-  line each: which stage deferred it and the invocation that resumes
-  it. Marked separately from this run's new picks — resuming one
-  re-enters at the deferred stage, not Phase 3's planner.
 - **What you skipped and why**, for anything a human would want to
   know about: blocked by an open ticket, carrying `needs-attention`,
   too vague, or too big.
@@ -579,12 +558,13 @@ ticket never stops the others.
 On `RESULT: deferred`, `implement-ticket` stopped before a gated write
 because the repo's write window was closed, and no `needs-attention`
 label was added. What's left undone varies by when it stopped —
-uncommitted edits, unpushed commits, or a PR already open with some of
-its three CI retries already used — and its NOTES say which; don't
-assume it means nothing was committed or pushed. Record that resume
-state from NOTES on the manifest entry (what's undone, the worktree
-path, when the window next opens) and carry on with the rest of the
-batch; don't retry it within this run. See "The write window".
+uncommitted edits, unpushed commits, or a PR already open — and its
+NOTES say which; don't assume it means nothing was committed or
+pushed. Record what's undone and the worktree path on the manifest
+entry and carry on with the rest of the batch; don't retry it within
+this run — a restart is a fresh `implement-ticket` invocation with a
+fresh budget, not something this run does mid-batch. See "The write
+window".
 
 ## Phase 7 — Adversarial review
 
@@ -637,10 +617,11 @@ on with the rest of the batch.
 On `RESULT: deferred`, the fixer stopped before a commit or push
 because the write window was closed. Leave the ticket in `In Review`
 with no `needs-attention` label, keep the ledger rows
-`adversarial-review` reported in NOTES (the ledger itself dies with
-that subagent's context), record the resume state on the manifest
-entry, and carry on with the rest of the batch. See "The write
-window".
+`adversarial-review` reported in NOTES for the human's reference (the
+ledger itself dies with that subagent's context), record what's undone
+and the worktree path on the manifest entry, and carry on with the rest
+of the batch — a restart is a fresh `adversarial-review` call starting
+at round 1, not something this run resumes. See "The write window".
 
 ## Phase 8 — Merge gate and merge queue
 
@@ -690,9 +671,14 @@ worktree as they were — and carry on with the rest of the queue.
 On `RESULT: deferred`, `merge-queue` stopped a PR before the rebase,
 `gh pr ready`, or `gh pr merge` because the write window was closed —
 a released merge gate does not open the window, so this can happen on
-a batch whose merges were already authorized. The PR and worktree are
-left exactly as they were: nothing merged. Record the resume state and
-carry on with the rest of the queue. See "The write window".
+a batch whose merges were already authorized. Nothing merged, but the
+PR is not necessarily untouched: if the resolver had already pushed a
+rebase before deferring, say so, and say whether its NOTES call the
+current head's CI red or unverified — that head will not clear
+`merge-queue`'s own eligibility check on its own, so a later run has to
+target this PR directly rather than finding it again in an "all
+eligible PRs" sweep. Carry on with the rest of the queue. See "The
+write window".
 
 ## Cleanup
 
@@ -745,9 +731,11 @@ fixing / ready for merge / queued to merge / merged / needs attention
 / deferred (window closed)), PR link.
 Nothing else; the details live on the PRs.
 
-At the end of a run, list any deferred tickets separately with the
-invocation that resumes each one — the table's status alone doesn't
-tell the human how to pick one back up.
+At the end of a run, list any deferred tickets separately, one line
+each: which stage stopped and the worktree path — the table's status
+alone doesn't tell the human how to pick one back up. Restarting one
+means directly re-invoking that stage (see "Restarting"); this run
+does not do that on its own.
 
 A run in semi or autonomous mode reports more, not less, because
 nobody is watching it happen: post a status update at the end of each
@@ -784,10 +772,10 @@ what `decision-queue` turns into an answerable question later.
 
 A `RESULT: deferred` is neither of those and is not an escalation at
 all — nothing went wrong, the write window was simply closed. Relay it
-as its own thing: which stage deferred it, what's left undone, the
-worktree path, and the resume invocation from its report. It carries
-no `needs-attention` label and no status change, so don't fold it into
-a count of what stalled. See "The write window".
+as its own thing: which stage deferred it, what's left undone, and the
+worktree path. It carries no `needs-attention` label and no status
+change, so don't fold it into a count of what stalled. See "The write
+window" for how it gets picked back up.
 
 Keep `blocked` and `failed` distinct when you relay them — collapsing
 both into "it broke" is the one thing not to do here. Blocked means a
