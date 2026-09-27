@@ -175,9 +175,11 @@ Check it twice, because the two checks catch different things:
 
 A hit that shows up only at review time is normal and is not a failure
 of planning. The plan-time hit is presented at the plan gate and held
-in your own context from there; the review-time hit is recorded by
-`adversarial-review` as a `factory: stop-list hold` comment (see
-"Escalation comments").
+in your own context from there. On a ready result, the review-time hit
+is recorded by `adversarial-review` as a `factory: stop-list hold`
+comment; on any other result, it's recorded on that result's `factory:
+escalation` comment, in its `Stop-list` line (see "Escalation
+comments").
 
 This is not the same thing as an escalation, despite both ending at a
 human. An escalation is reactive: something stalled, and the ticket
