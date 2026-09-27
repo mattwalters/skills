@@ -61,6 +61,9 @@ The section declares:
   project. Reviewers bring no invariants of their own.
 - **Stop-list**: the paths and subjects whose merge always waits for a human,
   whatever mode a run is in. A project that declares none has none.
+- **Write window**: the weekday hours, if any, during which the pipeline
+  won't commit, push, or merge, so a public timestamp is never evidence of
+  when someone worked. Required; `none` means no window.
 
 This repo's own [`AGENTS.md`](AGENTS.md) is a worked example.
 

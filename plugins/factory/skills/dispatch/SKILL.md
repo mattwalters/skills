@@ -1,6 +1,6 @@
 ---
 name: dispatch
-description: Batch-run the next tickets from Linear for the repo you are in. Picks 5–10 unblocked tickets from `Todo` by priority, stops for human approval on the selection, has each one planned into its ticket description, plans parallel vs serial execution, stops for approval again on the plans, then runs each ticket through the implement-ticket, adversarial-review, and merge-queue skills to a merged pull request. Its three gates — selection, plan, merge — are set by naming a mode at invocation: supervised, semi, or autonomous. Reads the host repo's `AGENTS.md` `## Dispatch` section for its Linear team, check command, base branch, and worktree locations. Use when asked to run the queue, work the next tickets, dispatch a batch, or process Linear tickets in parallel. Do not use for a single ticket a human is already driving — use implement-ticket, adversarial-review, or merge-queue directly for that.
+description: Batch-run the next tickets from Linear for the repo you are in. Picks 5–10 unblocked tickets from `Todo` by priority, stops for human approval on the selection, has each one planned into its ticket description, plans parallel vs serial execution, stops for approval again on the plans, then runs each ticket through the implement-ticket, adversarial-review, and merge-queue skills to a merged pull request. Its three gates — selection, plan, merge — are set by naming a mode at invocation: supervised, semi, or autonomous. Reads the host repo's `AGENTS.md` `## Dispatch` section for its Linear team, check command, base branch, write window, and worktree locations, and stops a stage short of any commit, push, or merge while that window is closed. Use when asked to run the queue, work the next tickets, dispatch a batch, or process Linear tickets in parallel. Do not use for a single ticket a human is already driving — use implement-ticket, adversarial-review, or merge-queue directly for that.
 ---
 
 # Dispatch
@@ -49,6 +49,9 @@ declares at minimum:
   the reviewer prompt carries no invariants of its own.
 - **Stop-list** — the paths and subjects whose merge always waits for
   a human, whatever mode the run is in. See "The stop-list".
+- **Write window** — the weekday hours, if any, during which a
+  commit, push, or merge is not allowed to happen. Required; a repo
+  with none declares `none`. See "The write window".
 
 If `AGENTS.md` has no `## Dispatch` section, this repo has not opted
 in: say so and stop, rather than guessing a team key, a check command,
@@ -182,6 +185,88 @@ the merge gate is set to: a released merge gate authorizes merging
 work that came back ready, not work review couldn't finish. The
 **stop-list** is not a gate either, and it overrides a released merge
 gate the same way.
+
+## The write window
+
+A repo's `## Dispatch` section declares a **write window** — when
+gated writes (below) are allowed to actually happen. It exists so a
+commit's timestamp is never the evidence of when someone worked, not
+because a run needs supervision at those hours. The default
+assumption for a personal project is weekdays outside roughly
+09:00–17:00 local, weekends fully open — but the repo's own
+declaration is the whole of what gets checked, and no skill or prompt
+hardcodes this or any repo's timezone or hours.
+
+**Format.** An IANA timezone plus closed periods, given as weekdays
+and a start–end time, or the literal `none`. The start is inclusive
+and the end exclusive. Illustration only, never a real repo's values:
+`closed Monday–Friday 09:00–17:00 America/Los_Angeles; open
+otherwise`.
+
+**Required field.** A `## Dispatch` section with no **Write window**
+line is exactly like one with no check command: stop before the first
+gated write and name the missing field, rather than guessing the
+window is open. `none` is a valid declaration and means no window —
+every gated write is allowed at any time.
+
+**Terms.** The window is **open** when gated writes are allowed and
+**closed** when they are not. Use only "open" and "closed" — never
+"inside/outside the window", which reads two ways.
+
+**Evaluation.** Run `TZ=<zone> date '+%u %H:%M'` fresh, immediately
+before each gated write — never reuse a reading from earlier in the
+run, since a CI watch alone can take minutes and the window can close
+underneath it. `%u` gives 1 (Monday) through 7 (Sunday) and behaves
+the same under BSD and GNU `date`. If the declaration has no
+timezone, or can't be read unambiguously, treat that as a config
+error: say so and stop before the first gated write. Never assume the
+window is open.
+
+**Gated writes.** Anything that stamps a timestamp that becomes part
+of the public git history the moment it is *created*, not the moment
+it becomes visible:
+
+- Commit-creating commands: `git commit` (including `--amend`),
+  `git rebase`, `git merge`, `git cherry-pick`.
+- `git push`, including `--force-with-lease` and `--delete`.
+- `gh pr create`, `gh pr ready`, `gh pr merge`.
+
+A commit made at 11:00 and pushed at 18:00 still publishes 11:00, so
+the check runs before the commit, not only before the push. Never
+re-date a commit (`GIT_AUTHOR_DATE`/`GIT_COMMITTER_DATE`,
+`--committer-date-is-author-date`, or the like) to get around a closed
+window — forging the record is worse than having it. Editing files,
+running the check command, reading, planning, and reviewing are never
+gated: they leave no public record.
+
+**Closed means stop dead.** Don't run the write, and don't wait,
+sleep, or schedule it for later. Leave the worktree exactly as it is
+and report `RESULT: deferred`. A stage already in flight when the
+window closes stops there too, mid-ticket if need be — a push at
+09:05 is exactly the record this control exists to prevent, and
+letting a stage finish turns the window into a grace period of
+unknown length. The usual cost of stopping dead, an unpushed branch in
+a worktree about to be discarded, mostly doesn't apply here: see
+"Cleanup", which keeps a deferred ticket's worktree the same as any
+other stalled one.
+
+Nothing releases the window except the repo's own declaration. It is
+not a gate and not an escalation: no mode, no released gate, and no
+plan-gate pre-authorization opens it, and a deferred ticket gets no
+`needs-attention` label and keeps whatever status it already had.
+
+**Resume.** Re-invoke the same skill on the same target once the
+window is open; it reuses the existing worktree. A resumed stage
+**keeps its budget** — CI pushes already used still count toward the
+three, and review rounds already run still count toward the cap.
+Resuming never resets either, so no cap is silently lifted.
+
+**Echoing it.** When you echo the mode back in one line before the
+first gate (see "Modes"), include on the same line the window's
+declaration, whether it is open right now, and when it next opens or
+closes. A run that is about to stop early on this says so while the
+human is still reading, the same way a run about to merge without
+asking does.
 
 ## Where this skill lives
 
@@ -424,6 +509,13 @@ blocked means the brief needs a human's judgment call, failed means CI
 never went green — and carry on with the rest of the batch. One stuck
 ticket never stops the others.
 
+On `RESULT: deferred`, `implement-ticket` stopped before a gated write
+because the repo's write window was closed — nothing was committed or
+pushed, no PR exists yet, and no `needs-attention` label was added.
+Record the resume state on the manifest entry (what's undone, the
+worktree path, when the window next opens) and carry on with the rest
+of the batch; don't retry it within this run. See "The write window".
+
 ## Phase 7 — Adversarial review
 
 For each ticket `implement-ticket` reported green, invoke the
@@ -472,6 +564,14 @@ diff itself) or `failed` (the fixer exhausted its CI attempts), say
 which one it was, relay the options the subagent reported, and carry
 on with the rest of the batch.
 
+On `RESULT: deferred`, the fixer stopped before a commit or push
+because the write window was closed. Leave the ticket in `In Review`
+with no `needs-attention` label, keep the ledger rows
+`adversarial-review` reported in NOTES (the ledger itself dies with
+that subagent's context), record the resume state on the manifest
+entry, and carry on with the rest of the batch. See "The write
+window".
+
 ## Phase 8 — Merge gate and merge queue
 
 A branch is ready when its latest review round returned no major and
@@ -515,16 +615,26 @@ rebased head), tell the human which one it was and why — `merge-queue`
 already left the PR and worktree as they were — and carry on with the
 rest of the queue.
 
+On `RESULT: deferred`, `merge-queue` stopped a PR before the rebase,
+`gh pr ready`, or `gh pr merge` because the write window was closed —
+a released merge gate does not open the window, so this can happen on
+a batch whose merges were already authorized. The PR and worktree are
+left as they were (or, if it merged before the window closed but
+couldn't delete the remote branch afterward, `merge-queue`'s report
+says so). Record the resume state and carry on with the rest of the
+queue. See "The write window".
+
 ## Cleanup
 
 `merge-queue` deletes the worktree and the remote branch for anything
 it actually merges — that's the only automatic cleanup anywhere in
 this pipeline, and it's deliberate. A ticket that ends up blocked,
-failed, capped, or otherwise carrying `needs-attention` keeps its
-worktree and branch indefinitely, on purpose: that state is exactly
-the in-progress context a human or a later fixer needs to pick the
-thread back up, and deleting it on a timer risks destroying something
-nobody's looked at yet.
+failed, capped, deferred, or otherwise carrying `needs-attention`
+keeps its worktree and branch indefinitely, on purpose: that state is
+exactly the in-progress context a human or a later fixer (or, for
+deferred, the same skill resumed later) needs to pick the thread back
+up, and deleting it on a timer risks destroying something nobody's
+looked at yet.
 
 If a ticket is truly abandoned — cancelled, or the human decides not
 to pursue it — cleaning up its worktree (`git worktree remove`) and
@@ -561,9 +671,13 @@ the line you echo the mode back with.
 
 After each merge, and whenever the human asks: one table from the
 manifest — ticket, title, where it is (implementing / review round N /
-fixing / ready for merge / queued to merge / merged / needs
-attention), PR link.
+fixing / ready for merge / queued to merge / merged / needs attention
+/ deferred (window closed)), PR link.
 Nothing else; the details live on the PRs.
+
+At the end of a run, list any deferred tickets separately with the
+invocation that resumes each one — the table's status alone doesn't
+tell the human how to pick one back up.
 
 A run in semi or autonomous mode reports more, not less, because
 nobody is watching it happen: post a status update at the end of each
@@ -597,6 +711,13 @@ the one it would pick. Relay them and keep them in the manifest — the
 subagent wrote them while it still had the worktree and the diff in
 front of it, which is the only moment they are cheap, and they are
 what `decision-queue` turns into an answerable question later.
+
+A `RESULT: deferred` is neither of those and is not an escalation at
+all — nothing went wrong, the write window was simply closed. Relay it
+as its own thing: which stage deferred it, what's left undone, the
+worktree path, and the resume invocation from its report. It carries
+no `needs-attention` label and no status change, so don't fold it into
+a count of what stalled. See "The write window".
 
 Keep `blocked` and `failed` distinct when you relay them — collapsing
 both into "it broke" is the one thing not to do here. Blocked means a

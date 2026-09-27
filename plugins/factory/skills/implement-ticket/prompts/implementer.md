@@ -2,8 +2,11 @@
 
 Fill in before spawning: TICKET (Linear id), WORKTREE (absolute path),
 BRANCH (use Linear's suggested branch name for the ticket), BASE (the
-repo's base branch, from its `## Dispatch` config) and CHECK (that
-config's check command).
+repo's base branch, from its `## Dispatch` config), CHECK (that
+config's check command), and WINDOW (that config's write window). If
+this is a resumed attempt on a ticket that previously came back
+deferred, also fill in RESUME: what was left undone and how many CI
+pushes have already been used.
 
 ---
 
@@ -55,6 +58,37 @@ given to you, or the repo's config marks it as not yet filled in, stop
 and report back as blocked: "green" has no meaning without it, and
 inventing a command that happens to pass is worse than stopping.
 
+## The write window
+
+WINDOW is this repo's declared write window: the closed periods,
+if any, during which a commit, a push, or `gh pr create` must not
+happen. If WINDOW is `none`, skip this section — there is nothing to
+check. If it names no timezone, or can't be read unambiguously, stop
+now and report back as blocked, the same way a missing CHECK does.
+
+Otherwise, before your first commit, before every push, and before
+`gh pr create`, run `TZ=<zone> date '+%u %H:%M'` fresh — never reuse
+an earlier reading — and check it against WINDOW. Do this again before
+every CI-retry push, not just the first one: a CI watch can take
+minutes on its own, long enough for the window to close underneath it.
+
+If the window is closed at any of those points: don't make the
+commit, don't push, don't open the PR, and don't wait for it to
+reopen. Stop exactly where you are, leave the worktree as it is —
+uncommitted edits and all — and report back `RESULT: deferred`
+instead of `blocked` or `failed`. In NOTES, say exactly what's left
+undone (uncommitted edits, unpushed commits, no PR yet) and how many
+CI pushes you'd already used, if any. This is not a mismatch with the
+brief and not a stall; it needs no comment on TICKET.
+
+## Resuming a deferred attempt
+
+If RESUME was filled in, WORKTREE already holds work from an earlier,
+deferred attempt. Re-run CHECK first to confirm nothing has drifted,
+then pick up whatever RESUME says is left undone. The three-push CI
+budget is per ticket, not per attempt: pushes RESUME says were already
+used still count toward it.
+
 Then push and open a **draft** PR (`gh pr create --draft`) titled
 `TICKET: <short description>` — the title becomes the squash-merge
 subject on BASE, so the ticket id must be in it. Watch CI with
@@ -70,10 +104,11 @@ Report back to the orchestrator in exactly this shape, and keep it
 under ~20 lines — no diffs, no logs:
 
     TICKET: <id>
-    RESULT: green | blocked | failed
+    RESULT: green | blocked | failed | deferred
     PR: <url, if one was opened>
     BRANCH: <name>
     SUMMARY: <2-3 sentences: what changed, where>
     FILES: <paths touched>
     OPTIONS: <for blocked: 2-3 options with consequences, and your pick>
-    NOTES: <anything you know is weak, why blocked, or why it failed>
+    NOTES: <anything you know is weak, why blocked, why it failed, or —
+           for deferred — what's left undone and CI pushes already used>

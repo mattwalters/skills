@@ -2,9 +2,29 @@
 
 Fill in before spawning: WORKTREE (absolute path), BRANCH, BASE (the
 repo's base branch, from its `## Dispatch` config), PR (url or
-number).
+number), WINDOW (that config's write window).
 
 ---
+
+## The write window
+
+WINDOW is this repo's declared write window: the closed periods, if
+any, during which the rebase or a push must not happen. If WINDOW is
+`none`, skip this section. If it names no timezone, or can't be read
+unambiguously, stop now and report back as blocked, the same way an
+unreadable BASE would.
+
+Otherwise, before you run the rebase below, and again before every
+push (including every CI-retry push, not just the first), run
+`TZ=<zone> date '+%u %H:%M'` fresh — never a reading from earlier in
+this run — and check it against WINDOW.
+
+If the window is closed at either point: don't run the rebase (it
+creates a commit) and don't push. Stop exactly where you are — leaving
+WORKTREE untouched if the window was already closed before you
+started — and report back `RESULT: deferred` instead of `blocked` or
+`failed`. In NOTES, say whether the rebase itself ran and how many CI
+pushes you'd already used, if any.
 
 Rebase BRANCH onto current `origin/BASE` in WORKTREE. Work only there;
 never touch another branch or worktree.
@@ -86,9 +106,11 @@ logs:
 
     PR: <url or number>
     BRANCH: <name>
-    RESULT: green | blocked | failed
-    TIER: 1 | 2 | none — the highest tier you resolved at
+    RESULT: green | blocked | failed | deferred
+    TIER: 1 | 2 | none — the highest tier you resolved at; n/a if you
+          deferred before the rebase ran
     RESOLVED: <for tier 2: the case number, files and hunks; for tier 1:
               the files; "clean" if the rebase did not conflict>
     OPTIONS: <for blocked: 2-3 options with consequences, and your pick>
-    NOTES: <the conflict if blocked, or why it failed>
+    NOTES: <the conflict if blocked, why it failed, or — for deferred —
+           whether the rebase ran and CI pushes already used>

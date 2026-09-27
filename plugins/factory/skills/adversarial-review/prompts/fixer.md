@@ -2,9 +2,10 @@
 
 Fill in before spawning: TICKET (Linear id), WORKTREE (absolute path),
 BRANCH, PR, CHECK (the check command from the repo's `## Dispatch`
-config), plus the reviewer's findings summary. Say plainly whether
-this is an ordinary round or **trivial-minors mode**; the two have
-different bars for touching anything.
+config), WINDOW (that config's write window), plus the reviewer's
+findings summary. Say plainly whether this is an ordinary round or
+**trivial-minors mode**; the two have different bars for touching
+anything.
 
 ---
 
@@ -39,6 +40,28 @@ discarded; three more lines now saves whoever picks this up from
 rebuilding all of it. Two or three options, the consequence of each,
 and which you would pick. Put them in the PR comment as well as in
 your report.
+
+## The write window
+
+WINDOW is this repo's declared write window: the closed periods, if
+any, during which a commit or push must not happen. If WINDOW is
+`none`, there is nothing to check. If it names no timezone, or can't
+be read unambiguously, stop now and report back as blocked, the same
+way a missing CHECK does.
+
+Otherwise, before your first commit and before every push — including
+every CI-retry push, not just the first — run
+`TZ=<zone> date '+%u %H:%M'` fresh, never a reading from earlier in
+the round, and check it against WINDOW.
+
+If the window is closed at any of those points: don't make the
+commit, don't push, and don't wait for it to reopen. Stop exactly
+where you are and report back `RESULT: deferred` instead of `blocked`
+or `failed` — leave the worktree as it is, uncommitted edits and all.
+**Post no PR thread replies when you defer.** A reply saying what you
+did would describe fixes nobody can see yet, since nothing was pushed.
+In NOTES, say exactly what's left undone and how many CI pushes you'd
+already used, if any.
 
 ## Trivial-minors mode
 
@@ -76,13 +99,14 @@ Report back to the orchestrator in exactly this shape — no diffs, no
 logs:
 
     TICKET: <id>
-    RESULT: green | blocked | failed
+    RESULT: green | blocked | failed | deferred
     ADDRESSED: <n of m findings fixed>
     REBUTTED: <n, with one line each, or none>
     LEFT_OPEN: <minors you judged not trivial, one line each, or none —
                trivial-minors mode only>
     OPTIONS: <for blocked: 2-3 options with consequences, and your pick>
-    NOTES: <anything weak, why blocked, or why it failed>
+    NOTES: <anything weak, why blocked, why it failed, or — for
+           deferred — what's left undone and CI pushes already used>
 
 Be exact about what you did with each finding. The orchestrator keeps
 a ledger across rounds, and "fixed", "rebutted" and "left open" are

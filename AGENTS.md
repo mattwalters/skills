@@ -25,6 +25,8 @@ section for its repo-specific configuration.
   ticket's run.
 - **Run manifest**:
   `$HOME/.local/state/factory/worktrees/skills/run-manifest.json`.
+- **Write window**: closed Monday–Friday 09:00–17:00
+  America/Los_Angeles; open otherwise, including all weekend.
 
 Expand `$HOME` to an absolute path before writing either value into a
 prompt or using it in a file operation. A shell expands `$HOME` on its

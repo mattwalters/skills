@@ -1,6 +1,6 @@
 ---
 name: implement-ticket
-description: Take one or more Linear tickets from Todo/In Progress through a CI-green draft PR, using a fresh implementer subagent per ticket in an isolated git worktree. Reads the host repo's `AGENTS.md` `## Dispatch` section for its Linear team, check command, base branch, and worktree directory. Use when asked to implement a specific ticket, pick up a ticket, or "just do the implementation" without also running review or merge. Called by the dispatch skill once per ticket in a wave; equally fine invoked standalone against a single ticket.
+description: Take one or more Linear tickets from Todo/In Progress through a CI-green draft PR, using a fresh implementer subagent per ticket in an isolated git worktree. Reads the host repo's `AGENTS.md` `## Dispatch` section for its Linear team, check command, base branch, write window, and worktree directory, and stops the implementer short of any commit or push while that window is closed. Use when asked to implement a specific ticket, pick up a ticket, or "just do the implementation" without also running review or merge. Called by the dispatch skill once per ticket in a wave; equally fine invoked standalone against a single ticket.
 ---
 
 # Implement ticket
@@ -19,14 +19,18 @@ than guessing.
 Read the `## Dispatch` section of the host repo's `AGENTS.md` before
 starting: it gives the Linear team key, the **check command** the
 implementer must pass locally before pushing, the **base branch**
-worktrees are cut from, and the **worktree directory** (`<runs-dir>`
-below). Pass all four down to the implementer verbatim.
+worktrees are cut from, the **write window** during which a commit or
+push is not allowed to happen (see the `dispatch` skill's "The write
+window"), and the **worktree directory** (`<runs-dir>` below). Pass
+all five down to the implementer verbatim.
 
 No `## Dispatch` section means the repo has not opted into this
 pipeline — say so and stop. A field that is missing, or marked as not
 yet filled in, means stop before the step that needs it rather than
-inventing a value; a check command in particular is never to be
-guessed at, because the whole "green" verdict rests on it.
+inventing a value; a check command or a write window in particular is
+never to be guessed at — the whole "green" verdict rests on the one,
+and a legal control rests on the other. `none` is a valid write-window
+declaration and is not the same as a missing one.
 
 ## Per ticket
 
@@ -36,12 +40,18 @@ guessed at, because the whole "green" verdict rests on it.
    run, remove it — someone is on it again.
 2. Make an isolated worktree in the configured worktree directory:
    `git fetch origin && git worktree add --detach <runs-dir>/<TICKET> origin/<base-branch>`.
-   Never let two tickets share one worktree.
+   Never let two tickets share one worktree. If you're resuming a
+   ticket that came back `deferred` last time, reuse its existing
+   worktree at `<runs-dir>/<TICKET>` instead — it was kept for exactly
+   this.
 3. Spawn an implementer subagent with `prompts/implementer.md`, filling
    in TICKET, WORKTREE, BRANCH (Linear's suggested branch name for the
-   ticket), BASE (the base branch) and CHECK (the check command) —
-   mid-tier model, high effort (Sonnet on Claude Code; see the
-   `dispatch` skill's Models and effort table for other harnesses).
+   ticket), BASE (the base branch), CHECK (the check command), and
+   WINDOW (the write window) — mid-tier model, high effort (Sonnet on
+   Claude Code; see the `dispatch` skill's Models and effort table for
+   other harnesses). When resuming a deferred ticket, also pass the
+   resume state from its last report: what was left undone and how
+   many CI pushes it had already used.
 
 The implementer's contract, enforced by the prompt: implement the
 ticket — its `## Plan` section if the description has one, otherwise
@@ -73,12 +83,23 @@ or your caller if a skill invoked you. Don't retry past the
 implementer's own three-attempt budget, and don't let one stuck ticket
 stop the others you were given.
 
+## On a deferred report
+
+The implementer stopped before a gated write — a commit, a push, or
+`gh pr create` — because the repo's declared write window was closed
+(see the `dispatch` skill's "The write window"). Nothing is wrong:
+don't label the ticket, and leave its status exactly where it was.
+Post a Linear comment on the ticket saying which stage deferred it,
+what's left undone (uncommitted edits, unpushed commits, no PR yet),
+the worktree path, when the window next opens, and the invocation that
+resumes it. Tell whoever is waiting on this the same thing.
+
 ## Report, per ticket
 
 Relay the implementer's report upward, unchanged:
 
     TICKET: <id>
-    RESULT: green | blocked | failed
+    RESULT: green | blocked | failed | deferred
     PR: <url, if one was opened>
     BRANCH: <name>
     SUMMARY: <2-3 sentences: what changed, where>
