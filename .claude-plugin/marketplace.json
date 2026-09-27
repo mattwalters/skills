@@ -1,0 +1,19 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "mattwalters",
+  "description": "Matt Walters' Claude Code plugins. One plugin per concern, each versioned and enabled independently.",
+  "owner": {
+    "name": "Matt Walters"
+  },
+  "plugins": [
+    {
+      "name": "factory",
+      "description": "Software factory skills: take Linear tickets through implementation, review and merge to a merged PR.",
+      "author": {
+        "name": "Matt Walters"
+      },
+      "category": "workflow",
+      "source": "./plugins/factory"
+    }
+  ]
+}
