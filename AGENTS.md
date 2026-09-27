@@ -33,10 +33,11 @@ subagent's Read/Edit/Write calls and a prompt placeholder do not.
 
 Both paths are outside the repo, so nothing to gitignore. Per-run
 state stays on the machine that ran it. The directory is shared by
-every clone of this repo on the machine, so run any `factory` skill
-against this repo — whether as part of dispatch or standalone — from
-one clone at a time (a worktree already at `<runs-dir>/<TICKET>`
-belongs to whichever clone made it).
+every checkout of this repo on the machine — every clone, and every
+worktree of a clone — so run any `factory` skill against this repo —
+whether as part of dispatch or standalone — from one checkout at a
+time (a worktree already at `<runs-dir>/<TICKET>` belongs to whichever
+checkout made it).
 
 ### Review invariants
 
