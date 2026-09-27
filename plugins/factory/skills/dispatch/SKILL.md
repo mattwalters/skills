@@ -177,9 +177,11 @@ A hit that shows up only at review time is normal and is not a failure
 of planning. The plan-time hit is presented at the plan gate and held
 in your own context from there. On a ready result, the review-time hit
 is recorded by `adversarial-review` as a `factory: stop-list hold`
-comment; on any other result, it's recorded on that result's `factory:
-escalation` comment, in its `Stop-list` line (see "Escalation
-comments").
+comment — posted every time a cycle ends ready, `Entries: none`
+included; on a blocked, failed, or capped result, it's recorded on
+that result's `factory: escalation` comment, in its `Stop-list` line
+instead; on a deferred result, it's recorded on the deferral note's
+`Stop-list` line (see "Escalation comments" and "The write window").
 
 This is not the same thing as an escalation, despite both ending at a
 human. An escalation is reactive: something stalled, and the ticket
@@ -316,9 +318,14 @@ The comment's first line is the fixed marker `**factory: deferred**`,
 the same way an escalation comment or a stop-list hold comment opens
 with its own marker (see "Escalation comments") — it's what lets
 `decision-queue` find it later without reading every comment on the
-ticket. That is the whole record. There is no field-by-field state to
-preserve beyond it, because nothing carries over — see "Restarting"
-below.
+ticket. Whenever the deferring stage has a `STOPLIST` in hand —
+`adversarial-review`'s review-fixer and trivial-minors passes always
+do; `merge-queue` only when it happens to — the note also carries a
+`Stop-list: <entries, or none>` line, so a hit that stalls on a
+deferral is recorded as durably as one that reaches a ready result or
+an escalation. That is the whole record. There is no other
+field-by-field state to preserve beyond it, because nothing carries
+over — see "Restarting" below.
 
 **Restarting.** There is no automatic resume, and `dispatch` never
 restarts a deferred ticket itself — Phase 1 draws only from `Todo`
@@ -474,10 +481,12 @@ existing home (see "The write window"):
 
     **factory: stop-list hold**
     PR: <url>
-    Entries: <each stop-list entry the diff hits, as the repo declares it>
+    Entries: <each stop-list entry the diff hits, or none>
     Round: <n>
     This merge waits for a human to clear this PR specifically, whatever
-    mode a run is in.
+    mode a run is in, when Entries names any. An `Entries: none` hold
+    carries no such wait; it is posted, like every ready cycle's hold,
+    only to clear whatever an earlier hold on this same PR recorded.
 
 `**factory: deferred**` is the fixed first line of the deferral note
 "The write window" defines. Everything after that line is that note's,
@@ -737,9 +746,12 @@ The human can name a different budget at invocation; theirs wins.
 Every report comes back with a `STOPLIST` line. A non-empty one holds
 that ticket's merge gate for the human whatever the mode. On
 `RESULT: ready`, `adversarial-review` has already posted the `factory:
-stop-list hold` comment for it; carry it into Phase 8. On any other
-result, it's instead recorded on that result's `factory: escalation`
-comment, in its `Stop-list` line — see "Escalation comments".
+stop-list hold` comment for it — every ready result gets one, `Entries:
+none` included; carry it into Phase 8. On `RESULT: capped`, `blocked`,
+or `failed`, it's instead recorded on that result's `factory:
+escalation` comment, in its `Stop-list` line. On `RESULT: deferred`,
+it's recorded on the deferral note's `Stop-list` line instead — see
+"Escalation comments" and "The write window".
 
 On `RESULT: ready`, go to Phase 8. Ready means no major and no medium
 findings, not zero findings: open minors come back listed in the

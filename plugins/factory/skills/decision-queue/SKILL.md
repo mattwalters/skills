@@ -55,32 +55,35 @@ second:
    capped review result hit the stop-list; read it the same way you
    read `Entries` on a hold comment.
 2. Otherwise, the team's `In Review` tickets with an open PR whose
-   latest `factory: stop-list hold` comment is newer than both the PR's
-   latest commit and their latest `factory: deferred` comment, if any,
-   and that carry neither **`approved-to-merge`** nor
-   **`needs-attention`** — once `approved-to-merge` lands, the hold has
-   been cleared and the ticket drops out. A later push makes an old
-   hold stale on its own — a fix or a re-review both count — and a
-   later cycle that ends ready with a non-empty stop-list posts a fresh
-   hold after its last push, which is live again. A ticket whose latest
-   deferral note is not older than its hold — posted afterward, or as
-   part of the same stopped round the hold's `Round` field names (the
-   two can post in either order within one round) — fails the "newer
-   than" test and isn't this source: a deferred review never came back
-   ready, so that ticket is the FYI deferred line below instead, not a
-   merge-approval question.
+   latest `factory: stop-list hold` comment names at least one entry
+   (`Entries` is not `none`), that carry neither
+   **`approved-to-merge`** nor **`needs-attention`**, and whose latest
+   `factory: deferred` comment, if any, is not newer than that hold —
+   once `approved-to-merge` lands, the hold has been cleared and the
+   ticket drops out. Every ready cycle posts a hold, `Entries: none`
+   included (see `adversarial-review`'s "Recording the stop-list
+   hold"), so the latest one is always the whole of the current truth:
+   an `Entries: none` hold clears an earlier hit as surely as a later
+   non-empty hold re-asserts it, and there is nothing else to weigh —
+   not the PR's commits, not which round a deferral note names. A
+   ticket whose latest deferral note is newer than its latest hold
+   isn't this source: a deferred review never came back ready, so that
+   ticket is the FYI deferred line below instead, not a merge-approval
+   question.
 3. Open PRs with no linked ticket that carry either marker comment,
    found the same way `adversarial-review` and `merge-queue` post
-   them: on the PR itself, since there's no ticket to hold it. Since
-   there's no label here to clear it, a marker counts only while the
-   PR stays open **and** its latest marker comment is newer than both
-   the PR's latest commit and its latest approving review. It clears on
-   a push, a GitHub approval, or the PR closing — not on a clean
-   re-review that pushes nothing, the same way a label clears sources 1
-   and 2. A later cycle that ends ready with a non-empty stop-list
-   re-posts a hold regardless of what an earlier hold said (see
-   `adversarial-review`'s "Recording a stop-list hit"), so a live hold
-   here never goes stale for want of a fresh comment.
+   them: on the PR itself, since there's no ticket to hold it. Same
+   shape as source 2: a hold counts as live only while it names at
+   least one entry, and either kind of marker counts only while the PR
+   stays open and nothing newer has superseded it. A later hold —
+   `Entries: none` included — or a later approving GitHub review both
+   supersede it, the same way `approved-to-merge` clears sources 1 and
+   2; the PR closing clears it too. None of that turns on the PR's
+   commit history: a plain push with no marker or approval of its own
+   changes nothing here. Every ready cycle posts a hold, `Entries: none`
+   included (see `adversarial-review`'s "Recording the stop-list
+   hold"), so a live hold here never goes stale for want of a fresh
+   comment.
 
 A ticket or PR that matches more than one of these is one item, not
 two.

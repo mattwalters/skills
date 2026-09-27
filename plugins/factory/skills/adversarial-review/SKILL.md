@@ -113,11 +113,14 @@ starting. Four fields matter most here:
   reports what it hits. This is not a review finding and says nothing
   about the change's quality; it routes the merge decision, and it is
   the check that catches a diff reaching files the plan never
-  predicted. On a ready result, a hit is recorded as a `factory:
-  stop-list hold` comment (see "Recording a stop-list hit" below); on
-  any other result it goes on the `factory: escalation` comment's
-  `Stop-list` line instead (see the `dispatch` skill's "Escalation
-  comments"). Neither is a label.
+  predicted. On a ready result, every cycle posts a `factory:
+  stop-list hold` comment, `Entries: none` included (see "Recording
+  the stop-list hold" below); on a blocked, failed, or capped result
+  it goes on the `factory: escalation` comment's `Stop-list` line
+  instead (see the `dispatch` skill's "Escalation comments"); on a
+  deferred result it goes on the deferral note's `Stop-list` line (see
+  "On a deferred report" below). Neither a hold nor a deferral note is
+  a label.
 - **Write window** — the weekday hours, if any, during which a commit
   or push is not allowed to happen. Pass it down to the fixer. See the
   `dispatch` skill's "The write window".
@@ -287,20 +290,23 @@ leave the minor open and say so — which is exactly what the fixer is
 told to do when it finds one. The pass is optional; skipping it costs
 nothing.
 
-## Recording a stop-list hit
+## Recording the stop-list hold
 
 Once this cycle ends **ready** (see "When a target is ready" above),
-check the target's final `STOPLIST` line, from whichever round's
-reviewer ran last. When it's non-empty, post a `factory: stop-list
-hold` comment (see the `dispatch` skill's "Escalation comments") on the
-resolved ticket, or on the PR if none resolved, naming the entries it
-hit and the round — every time, even if an earlier hold comment already
-named the same entries. A hold is posted only on a ready result, so it
-is fresh by construction: there's no older hold on this same result to
-compare it against, and nothing to skip. Never add `needs-attention`
-for this: a stop-list hold is not an escalation (see the `dispatch`
-skill's "The stop-list"), and this comment is the only durable trace of
-it.
+post a `factory: stop-list hold` comment (see the `dispatch` skill's
+"Escalation comments") on the resolved ticket, or on the PR if none
+resolved — **every ready cycle posts one**, whatever the target's final
+`STOPLIST` line, from whichever round's reviewer ran last, says:
+`Entries: <the entries it hit>` when non-empty, `Entries: none` when
+it's empty. The latest hold is the entire current truth: an `Entries:
+none` hold clears whatever an earlier hold recorded as surely as a
+later non-empty hold re-asserts it, so post it every time, even when it
+says the same thing an earlier hold already said. Post it last, as the
+last act of the ready cycle — after any trivial-minors pass — so it
+reflects that pass's own diff, not an earlier round's. Never add
+`needs-attention` for this: a stop-list hold is not an escalation (see
+the `dispatch` skill's "The stop-list"), and this comment is the only
+durable trace of it.
 
 ## On a blocked or failed report
 
@@ -336,8 +342,11 @@ report. This is a stage-status note about the cycle pausing, not a
 review finding about the diff, so it belongs where the ticket's status
 already lives, not as a comment or thread reply on the PR. Post it with
 stage `review-fixer` (or `trivial-minors`, for a deferral from that
-pass): what's left undone, the worktree path, and when the window next
-opens. For a ticketless PR
+pass): what's left undone, the worktree path, when the window next
+opens, and a `Stop-list` line carrying the latest round's `STOPLIST`
+(or `none`) — a deferred cycle never reaches the ready result that
+would otherwise post a hold, so this line is the only durable record of
+a hit that stalled here. For a ticketless PR
 there is no private place to put that: skip the comment and rely on the
 report below. Tell whoever is waiting on this the same thing either
 way. There is no resume: a later call restarts this cycle from round 1
