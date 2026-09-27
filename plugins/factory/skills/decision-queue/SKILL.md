@@ -50,25 +50,29 @@ second:
    escalation and the label (see that skill's "On a deferred report")
    — is always a queue item here and never the FYI deferred line
    below, whichever of its two comments happened to post second.
-2. Otherwise, the team's `In Review` tickets whose latest `factory:
-   stop-list hold` comment is on an open PR, is newer than the PR's
-   latest ready review round or push, and don't yet carry
-   **`approved-to-merge`** — once that label lands, the hold has been
-   cleared and the ticket drops out. Skip this source when the
-   ticket's latest `factory: deferred` comment isn't older than the
+2. Otherwise, the team's `In Review` tickets with an open PR whose
+   latest `factory: stop-list hold` comment is newer than their latest
+   `factory: deferred` comment, if any, and that carry neither
+   **`approved-to-merge`** nor **`needs-attention`** — once
+   `approved-to-merge` lands, the hold has been cleared and the ticket
+   drops out. A ticket whose latest deferral note is not older than its
    hold — posted afterward, or as part of the same stopped round the
    hold's `Round` field names (the two can post in either order within
-   one round) — since a deferred review never came back ready either
-   way; that ticket is the FYI deferred line below instead, not a
-   merge-approval question.
+   one round) — fails the "newer than" test and isn't this source: a
+   deferred review never came back ready, so that ticket is the FYI
+   deferred line below instead, not a merge-approval question.
 3. Open PRs with no linked ticket that carry either marker comment,
    found the same way `adversarial-review` and `merge-queue` post
    them: on the PR itself, since there's no ticket to hold it. Since
    there's no label here to clear it, a marker counts only while the
-   PR stays open **and** the marker is newer than both the PR's latest
-   commit and its latest approving review — a clean re-review or a
-   GitHub approval since the marker was posted clears it, the same way
-   a label clears sources 1 and 2.
+   PR stays open **and** its latest marker comment is newer than both
+   the PR's latest commit and its latest approving review. It clears on
+   a push, a GitHub approval, or the PR closing — not on a clean
+   re-review that pushes nothing, the same way a label clears sources 1
+   and 2. A later cycle that ends ready with a non-empty stop-list
+   re-posts a hold regardless of what an earlier hold said (see
+   `adversarial-review`'s "Recording a stop-list hit"), so a live hold
+   here never goes stale for want of a fresh comment.
 
 A ticket or PR that matches more than one of these is one item, not
 two.
@@ -160,13 +164,16 @@ either:
   this line. Once a restart pushes something, the ticket's state moves
   and this line stops applying.
 - **Awaiting merge approval, or still in review.** A ticket that's
-  `In Review` with an open PR, carrying none of the three markers above
-  — it's simply ready and waiting, or still mid-review. A stop-list
-  hold is not this line even though it is also "waiting" in a sense —
-  it's a queue item (source 2) above, because clearing it takes a
-  specific human call rather than just watching a review finish. This
-  is not a decision for the human either; it's here so the report
-  accounts for every ticket a run touched, not only the ones stuck.
+  `In Review` with an open PR, not carrying `needs-attention`, and with
+  no live stop-list hold under source 2's rule above — it's simply
+  ready and waiting, or still mid-review. A marker from an earlier,
+  now-resolved stop doesn't keep it off this line; only a currently
+  live hold or an open escalation does. A stop-list hold is not this
+  line even though it is also "waiting" in a sense — it's a queue item
+  (source 2) above, because clearing it takes a specific human call
+  rather than just watching a review finish. This is not a decision for
+  the human either; it's here so the report accounts for every ticket a
+  run touched, not only the ones stuck.
 
 If the human asks for any of them to be filed, file into **`Backlog`**,
 never `Todo`. `Backlog` is where they park what they have not started,

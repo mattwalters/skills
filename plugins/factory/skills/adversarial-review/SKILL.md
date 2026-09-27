@@ -285,16 +285,18 @@ nothing.
 
 ## Recording a stop-list hit
 
-Whatever the result — ready, capped, blocked, failed, or deferred —
+Once this cycle ends **ready** (see "When a target is ready" below),
 check the target's final `STOPLIST` line, from whichever round's
 reviewer ran last. When it's non-empty, post a `factory: stop-list
 hold` comment (see the `dispatch` skill's "Escalation comments") on the
 resolved ticket, or on the PR if none resolved, naming the entries it
-hit and the round. Skip posting it if the ticket's or PR's latest hold
-comment already names the same entries — there's nothing new to record.
-Never add `needs-attention` for this: a stop-list hold is not an
-escalation (see the `dispatch` skill's "The stop-list"), and this
-comment is the only durable trace of it.
+hit and the round — every time, even if an earlier hold comment already
+named the same entries. A hold is posted only on a ready result, so it
+is fresh by construction: there's no older hold on this same result to
+compare it against, and nothing to skip. Never add `needs-attention`
+for this: a stop-list hold is not an escalation (see the `dispatch`
+skill's "The stop-list"), and this comment is the only durable trace of
+it.
 
 ## On a blocked or failed report
 
