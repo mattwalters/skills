@@ -39,7 +39,7 @@ marketplace and the enabled plugins. To pick up later changes, run
 
 | Plugin | What it is |
 |---|---|
-| `factory` | Software factory skills: taking Linear tickets through implementation, review and merge. The first skills are being ported in (SKL-2). |
+| `factory` | Software factory skills. `dispatch` takes Linear tickets through `implement-ticket`, `adversarial-review` and `merge-queue` to a merged PR; `decision-queue` turns whatever stopped into decisions to answer. Each repo that uses them declares its settings in an `AGENTS.md` `## Dispatch` section. |
 
 ## Layout
 
