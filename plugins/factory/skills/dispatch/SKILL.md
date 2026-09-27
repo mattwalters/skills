@@ -24,8 +24,8 @@ rather than producing it, so it can be run mid-run, afterwards, or
 against a repo no dispatch run is touching. Read their SKILL.md files
 before changing what a stage does; change this file for how runs are
 queued. These files call all five by their bare names throughout; in
-Claude Code they arrive as the `studio` plugin, so invoke them
-namespaced — `/studio:implement-ticket` and so on. See "Where this
+Claude Code they arrive as the `factory` plugin, so invoke them
+namespaced — `/factory:implement-ticket` and so on. See "Where this
 skill lives".
 
 ## Repo configuration (read this first)
@@ -188,19 +188,19 @@ gate the same way.
 The canonical copy of `dispatch`, `implement-ticket`,
 `adversarial-review`, `merge-queue`, and `decision-queue` lives once,
 in the parent "meta" studio repo that holds the individual project
-repos, at `plugins/studio/skills/<name>/`. There is deliberately no
+repos, at `plugins/factory/skills/<name>/`. There is deliberately no
 per-project fork to keep in sync — edit it there and the change lands in every
 repo at once.
 
 Two mechanisms carry it into a project repo:
 
-- **Claude Code** gets it as the `studio` plugin from the `writtendev`
+- **Claude Code** gets it as the `factory` plugin from the `mattwalters`
   marketplace. Each project repo declares the marketplace and enables
   the plugin in a tracked `.claude/settings.json`, so a clone wires
   itself up. A plugin namespaces its skills, so in Claude Code these
-  five are invoked as `/studio:dispatch`, `/studio:implement-ticket`,
-  `/studio:adversarial-review`, `/studio:merge-queue` and
-  `/studio:decision-queue`. Everywhere else in these files they are
+  five are invoked as `/factory:dispatch`, `/factory:implement-ticket`,
+  `/factory:adversarial-review`, `/factory:merge-queue` and
+  `/factory:decision-queue`. Everywhere else in these files they are
   referred to by their bare names, which is what the other harnesses
   use.
 - **Codex and Antigravity** get it through relative symlinks at
