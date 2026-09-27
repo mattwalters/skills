@@ -302,8 +302,11 @@ it's empty. The latest hold is the entire current truth: an `Entries:
 none` hold clears whatever an earlier hold recorded as surely as a
 later non-empty hold re-asserts it, so post it every time, even when it
 says the same thing an earlier hold already said. Post it last, as the
-last act of the ready cycle — after any trivial-minors pass — so it
-reflects that pass's own diff, not an earlier round's. Never add
+last act of the ready cycle — after any trivial-minors pass, if one
+ran — but still built from the last review round's `STOPLIST`: a
+trivial-minors pass only edits lines the reviewed diff already
+changed (see "Trivial-minors mode" in `fixer.md`), so it can't reach a
+new stop-list entry for that `STOPLIST` to have missed. Never add
 `needs-attention` for this: a stop-list hold is not an escalation (see
 the `dispatch` skill's "The stop-list"), and this comment is the only
 durable trace of it.
