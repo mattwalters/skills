@@ -350,11 +350,23 @@ whatever runs `Next` which invocation to make: none of
 `factory: decision` comment itself, and each starts fresh from the
 ticket's own description and PR, the same as any other invocation (see
 "The one worktree rule"). If the decision answers a question one of
-those stages actually raised, the human's answer has to be recorded
-somewhere that stage will read it — edited into the ticket's brief or
-`## Plan`, or left as a comment on the PR its subagent will see — not
-only in the decision comment itself, or the resumed stage hits the same
-fork again and, under cron, escalates again on the next pass.
+those stages actually raised, the human's answer only reaches a
+restart if it's written somewhere that restart reads.
+`implement-ticket`'s implementer, and `adversarial-review`'s reviewer
+at the top of every fresh round, both read the ticket's brief — its
+description, `## Plan` included — so editing that is where an answer
+to a question either of them raised belongs. No subagent in this
+plugin reads a plain PR comment, so one left there answers nothing. A
+question a review-fixer or the `merge-queue` resolver raised has no
+channel like this at all: the fixer is handed only that round's
+findings, and the resolver reads only WORKTREE, BRANCH, BASE, PR, and
+the rebase itself — neither reads the ticket or any comment. For those
+two, a decision only fits a question the invocation itself settles,
+paired with the human's own action alongside it — the merge approval
+added with a `merge-queue <PR>` decision, say — not a judgment call
+spelled out for the subagent to read back. Get this wrong and the
+resumed stage hits the same fork again and, under cron, escalates
+again on every pass.
 
 **The one worktree rule.** All three skills set up their worktree the
 same way, at the same path, whatever state they find it in —
@@ -578,6 +590,18 @@ the ticket read as having no marker at all:
    posting anything of its own: a clean `implement-ticket` run moves
    the ticket's status or the branch head, and a `merge-queue` merge
    moves the ticket to `Done`.
+
+"Pending" means condition 3 above still holds — status and head
+unchanged since the decision was created — not that no resume has
+started. It stays true for as long as a resume triggered by this
+decision is running: `implement-ticket` leaves the ticket's status
+alone until the implementer's own push (its step 1), and
+`adversarial-review`/`merge-queue` move nothing until a fixer or
+resolver pushes or the cycle posts a marker. A second reading of this
+rule while that first resume is still in flight sees the same pending
+decision and can invoke `Next` again. Not re-invoking an already
+running `Next` is on whatever runs it (OPS-32), not a distinction this
+marker's freshness rule makes.
 
 A decision marker is not merge approval and not a released gate.
 Posting one clears `needs-attention` (see "Statuses and labels") and
