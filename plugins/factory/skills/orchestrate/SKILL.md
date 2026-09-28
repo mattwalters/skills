@@ -346,13 +346,24 @@ answer as a `factory: decision` naming that same invocation (see
 `orchestrate` itself still never runs it, so "no automatic resume"
 stays true of this plugin either way. A `factory: decision` never
 carries a new instruction to a stage: it fits only when running `Next`
-is itself the whole answer (a `merge-queue <PR>` decision recorded
-together with the merge approval, say), or when the human has already
-edited the ticket's `## Plan` to reflect their answer before recording
-the decision. An unlinked PR has no `## Plan`, so a decision there fits
-only the first case. Get this wrong — record a decision that needs a
-plan edit nobody made — and the resumed stage hits the same fork again
-and, under cron, escalates again on every pass.
+is itself the whole answer — a `merge-queue <PR>` decision recorded
+together with the merge approval, and only when the PR is already
+eligible under `merge-queue`'s "Eligibility" at the moment the decision
+is recorded (approved, no `needs-attention`, no unresolved stop-list
+hit, and CI green on the current head), not merely that the approval
+was just added — or when the human has already edited the ticket's
+`## Plan` to reflect their answer before recording the decision. A PR
+whose CI is red doesn't fit the first case: a human gets it green
+first, then either records the decision or just re-invokes
+`merge-queue <PR>` directly once it is. An unlinked PR has no `## Plan`,
+so a decision there fits only the first case. Get this wrong — record a
+decision that needs a plan edit nobody made, or a `merge-queue <PR>`
+decision on a PR that isn't yet eligible — and the resumed stage either
+hits the same fork again or is refused at Eligibility and does nothing
+at all. `decision-queue`'s row 0 renders that second failure as a queue
+item rather than a silent FYI (see that skill's table), so it doesn't
+stay invisible, but recording it correctly the first time is still
+cheaper.
 
 **The one worktree rule.** All three skills set up their worktree the
 same way, at the same path, whatever state they find it in —
@@ -584,8 +595,8 @@ guaranteed to change the ticket's status or the branch head before
 that stage's first push or posted marker. A second reading of this
 rule while that first resume is still in flight can therefore see the
 same pending decision and invoke `Next` again; not re-invoking an
-already running `Next` is on whatever runs it (OPS-32), not a
-distinction this marker's freshness rule makes.
+already running `Next` is on whatever runs it, outside this plugin, not
+a distinction this marker's freshness rule makes.
 
 A decision marker is not merge approval and not a released gate.
 Posting one clears `needs-attention` (see "Statuses and labels") and
