@@ -344,23 +344,15 @@ re-invoking the stage themselves, the human can instead record the
 answer as a `factory: decision` naming that same invocation (see
 "Escalation comments"), for something outside this plugin to run —
 `orchestrate` itself still never runs it, so "no automatic resume"
-stays true of this plugin either way. Recording the decision only tells
-whatever runs `Next` which invocation to make: none of
-`implement-ticket`, `adversarial-review`, or `merge-queue` reads a
-`factory: decision` comment itself, and each starts fresh from the
-ticket's own description and PR, the same as any other invocation (see
-"The one worktree rule"). If the decision answers a question one of
-those stages actually raised, the human's answer only reaches a
-restart by going into the ticket's description — the brief — since the
-brief is the one thing every stage's subagents are held to; that's
-where the answer belongs. One exception: the `merge-queue` resolver
-reads no ticket brief at all, so a `merge-queue <PR>` decision can't
-carry a new instruction to it — it fits only when the approval itself
-is the answer, alongside whatever action the human took to grant it.
-For an unlinked PR there is no ticket and so no brief either: a
-decision there fits only where the invocation itself is the answer.
-Get this wrong and the resumed stage hits the same fork again and,
-under cron, escalates again on every pass.
+stays true of this plugin either way. A `factory: decision` never
+carries a new instruction to a stage: it fits only when running `Next`
+is itself the whole answer (a `merge-queue <PR>` decision recorded
+together with the merge approval, say), or when the human has already
+edited the ticket's `## Plan` to reflect their answer before recording
+the decision. An unlinked PR has no `## Plan`, so a decision there fits
+only the first case. Get this wrong — record a decision that needs a
+plan edit nobody made — and the resumed stage hits the same fork again
+and, under cron, escalates again on every pass.
 
 **The one worktree rule.** All three skills set up their worktree the
 same way, at the same path, whatever state they find it in —
@@ -721,7 +713,8 @@ that is the next gate's job. Add, separately:
   look runnable now.
 - **What you skipped and why**, for anything a human would want to
   know about: blocked by an open ticket, carrying `needs-attention`,
-  too vague, or too big.
+  too vague, too big, or carrying a pending `factory: decision` (its
+  resume belongs to whatever runs `Next`).
 
 The human can drop picks, add tickets, promote something you proposed
 (or promote something you didn't), or reorder priorities. Then they
