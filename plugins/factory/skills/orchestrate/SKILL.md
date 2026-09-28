@@ -58,15 +58,15 @@ repo whose `## Orchestrate` section still declares a **Run manifest**
 field is not in error; nothing here reads it, and the line is simply
 ignored.
 
-If `AGENTS.md` has no `## Orchestrate` section, this repo has not opted
-in: say so and stop, rather than guessing a team key, a check command,
-or a place to put worktrees. If the section exists but a field is
-missing or marked as not yet filled in, say which field and stop
-before the point where you would need it — never substitute a guess.
-
-If `AGENTS.md` has no `## Orchestrate` section but does have a `##
-Dispatch` one, the repo was set up for `factory` 0.4 or earlier. Say
-the heading needs renaming to `## Orchestrate`, and stop.
+Check headings in this order. If `AGENTS.md` has a `## Dispatch`
+section but no `## Orchestrate` one, the repo was set up for `factory`
+0.4 or earlier: say the heading needs renaming to `## Orchestrate`,
+and stop. Otherwise, if it has no `## Orchestrate` section, this repo
+has not opted in: say so and stop, rather than guessing a team key, a
+check command, or a place to put worktrees. If the section exists but
+a field is missing or marked as not yet filled in, say which field
+and stop before the point where you would need it — never substitute
+a guess.
 
 Pass the relevant fields down to every skill and subagent you invoke.
 They read the same section, but stating the values keeps a subagent
