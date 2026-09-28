@@ -344,7 +344,17 @@ re-invoking the stage themselves, the human can instead record the
 answer as a `factory: decision` naming that same invocation (see
 "Escalation comments"), for something outside this plugin to run —
 `orchestrate` itself still never runs it, so "no automatic resume"
-stays true of this plugin either way.
+stays true of this plugin either way. Recording the decision only tells
+whatever runs `Next` which invocation to make: none of
+`implement-ticket`, `adversarial-review`, or `merge-queue` reads a
+`factory: decision` comment itself, and each starts fresh from the
+ticket's own description and PR, the same as any other invocation (see
+"The one worktree rule"). If the decision answers a question one of
+those stages actually raised, the human's answer has to be recorded
+somewhere that stage will read it — edited into the ticket's brief or
+`## Plan`, or left as a comment on the PR its subagent will see — not
+only in the decision comment itself, or the resumed stage hits the same
+fork again and, under cron, escalates again on the next pass.
 
 **The one worktree rule.** All three skills set up their worktree the
 same way, at the same path, whatever state they find it in —
@@ -535,13 +545,25 @@ unchanged — this section doesn't redefine it, only names it alongside
 the other three markers so all four are found the same way.
 
 A `factory: decision` marker records a human's answer to a question the
-pipeline raised — it never comes from a stage or a subagent. It carries
-one freshness rule of its own, because unlike the other three kinds it
-can go stale without anything newer being posted: it is **pending**
-(its `Next` still to run) only while all of the following hold, and
-**stale** the moment any of them stop holding, at which point it is
-read as no marker at all for every purpose above and in
-`decision-queue`:
+pipeline raised — it never comes from a stage or a subagent. `Next` is
+exactly one of the three invocations the template names; a decision
+that hands nothing back to a machine — drop the ticket, rescope it,
+replan it — is never recorded with this marker, and that includes every
+planning-stage stop, since none of the three invocations replans: the
+human cancels the ticket, or edits it and clears `needs-attention`
+directly, the same way that's done today with no decision marker
+involved.
+
+The marker carries one freshness rule of its own, because unlike the
+other three kinds it can go stale without anything newer being posted:
+it is **pending** (its `Next` still to run) only while all of the
+following hold, and **stale** the moment any of them stop holding. A
+stale decision is skipped, not treated as the ticket's current record:
+for every purpose above and in `decision-queue`, the current record
+becomes the newest of the other three kinds — escalation, hold, or
+deferral note — if any of them exists, exactly as if the decision had
+never been posted; only when none of the other three exists either is
+the ticket read as having no marker at all:
 
 1. it is the newest marker of the four kinds — a stage that restarts
    and stops, defers, or comes back ready posts a newer marker of its

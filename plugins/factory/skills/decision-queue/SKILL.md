@@ -40,11 +40,14 @@ the latest comment of *each kind* counts, never the latest of any kind
 across them), then apply the one rule that decides which of the four a
 row below is reading: **the newest of the four latest comments is the
 ticket's (or PR's) current record**, whatever the older three say (see
-the `orchestrate` skill's "Escalation comments"). A `factory: decision`
-marker carries one freshness test beyond that single comparison — the
-pending/stale rule in the `orchestrate` skill's "Escalation comments",
-which rows 0 and 3 below both apply — and it applies the same way to a
-ticket or an unlinked PR.
+the `orchestrate` skill's "Escalation comments") — except that a stale
+`factory: decision` drops out of this comparison entirely, per that
+same rule, leaving the newest of the other three, or no marker at all
+if none of them exists, as the current record instead. A `factory:
+decision` marker carries one freshness test beyond that single
+comparison — the pending/stale rule in the `orchestrate` skill's
+"Escalation comments", which rows 0 and 3 below both apply — and it
+applies the same way to a ticket or an unlinked PR.
 
 Check every ticket, and every unlinked open PR, against this table, top
 to bottom. The first row that matches decides where it lands; every
@@ -55,10 +58,10 @@ unlinked PRs, only to open ones.
 | # | Condition | Goes to |
 |---|---|---|
 | 0 | Newest marker is a *pending* `factory: decision` (see the `orchestrate` skill's "Escalation comments"), whether or not `needs-attention` is still on | FYI — Decided, naming its `Next` invocation (see "FYI, below the queue"). One exception: if `Next` is `merge-queue <PR>` and the ticket carries no **`approved-to-merge`** (unlinked PR: no approving GitHub review), it's a **queue item** instead, fixed-shaped (see "Item shape") — the guard that keeps a stop-list hold, which a newer decision would otherwise supersede, from dropping out of the queue |
-| 1 | Has an open **`needs-attention`** label | Queue item — if the newest marker is a `factory: escalation` comment, escalation-shaped, built from it as usual; if the newest marker is a hold, a deferral, or a stale decision instead, the question is "`needs-attention` is still on, but the latest record is a <hold\|deferral\|decision>: clear the label?"; if there is no marker at all, list it anyway with one line saying no escalation was recorded |
+| 1 | Has an open **`needs-attention`** label | Queue item — if the current record (the newest-marker rule above, which skips a stale decision) is a `factory: escalation` comment, escalation-shaped, built from it as usual; if it's a hold or a deferral instead, the question is "`needs-attention` is still on, but the latest record is a <hold\|deferral>: clear the label?"; if there is no marker at all — including when the only marker on the ticket is a stale decision — list it anyway with one line saying no escalation was recorded |
 | 2 | Newest marker is a `factory: stop-list hold` naming at least one entry (`Entries` not `none`), the ticket is `In Review` with an open PR, and it carries no **`approved-to-merge`** | Queue item, hold-shaped (fixed shape — see "Item shape") |
 | 3 | Newest marker is a `factory: deferred` comment, and the ticket's status and PR head haven't changed since it was posted | FYI — Deferred, with a restart invocation derived from its `Stage` line (see "FYI, below the queue") |
-| 4 | `In Review` with an open PR — everything else lands here: a hold naming no entries, an escalation whose ticket has already lost the label, a stale decision, no marker at all, or `approved-to-merge` sitting on a green PR waiting for `merge-queue` | FYI — awaiting merge approval, still in review, or queued to merge |
+| 4 | `In Review` with an open PR — everything else lands here: a hold naming no entries, an escalation whose ticket has already lost the label, no marker at all (including when the only marker on the ticket is a stale decision), or `approved-to-merge` sitting on a green PR waiting for `merge-queue` | FYI — awaiting merge approval, still in review, or queued to merge |
 | 5 | Anything else | Not listed |
 
 Row 0 sits above row 1 on purpose: a pending decision means the
@@ -125,8 +128,9 @@ that stopped first thing belongs at the bottom.
 
 Break ties by the cost of being wrong: at equal impact, a stop-list
 item outranks an ordinary one — that includes a row 1 item whose
-escalation comment's `Stop-list` line is non-`none`, not only a row 2
-hold.
+escalation comment's `Stop-list` line is non-`none`, and a row 0
+unapproved-merge item that names a superseded hold's `Entries`, not
+only a row 2 hold.
 
 State the count in the item itself, so the ordering is visible rather
 than asserted.
@@ -175,10 +179,15 @@ heading question is `A decision says merge PR <n>, but it has no merge
 approval: approve it?`; the options are always **A.** approve it —
 adding `approved-to-merge` (unlinked PR: an approving GitHub review)
 clears the guard and lets `merge-queue` pick it up, and **B.** don't
-approve yet — leaves it queued here. Never invent a `Stage` or extra
-options for this kind of item either; the decision comment's `Decision`
-and `Recorded` lines are context for the one or two sentences above the
-options, not a source of more of them.
+approve yet — leaves it queued here. If the ticket's latest `factory:
+stop-list hold` comment names at least one entry, name its `Entries` in
+the one or two sentences above the options too — "It touches:
+<Entries>", the same line a row 2 item gives — this is exactly the hold
+this guard exists to keep visible (see "Ordering" for how it's
+weighted). Never invent a `Stage` or extra options for this kind of
+item either; the decision comment's `Decision` and `Recorded` lines are
+context for the one or two sentences above the options, not a source of
+more of them.
 
 Two or three options. If the honest answer is that there are two and
 one of them is "drop the ticket", say that — a queue that dresses
@@ -244,12 +253,12 @@ decision either:
 - **Awaiting merge approval, still in review, or queued to merge.** Row
   4: a ticket that's `In Review` with an open PR and didn't match row 0,
   1, 2, or 3 — whatever's left once those are ruled out: no marker at
-  all, a stop-list hold naming no entries, an escalation whose ticket
-  has already lost `needs-attention`, a stale decision, or
-  `approved-to-merge` sitting on a green PR still waiting for
-  `merge-queue` to pick it up. This is not a
-  decision for the human either; it's here so the report accounts for
-  every ticket a run touched, not only the ones stuck.
+  all (including when the only marker on the ticket is a stale
+  decision), a stop-list hold naming no entries, an escalation whose
+  ticket has already lost `needs-attention`, or `approved-to-merge`
+  sitting on a green PR still waiting for `merge-queue` to pick it up.
+  This is not a decision for the human either; it's here so the report
+  accounts for every ticket a run touched, not only the ones stuck.
 
 If the human asks for any of them to be filed, file into **`Backlog`**,
 never `Todo`. `Backlog` is where they park what they have not started,
