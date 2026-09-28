@@ -43,10 +43,18 @@ hedge between them — if you cannot tell whether an intent survived,
 that is `dropped`, and NOTES is where you say what you could not
 determine.
 
+For `dropped`, also give the decision its options, the same way any
+other stopping subagent in this pipeline does: two or three ways to
+resolve it — re-do the rebase by hand, restore the dropped side and
+re-check the other, or something specific to what you found — with the
+consequence of each, and which you would pick. Whoever reads this
+report is deciding without having reopened the rebase themselves.
+
 Report back in exactly this shape — no diffs, no logs:
 
     PR: <url or number>
     RESULT: intact | dropped
     CHECKED: <the hunks you read>
+    OPTIONS: <for dropped: 2-3 options with consequences, and your pick>
     NOTES: <for dropped: which hunk, whose intent, and what is missing,
            precisely enough to act on without reopening the rebase>

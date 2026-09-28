@@ -98,11 +98,13 @@ name that contradicts the one three lines above it.
 
 **Nothing you do in this mode gets another review round**, which is
 exactly why the bar for touching anything is high. Fix only what is
-genuinely trivial. Anything that needs a design decision, touches
-logic you would want a second pair of eyes on, or grows past a few
-lines: leave it alone, leave its PR comment standing, and list it
-under LEFT_OPEN. Leaving a minor open is a perfectly good outcome
-here and costs the ticket nothing.
+genuinely trivial, and only on lines the reviewed diff already
+changed — never a file or hunk outside it, however small the fix
+would be there. Anything that needs a design decision, touches logic
+you would want a second pair of eyes on, reaches outside the reviewed
+diff, or grows past a few lines: leave it alone, leave its PR comment
+standing, and list it under LEFT_OPEN. Leaving a minor open is a
+perfectly good outcome here and costs the ticket nothing.
 
 Then run CHECK, push, and watch CI under the same three-attempt rule.
 If CI goes red on a trivial fix, the fix was not trivial: revert it,

@@ -141,11 +141,15 @@ window".
 
    - **`RESULT: intact`** → carry on to step 5 and merge.
    - **`RESULT: dropped`** → treat it exactly like a blocked resolver:
-     stop this PR, add `needs-attention` to the linked ticket, say
-     which hunk and whose intent went missing, leave the PR and
-     worktree as they are, move on to the next PR. Do not send the
-     resolver back in for another try — the second attempt belongs to
-     whoever answers the question.
+     stop this PR, add `needs-attention` to the linked ticket (or, with
+     no linked ticket, post on the PR instead), say which hunk and
+     whose intent went missing, leave the PR and worktree as they are,
+     move on to the next PR. In the same step as the label, post a
+     `factory: escalation` comment (see the `dispatch` skill's
+     "Escalation comments") with stage `merge`, result `dropped`, and
+     the intent reviewer's `NOTES` and `OPTIONS` verbatim. Do not send
+     the resolver back in for another try — the second attempt belongs
+     to whoever answers the question.
 
    `TIER: 1` and `TIER: none` skip the intent review entirely and go
    straight to step 5. A mechanical resolution has nothing to
@@ -206,13 +210,19 @@ window".
    and its own pick; relay those, they are what makes this answerable.
    Stop this
    PR's merge, add the `needs-attention` label to the linked ticket
-   (leaving its status where it is), tell the human exactly what the
-   resolver found (files, the nature of the conflict), and leave the
-   PR and worktree as they are. Move on to the next PR — one blocked
-   merge never stalls the rest of the queue.
+   (leaving its status where it is, or posting on the PR itself if none
+   is linked), tell the human exactly what the resolver found (files,
+   the nature of the conflict), and leave the
+   PR and worktree as they are. In the same step as the label, post a
+   `factory: escalation` comment (see the `dispatch` skill's
+   "Escalation comments") with stage `merge`, result `blocked`, and the
+   resolver's `OPTIONS` and `NOTES` verbatim. Move on to the next PR —
+   one blocked merge never stalls the rest of the queue.
 7. **`RESULT: failed`** — CI never went green on the rebased head after
    three attempts. Handle it like blocked for queue purposes (stop
-   this one, label it, tell the human, move on), but say which one it
+   this one, label it — or post on the PR if none is linked — post the
+   escalation comment with the resolver's `OPTIONS` and `NOTES`
+   verbatim, tell the human, move on), but say which one it
    was — they read differently: blocked needs a decision, failed hit a
    mechanical wall.
 8. **`RESULT: deferred`** — the resolver stopped before the rebase or a
@@ -231,15 +241,18 @@ the next PR, unless the whole queue was deferred at once because the
 window was already closed when this PR's turn came, in which case
 there is no next PR to move to.
 
-For each deferred PR, record it in your report's NOTES, and, if a
-ticket is linked, post the short deferral note the `dispatch` skill's
-"The write window" defines — stage `merge-resolver` for a deferral at
+For each deferred PR **other than the stuck sub-case below**, record it
+in your report's NOTES, and, if a ticket is linked, post the short
+deferral note the `dispatch` skill's "The write window" defines (first
+line `**factory: deferred**`) — stage `merge-resolver` for a deferral at
 or before the rebase, or `merge` for one at step 5's final pre-merge
 check — saying what's left undone, the worktree path, and when the
 window next opens. Ordinarily there is no resume: a later call re-runs
 this PR from step 2 above, which resets the worktree to the PR's
 remote head before spawning a fresh resolver. The one exception is the
-stuck sub-case below, where a later call can't get that far.
+stuck sub-case below, where a later call can't get that far and where
+the escalation comment carries that record instead — see there for why
+it posts no separate deferral note.
 
 What decides stuck versus ordinary is the state of the head when the
 window closes, not whether a push happened. A rebased head that's been
@@ -251,10 +264,24 @@ show green before a PR is even queued — so no later call, targeted or
 swept, can pick it back up by re-running the resolver; `merge-queue
 <PR>` would reject it at Eligibility before the resolver ever ran.
 Don't say a restart will fix it. Instead, add `needs-attention` to the
-linked ticket (leaving its status where it is) and say so in your
-report alongside the usual deferral note: a human has to get the
-pushed head's CI green, or decide what to do with it, before this PR
-can requeue at all.
+linked ticket (leaving its status where it is), or post on the PR
+itself if none is linked, and, in that same step, post a **single**
+`factory: escalation` comment (see the `dispatch` skill's "Escalation
+comments") — not a deferral note as well, since one marker per stop is
+the rule and the escalation is the newer, more informative of the two
+here — with stage `merge`, result `blocked`, `Found` explaining the
+stuck head (pushed, and red, still running, or unverified) plus what a
+deferral note would otherwise have carried (what's left undone and the
+worktree path), a `Stop-list` line (the ticket's, or PR's, latest
+`factory: stop-list hold` comment's `Entries`, or `none` if it has no
+hold — the resolver doesn't report a stop-list of its own), and
+`Options` written by you — this is your own read of the stuck head, not
+a resolver's report, so write 2-3 options and your pick the same way a
+capped review round does, rather than reaching for "none recorded".
+This carries `needs-attention` like any other labelled stop, so it gets
+the same record. Say so in your report: a human has to get the pushed
+head's CI green, or decide what to do with it, before this PR can
+requeue at all.
 
 Everything else is an ordinary deferral — including a rebased,
 force-pushed head that's already green when the window closes, which
@@ -272,8 +299,12 @@ one: PR, ticket, `RESULT` (merged | blocked | failed | deferred), the
 resolver's `TIER` and whether an intent review ran, and one line of
 why for anything not merged.
 
-For anything not merged, carry the resolver's options and its pick
-through verbatim. They are what lets `decision-queue` render this as a
+For anything not merged, carry the resolver's or intent reviewer's
+options and pick through verbatim — or, for the stuck sub-case of a
+deferred report, the options you wrote yourself, since no subagent
+report covers that call — they're also in the `factory: escalation`
+comment you already posted (see the `dispatch` skill's "Escalation
+comments"), which is what lets `decision-queue` render this as a
 question somebody can answer instead of a conflict somebody has to go
 read.
 
