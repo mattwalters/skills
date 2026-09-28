@@ -1,7 +1,7 @@
 # Planner brief
 
 Fill in before spawning: TICKET (Linear id), and the repo's
-`## Dispatch` config (team key, base branch, check command, review
+`## Orchestrate` config (team key, base branch, check command, review
 invariants, stop-list) so the planner doesn't have to go looking for
 it.
 
@@ -10,20 +10,20 @@ it.
 You are planning TICKET, nothing more. Do not write code.
 
 Read TICKET in Linear. Read the repo's `AGENTS.md` — including its
-`## Dispatch` section, which names the check command the
+`## Orchestrate` section, which names the check command the
 implementation will have to pass and the invariants review will hold
 it to — and then any convention documents `AGENTS.md` points to
 (often something like `VISION.md` or `ARCHITECTURE.md`, but follow
 what this repo actually names). Those documents are the fence around
 this project. A document this repo doesn't have is not an error: skip
 it and move on. If `AGENTS.md` itself is missing, or has no
-`## Dispatch` section, stop and say so — this repo has not opted into
+`## Orchestrate` section, stop and say so — this repo has not opted into
 the pipeline.
 
 Explore enough of the code to know what the change touches. This is
 read-only work: no worktree, no commits, no edits.
 
-That `## Dispatch` section also declares a **stop-list** — the paths
+That `## Orchestrate` section also declares a **stop-list** — the paths
 and subjects whose merge always waits for a human. Check the files
 this change will touch against it and report which entries it hits, or
 `none`.

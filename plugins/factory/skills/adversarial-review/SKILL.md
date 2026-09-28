@@ -1,6 +1,6 @@
 ---
 name: adversarial-review
-description: Run adversarial review rounds on one or more open pull requests — a fresh reviewer subagent each round, a fixer subagent addressing findings, capped at six rounds by default and stopped early when rounds stop making progress — and report which are ready to merge, meaning no major or medium findings left. Reviews against the host repo's own invariants, declared in its `AGENTS.md` `## Dispatch` section, which also declares a write window that stops the fixer short of any commit or push while it's closed. Labels and records a capped, blocked, or failed outcome, and a stop-list hold, on the linked ticket (or on the PR itself when none resolves). Use when asked to adversarially review a PR, run a review cycle, or review every open PR. Called by the dispatch skill right after implement-ticket reports a ticket green; equally fine invoked standalone against any open PR, ticket-linked or not.
+description: Run adversarial review rounds on one or more open pull requests — a fresh reviewer subagent each round, a fixer subagent addressing findings, capped at six rounds by default and stopped early when rounds stop making progress — and report which are ready to merge, meaning no major or medium findings left. Reviews against the host repo's own invariants, declared in its `AGENTS.md` `## Orchestrate` section, which also declares a write window that stops the fixer short of any commit or push while it's closed. Labels and records a capped, blocked, or failed outcome, and a stop-list hold, on the linked ticket (or on the PR itself when none resolves). Use when asked to adversarially review a PR, run a review cycle, or review every open PR. Called by the orchestrate skill right after implement-ticket reports a ticket green; equally fine invoked standalone against any open PR, ticket-linked or not.
 ---
 
 # Adversarial review
@@ -26,7 +26,7 @@ human decides whether another cycle is warranted.
 
 A caller running unattended can hand you a **discretionary budget**
 instead — "up to ten rounds, your judgment", which is what the
-`dispatch` skill passes in semi and autonomous modes. Under a
+`orchestrate` skill passes in semi and autonomous modes. Under a
 discretionary budget the number is a ceiling, not a target.
 
 Either way, the rule that ends a cycle early is the same one, and it
@@ -85,7 +85,7 @@ learns something; "capped" alone does not.
 
 There is no resume. A cycle that comes back `deferred` is picked up
 later by a human re-invoking this skill directly against the PR —
-`dispatch` never restarts a deferred cycle itself — and it starts over
+`orchestrate` never restarts a deferred cycle itself — and it starts over
 at round 1 with a fresh round count and an empty ledger, the same as
 any other call. The worktree reset this needs is "The worktree" rule
 below, applied at whichever step first touches the worktree this time:
@@ -95,11 +95,11 @@ Restarting a cycle
 that had already used some of its round budget does spend that budget
 again; that is the accepted cost of stopping dead at a window boundary
 rather than carrying state across a context nothing keeps alive. See
-the `dispatch` skill's "The write window".
+the `orchestrate` skill's "The write window".
 
 ## Repo configuration
 
-Read the `## Dispatch` section of the host repo's `AGENTS.md` before
+Read the `## Orchestrate` section of the host repo's `AGENTS.md` before
 starting. Four fields matter most here:
 
 - **Review invariants** — the properties this repo wants a reviewer to
@@ -117,16 +117,16 @@ starting. Four fields matter most here:
   stop-list hold` comment, `Entries: none` included (see "Recording
   the stop-list hold" below); on a blocked, failed, or capped result
   it goes on the `factory: escalation` comment's `Stop-list` line
-  instead (see the `dispatch` skill's "Escalation comments"); on a
+  instead (see the `orchestrate` skill's "Escalation comments"); on a
   deferred result it goes on the deferral note's `Stop-list` line (see
   "On a deferred report" below). Neither a hold nor a deferral note is
   a label.
 - **Write window** — the weekday hours, if any, during which a commit
   or push is not allowed to happen. Pass it down to the fixer. See the
-  `dispatch` skill's "The write window".
+  `orchestrate` skill's "The write window".
 
 Also take the base branch and the worktree directory (`<runs-dir>`)
-from that section. No `## Dispatch` section means the repo has not
+from that section. No `## Orchestrate` section means the repo has not
 opted in: say so and stop. If the invariants are missing, you can
 still review against the ticket brief and general correctness, but say
 plainly in your report that this repo declared no invariants, so the
@@ -138,7 +138,7 @@ Whichever step is the first in a cycle to touch
 `<runs-dir>/<TICKET-or-PR#>` — step 5's fixer on a major or medium
 finding, or the "one inline pass" at trivial minors in "When a target
 is ready" if the cycle reaches ready without step 5 ever running —
-applies the `dispatch` skill's "The one worktree rule" before making
+applies the `orchestrate` skill's "The one worktree rule" before making
 its first edit there: reset a worktree already at that path (a caller
 may have left one from implementing, or an earlier, now-stale attempt
 at reviewing this same PR, ticketed or not, deferred or otherwise), or
@@ -155,7 +155,7 @@ its open PR. Given a PR, find its linked ticket from the title's
 `<TICKET>: ...` convention or the branch name. If a PR has no
 resolvable ticket (a human's PR with no Linear link), review it
 against just this repo's own documents — `AGENTS.md`, its
-`## Dispatch` invariants, and whatever convention documents it points
+`## Orchestrate` invariants, and whatever convention documents it points
 to — and say in your report that there was no ticket brief to check
 against.
 
@@ -164,7 +164,7 @@ against.
 1. Move the resolved ticket to `In Review`, if one resolved.
 2. Spawn a **fresh** reviewer subagent with `prompts/reviewer.md` —
    strongest model available, high effort, every round, not just later
-   ones (see the `dispatch` skill's Models and effort table for the
+   ones (see the `orchestrate` skill's Models and effort table for the
    harness mapping) — filling in TICKET (or "none"), PR, ROUND, the
    repo's declared review invariants, and its stop-list. It reads the
    diff with hostile eyes, posts findings as PR review comments rated
@@ -224,7 +224,7 @@ against.
 When the budget runs out with major or medium findings still open, or
 the progress rule stops you first, leave the PR as it stands. If a
 ticket resolved, label it `needs-attention`, leaving it in `In Review`,
-and post a `factory: escalation` comment (see the `dispatch` skill's
+and post a `factory: escalation` comment (see the `orchestrate` skill's
 "Escalation comments") with stage `review round <n> of <budget>`,
 result `capped`, the latest round's `STOPLIST` on its `Stop-list` line,
 the ledger rows behind your read, and 2-3 options of your own — no
@@ -295,7 +295,7 @@ nothing.
 ## Recording the stop-list hold
 
 Once this cycle ends **ready** (see "When a target is ready" above),
-post a `factory: stop-list hold` comment (see the `dispatch` skill's
+post a `factory: stop-list hold` comment (see the `orchestrate` skill's
 "Escalation comments") on the resolved ticket, or on the PR if none
 resolved — **every ready cycle posts one**, whatever the target's final
 `STOPLIST` line, from whichever round's reviewer ran last, says:
@@ -310,7 +310,7 @@ trivial-minors pass only edits lines the reviewed diff already
 changed (see "Trivial-minors mode" in `fixer.md`), so it can't reach a
 new stop-list entry for that `STOPLIST` to have missed. Never add
 `needs-attention` for this: a stop-list hold is not an escalation (see
-the `dispatch` skill's "The stop-list"), and this comment is the only
+the `orchestrate` skill's "The stop-list"), and this comment is the only
 durable trace of it.
 
 ## On a blocked or failed report
@@ -324,7 +324,7 @@ they are what makes this answerable by someone who has not read the
 diff. The one exception is step 4's no-checks-reported case: that
 `blocked` is your own call, not a subagent's, since neither the
 reviewer nor the fixer reported it — write 2-3 options yourself the
-same way a capped result's are written (see the `dispatch` skill's
+same way a capped result's are written (see the `orchestrate` skill's
 escalation template), rather than inventing subagent options that were
 never given or reaching for "none recorded", which is for a failed
 result's mechanical wall, not this. Failed means the fixer never got CI
@@ -332,7 +332,7 @@ green after three honest attempts — a mechanical wall. Don't collapse
 blocked and failed when you relay this: say which one it was and why.
 Either way, stop this target's cycle, add the `needs-attention` label
 to the resolved ticket if there is one (leaving its status where it
-is), post a `factory: escalation` comment (see the `dispatch` skill's
+is), post a `factory: escalation` comment (see the `orchestrate` skill's
 "Escalation comments") with stage `review round <n> of <budget>`,
 result `blocked` or `failed`, this round's `STOPLIST` on its
 `Stop-list` line, and the reviewer's or fixer's `OPTIONS` verbatim, or
@@ -343,12 +343,12 @@ others you were given.
 ## On a deferred report
 
 The fixer stopped before a commit or push because the repo's declared
-write window was closed (see the `dispatch` skill's "The write
+write window was closed (see the `orchestrate` skill's "The write
 window"). This is not blocked and not failed — nothing about the
 target is wrong, the clock is. Stop this target's cycle, same as a
 blocked or failed report, but don't add `needs-attention` and don't
 touch the ticket's status. If a ticket resolved, post the short
-deferral note the `dispatch` skill's "The write window" defines (first
+deferral note the `orchestrate` skill's "The write window" defines (first
 line `**factory: deferred**`), on the
 ticket — the same rule `implement-ticket` follows on its own deferred
 report. This is a stage-status note about the cycle pausing, not a
@@ -386,7 +386,7 @@ way. There is no resume: a later call restarts this cycle from round 1
 
 `RESULT: ready` means no major or medium findings on the latest round
 and CI green — it is not a merge, and it is not merge approval. This
-skill never merges anything; a human (directly, or via the `dispatch`
+skill never merges anything; a human (directly, or via the `orchestrate`
 skill's
 merge queue) still approves that separately, and approval is what puts
 the `approved-to-merge` label on the ticket. Never add that label

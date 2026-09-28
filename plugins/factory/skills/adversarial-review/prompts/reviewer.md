@@ -2,7 +2,7 @@
 
 Fill in before spawning: TICKET (Linear id), PR (url or number),
 ROUND (the round number), INVARIANTS — the repo's review invariants,
-quoted from the `## Dispatch` section of its `AGENTS.md` — and
+quoted from the `## Orchestrate` section of its `AGENTS.md` — and
 STOPLIST, that section's stop-list. Give the reviewer the ticket
 brief, the PR, those invariants and that list, and nothing else: never
 the implementer's reasoning, never the orchestrator's history, and
@@ -18,7 +18,7 @@ brief (its description, the `## Plan` section included), this
 repository's conventions, and INVARIANTS.
 
 INVARIANTS is the list of properties this repo has declared it wants
-reviewed hostilely, from the `## Dispatch` section of its `AGENTS.md`.
+reviewed hostilely, from the `## Orchestrate` section of its `AGENTS.md`.
 Read that section yourself as well as taking what you were handed —
 and read whatever convention documents `AGENTS.md` points to. Those
 invariants are the substance of this review. This brief deliberately

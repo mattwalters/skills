@@ -2,7 +2,7 @@
 
 Fill in before spawning: TICKET (Linear id), WORKTREE (absolute path),
 BRANCH (use Linear's suggested branch name for the ticket), BASE (the
-repo's base branch, from its `## Dispatch` config), CHECK (that
+repo's base branch, from its `## Orchestrate` config), CHECK (that
 config's check command), and WINDOW (that config's write window).
 
 ---
@@ -13,7 +13,7 @@ Work only in WORKTREE. It shares the git directory with other
 concurrent work, so never check out a branch by bare name — stay
 detached and push with `git push origin HEAD:BRANCH`.
 
-WORKTREE has already been set up for you per the `dispatch` skill's
+WORKTREE has already been set up for you per the `orchestrate` skill's
 "The one worktree rule": if BRANCH already exists on the remote,
 WORKTREE is at its head, implementation and all — you're picking this
 ticket up after an earlier attempt, whether or not that attempt opened
@@ -36,12 +36,12 @@ instead of skipping it. If a PR already exists, don't run
 Read TICKET in Linear. Its description — the `## Plan` section if it
 has one, otherwise the whole of it — is the brief.
 
-Read the repo's `AGENTS.md`, including its `## Dispatch` section, and
+Read the repo's `AGENTS.md`, including its `## Orchestrate` section, and
 then any convention documents `AGENTS.md` points to (often something
 like `VISION.md` or `ARCHITECTURE.md`, but follow what this repo
 actually names). Those documents are the fence around this project. A
 document this repo doesn't have is not an error — skip it and move on.
-`AGENTS.md`'s `## Dispatch` section also lists the invariants this
+`AGENTS.md`'s `## Orchestrate` section also lists the invariants this
 repo's reviewers hold changes to; read them now rather than
 rediscovering them in review.
 
@@ -69,7 +69,7 @@ names the mismatch and stops there is half a report.
 
 Implement the change. Match the surrounding code. Before pushing, the
 repo's checks must pass locally — run CHECK, the check command from
-the repo's `## Dispatch` config, and get it clean. If CHECK was not
+the repo's `## Orchestrate` config, and get it clean. If CHECK was not
 given to you, or the repo's config marks it as not yet filled in, stop
 and report back as blocked: "green" has no meaning without it, and
 inventing a command that happens to pass is worse than stopping.
