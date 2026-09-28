@@ -1,7 +1,7 @@
 # Resolver brief
 
 Fill in before spawning: WORKTREE (absolute path), BRANCH, BASE (the
-repo's base branch, from its `## Dispatch` config), PR (url or
+repo's base branch, from its `## Orchestrate` config), PR (url or
 number), WINDOW (that config's write window). WORKTREE has already
 been reset to the PR's current remote head before you were spawned —
 treat this as a fresh attempt, whatever an earlier resolver on this PR

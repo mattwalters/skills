@@ -55,6 +55,28 @@ for dir in plugins/*/; do
   fi
 done
 
+# A skill's frontmatter name must match its directory name, or the two drift
+# apart the next time either one is renamed.
+for skill_dir in plugins/*/skills/*/; do
+  skill_dir="${skill_dir%/}"
+  skill_name="$(basename "$skill_dir")"
+  skill_md="$skill_dir/SKILL.md"
+
+  if [[ ! -f "$skill_md" ]]; then
+    fail "$skill_dir: SKILL.md does not exist"
+    continue
+  fi
+
+  frontmatter_name=$(awk '
+    /^---$/ { c++; next }
+    c == 1 && /^name:/ { sub(/^name:[[:space:]]*/, ""); print; exit }
+  ' "$skill_md")
+
+  if [[ "$frontmatter_name" != "$skill_name" ]]; then
+    fail "$skill_md: frontmatter name '$frontmatter_name' does not match directory '$skill_name'"
+  fi
+done
+
 echo
 if [[ $failed -ne 0 ]]; then
   echo "✘ Validation failed" >&2

@@ -1,6 +1,6 @@
 ---
 name: merge-queue
-description: Merge every eligible pull request — approved via GitHub review, or with its linked Linear ticket carrying the `approved-to-merge` label, and CI green — rebasing each onto the repo's base branch in an order chosen to minimize conflicts, resolving mechanical rebase conflicts itself, resolving a short enumerated list of one-step-beyond-mechanical conflicts under a scoped intent review, and surfacing anything needing new logic or a judgment call to the human instead of guessing. Reads the host repo's `AGENTS.md` `## Dispatch` section for its Linear team, base branch, write window, and worktree directory, and stops short of any rebase, `gh pr ready`, or `gh pr merge` while that window is closed. Use when asked to run the merge queue, merge everything that's approved, or merge eligible PRs. Called by the dispatch skill for its own batch's approved tickets; equally fine invoked standalone against any repo's open PRs.
+description: Merge every eligible pull request — approved via GitHub review, or with its linked Linear ticket carrying the `approved-to-merge` label, and CI green — rebasing each onto the repo's base branch in an order chosen to minimize conflicts, resolving mechanical rebase conflicts itself, resolving a short enumerated list of one-step-beyond-mechanical conflicts under a scoped intent review, and surfacing anything needing new logic or a judgment call to the human instead of guessing. Reads the host repo's `AGENTS.md` `## Orchestrate` section for its Linear team, base branch, write window, and worktree directory, and stops short of any rebase, `gh pr ready`, or `gh pr merge` while that window is closed. Use when asked to run the merge queue, merge everything that's approved, or merge eligible PRs. Called by the orchestrate skill for its own batch's approved tickets; equally fine invoked standalone against any repo's open PRs.
 ---
 
 # Merge queue
@@ -18,15 +18,15 @@ explicit target: see "Finding eligible PRs" below.
 
 ## Repo configuration
 
-Read the `## Dispatch` section of the host repo's `AGENTS.md` first:
+Read the `## Orchestrate` section of the host repo's `AGENTS.md` first:
 it gives the Linear team key (so you can recognize `<KEY>-<n>` ticket
 ids in PR titles and branch names), the **base branch** everything
 rebases onto and merges into, the **worktree directory**
 (`<runs-dir>` below), the **stop-list** — the paths and subjects
 whose merge always waits for a human — and the **write window**, the
 weekday hours, if any, during which a rebase, `gh pr ready`, or
-`gh pr merge` is not allowed to happen (see the `dispatch` skill's
-"The write window"). No `## Dispatch` section means the repo has not
+`gh pr merge` is not allowed to happen (see the `orchestrate` skill's
+"The write window"). No `## Orchestrate` section means the repo has not
 opted into this pipeline — say so and stop; do not assume a base
 branch.
 
@@ -40,8 +40,8 @@ Never merge anything without one of these:
   the branch name): that ticket carries the **`approved-to-merge`** label
   — added there directly by a human, or by you once you've confirmed
   the human cleared it. Three things count as cleared: they said so in
-  chat, they pre-authorized that ticket at a `dispatch` plan gate, or
-  the caller tells you `dispatch` is running this batch with its
+  chat, they pre-authorized that ticket at an `orchestrate` plan gate, or
+  the caller tells you `orchestrate` is running this batch with its
   **merge gate released** — the human authorized the batch's merges at
   invocation. Take that last one only from the calling skill, stating
   it plainly, and only for tickets whose review came back ready. Never
@@ -76,7 +76,7 @@ a target you were already given.
 
 ## Ordering
 
-Use the same lightweight file-overlap approach `dispatch`'s wave
+Use the same lightweight file-overlap approach `orchestrate`'s wave
 planning uses — file lists per PR (`gh pr diff <number> --name-only`),
 never diff content. Order:
 
@@ -102,7 +102,7 @@ don't start step 2 for this PR. The window won't reopen partway
 through the queue, so run step 1 for every PR still waiting (in case
 one of them just got cleared) and then report all of them as
 `deferred` in one pass rather than discovering it again on each one;
-see "On a deferred report" below and the `dispatch` skill's "The write
+see "On a deferred report" below and the `orchestrate` skill's "The write
 window".
 
 1. Add the `approved-to-merge` label to a ticket cleared any of the
@@ -111,14 +111,14 @@ window".
    Leave the ticket's status alone; it stays `In Review` until it
    merges.
 2. Set up the worktree at `<runs-dir>/<TICKET-or-PR#>` per the
-   `dispatch` skill's "The one worktree rule" — reset it to the PR's
+   `orchestrate` skill's "The one worktree rule" — reset it to the PR's
    current remote head if one's already there at that path (a caller
    may have left one from implementing or reviewing, an earlier
    resolver's deferral included), or create it fresh on the PR's branch
    if not. Either way this is a fresh attempt, not a continuation of
    whatever that worktree held.
 3. Spawn a **fresh** resolver subagent with `prompts/resolver.md` —
-   mid-tier model, high effort (see the `dispatch` skill's Models and
+   mid-tier model, high effort (see the `orchestrate` skill's Models and
    effort table for the harness mapping) — filling in WORKTREE,
    BRANCH, BASE (the repo's base branch), PR, and WINDOW (the repo's
    write window). It rebases onto current `origin/<base>`, resolves
@@ -145,7 +145,7 @@ window".
      no linked ticket, post on the PR instead), say which hunk and
      whose intent went missing, leave the PR and worktree as they are,
      move on to the next PR. In the same step as the label, post a
-     `factory: escalation` comment (see the `dispatch` skill's
+     `factory: escalation` comment (see the `orchestrate` skill's
      "Escalation comments") with stage `merge`, result `dropped`, and
      the intent reviewer's `NOTES` and `OPTIONS` verbatim. Do not send
      the resolver back in for another try — the second attempt belongs
@@ -214,7 +214,7 @@ window".
    is linked), tell the human exactly what the resolver found (files,
    the nature of the conflict), and leave the
    PR and worktree as they are. In the same step as the label, post a
-   `factory: escalation` comment (see the `dispatch` skill's
+   `factory: escalation` comment (see the `orchestrate` skill's
    "Escalation comments") with stage `merge`, result `blocked`, and the
    resolver's `OPTIONS` and `NOTES` verbatim. Move on to the next PR —
    one blocked merge never stalls the rest of the queue.
@@ -243,7 +243,7 @@ there is no next PR to move to.
 
 For each deferred PR **other than the stuck sub-case below**, record it
 in your report's NOTES, and, if a ticket is linked, post the short
-deferral note the `dispatch` skill's "The write window" defines (first
+deferral note the `orchestrate` skill's "The write window" defines (first
 line `**factory: deferred**`) — stage `merge-resolver` for a deferral at
 or before the rebase, or `merge` for one at step 5's final pre-merge
 check — saying what's left undone, the worktree path, and when the
@@ -266,7 +266,7 @@ swept, can pick it back up by re-running the resolver; `merge-queue
 Don't say a restart will fix it. Instead, add `needs-attention` to the
 linked ticket (leaving its status where it is), or post on the PR
 itself if none is linked, and, in that same step, post a **single**
-`factory: escalation` comment (see the `dispatch` skill's "Escalation
+`factory: escalation` comment (see the `orchestrate` skill's "Escalation
 comments") — not a deferral note as well, since one marker per stop is
 the rule and the escalation is the newer, more informative of the two
 here — with stage `merge`, result `blocked`, `Found` explaining the
@@ -303,7 +303,7 @@ For anything not merged, carry the resolver's or intent reviewer's
 options and pick through verbatim — or, for the stuck sub-case of a
 deferred report, the options you wrote yourself, since no subagent
 report covers that call — they're also in the `factory: escalation`
-comment you already posted (see the `dispatch` skill's "Escalation
+comment you already posted (see the `orchestrate` skill's "Escalation
 comments"), which is what lets `decision-queue` render this as a
 question somebody can answer instead of a conflict somebody has to go
 read.
@@ -312,4 +312,4 @@ This skill never plans, implements, or reviews the change itself — it
 only merges what's already eligible, and the one review it does run is
 scoped to the rebase. See `implement-ticket` and `adversarial-review`
 for the stages before this one, `decision-queue` for what happens to
-the PRs it stops on, and `dispatch` for the full pipeline.
+the PRs it stops on, and `orchestrate` for the full pipeline.

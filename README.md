@@ -38,8 +38,8 @@ marketplace and the enabled plugins. To pick up later changes, run
 ### Opting in to `factory`
 
 The settings block installs `factory`, but installing it isn't enough to run
-it. The project also needs a `## Dispatch` section in its own `AGENTS.md`. If
-that section is missing, `dispatch` stops straight away instead of guessing.
+it. The project also needs a `## Orchestrate` section in its own `AGENTS.md`. If
+that section is missing, `orchestrate` stops straight away instead of guessing.
 The other factory skills read the same section.
 
 The section declares:
@@ -66,11 +66,27 @@ The section declares:
 
 This repo's own [`AGENTS.md`](AGENTS.md) is a worked example.
 
+### Upgrading from factory 0.4 or earlier
+
+`factory` 0.5 renamed the `dispatch` skill to `orchestrate`, including the
+`AGENTS.md` heading it reads. A project already on `factory` 0.4 or earlier
+needs three steps to move to 0.5:
+
+1. Rename the `AGENTS.md` heading `## Dispatch` to `## Orchestrate`. The
+   fields under it are unchanged.
+2. Rename any `.agents/skills/dispatch` symlink to
+   `.agents/skills/orchestrate`.
+3. Run `claude plugin marketplace update mattwalters`.
+
+Invoke it afterwards as `/factory:orchestrate`. Until the heading is
+renamed, `orchestrate` stops before doing anything and says so, rather than
+running against a `## Dispatch` section it no longer reads.
+
 ## Plugins
 
 | Plugin | What it is |
 |---|---|
-| `factory` | Software factory skills. `dispatch` takes Linear tickets through `implement-ticket`, `adversarial-review` and `merge-queue` to a merged PR; `decision-queue` turns whatever stopped into decisions to answer. Each repo that uses them declares its settings in an `AGENTS.md` `## Dispatch` section. |
+| `factory` | Software factory skills. `orchestrate` takes Linear tickets through `implement-ticket`, `adversarial-review` and `merge-queue` to a merged PR; `decision-queue` turns whatever stopped into decisions to answer. Each repo that uses them declares its settings in an `AGENTS.md` `## Orchestrate` section. |
 
 ## Layout
 
@@ -99,10 +115,10 @@ Bump a plugin's `version` in its `plugin.json` when you change what it does.
 ## Developing the factory with the factory
 
 This repo opts in to `factory` like any other project, so changes to the
-factory skills go through `dispatch` too. That's safe because a run never
+factory skills go through `orchestrate` too. That's safe because a run never
 executes the files it is editing:
 
-- A dispatch run uses the **installed plugin**, the marketplace clone that
+- An orchestrate run uses the **installed plugin**, the marketplace clone that
   Claude Code manages. It doesn't use the files checked out in the worktree it
   is changing. So a change is always planned, implemented and reviewed by the
   version from *before* that change, and the pipeline can't modify itself

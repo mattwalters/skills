@@ -9,9 +9,9 @@ The `factory` plugin is developed with the `factory` plugin. The
 `README.md` section "Developing the factory with the factory" explains
 why that is safe and what it means for testing a change.
 
-## Dispatch
+## Orchestrate
 
-The `factory` pipeline — `dispatch`, `implement-ticket`,
+The `factory` pipeline — `orchestrate`, `implement-ticket`,
 `adversarial-review`, `merge-queue`, `decision-queue` — reads this
 section for its repo-specific configuration.
 
@@ -28,8 +28,8 @@ section for its repo-specific configuration.
 
 This pipeline keeps no run manifest; per-ticket state lives in the
 orchestrator's own context for the life of a run, and whatever must
-outlive it is written to Linear or the PR instead (see `dispatch`'s
-"Escalation comments"). A `## Dispatch` section that still declares a
+outlive it is written to Linear or the PR instead (see `orchestrate`'s
+"Escalation comments"). A `## Orchestrate` section that still declares a
 **Run manifest** field is not in error — nothing reads it.
 
 Expand `$HOME` to an absolute path before writing the worktrees value
@@ -41,7 +41,7 @@ The worktrees path is outside the repo, so there's nothing to
 gitignore. Per-run state stays on the machine that ran it. The
 directory is shared by every checkout of this repo on the machine —
 every clone, and every worktree of a clone — so run any `factory` skill
-against this repo — whether as part of dispatch or standalone — from
+against this repo — whether as part of orchestrate or standalone — from
 one checkout at a time (a worktree already at `<runs-dir>/<TICKET>`
 belongs to whichever checkout made it).
 
@@ -72,7 +72,7 @@ that breaks one of these as a major finding, not a nit.
   for it is a finding.
 - **Nothing project-specific in a skill.** Team keys, check commands,
   branch names, paths and invariants come from the host repo's
-  `## Dispatch` section. A skill that hardcodes one is a finding.
+  `## Orchestrate` section. A skill that hardcodes one is a finding.
   Examples are fine when they're clearly illustrations.
 - **Plugin version bumped when behaviour changes.** A change to what a
   plugin does bumps `version` in its `plugin.json`. A wording-only fix
@@ -81,19 +81,19 @@ that breaks one of these as a major finding, not a nit.
 ### Stop-list
 
 A change touching any of these waits for a human to merge it, whatever
-mode the run is in. These rules decide when a dispatch run stops for a
+mode the run is in. These rules decide when an orchestrate run stops for a
 human. A change that loosens them is exactly the change that should
 not approve itself.
 
-- The gate and mode semantics in `dispatch`: the three gates, what
+- The gate and mode semantics in `orchestrate`: the three gates, what
   holds or releases each one, the modes and the invocation table, the
   default when an invocation is ambiguous, and the rule that only the
   human releases a gate.
-- The stop-list rules: `dispatch`'s "The stop-list" section, the
+- The stop-list rules: `orchestrate`'s "The stop-list" section, the
   stop-list checks in `adversarial-review` and `merge-queue`, and this
   stop-list itself.
 - The escalation rules that override a released merge gate: a capped
   review never merges, and a blocked or failed ticket is never cleared
   under a released gate. That covers anywhere they are stated or
-  enforced, in `dispatch`, `adversarial-review` or `merge-queue`.
+  enforced, in `orchestrate`, `adversarial-review` or `merge-queue`.
 - Merge eligibility in `merge-queue`: what counts as approval to merge.

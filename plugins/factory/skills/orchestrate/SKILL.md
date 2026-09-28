@@ -1,9 +1,9 @@
 ---
-name: dispatch
-description: Batch-run the next tickets from Linear for the repo you are in. Picks 5–10 unblocked tickets from `Todo` by priority, stops for human approval on the selection, has each one planned into its ticket description, plans parallel vs serial execution, stops for approval again on the plans, then runs each ticket through the implement-ticket, adversarial-review, and merge-queue skills to a merged pull request. Its three gates — selection, plan, merge — are set by naming a mode at invocation: supervised, semi, or autonomous. Reads the host repo's `AGENTS.md` `## Dispatch` section for its Linear team, check command, base branch, write window, and worktree locations, and stops a stage short of any commit, push, or merge while that window is closed. Every stop any stage hits is recorded as a comment or label on its Linear ticket (or its PR, if none resolved), so nothing a run stops on depends on this session's own context surviving. Use when asked to run the queue, work the next tickets, dispatch a batch, or process Linear tickets in parallel. Do not use for a single ticket a human is already driving — use implement-ticket, adversarial-review, or merge-queue directly for that.
+name: orchestrate
+description: Batch-run the next tickets from Linear for the repo you are in. Picks 5–10 unblocked tickets from `Todo` by priority, stops for human approval on the selection, has each one planned into its ticket description, plans parallel vs serial execution, stops for approval again on the plans, then runs each ticket through the implement-ticket, adversarial-review, and merge-queue skills to a merged pull request. Its three gates — selection, plan, merge — are set by naming a mode at invocation: supervised, semi, or autonomous. Reads the host repo's `AGENTS.md` `## Orchestrate` section for its Linear team, check command, base branch, write window, and worktree locations, and stops a stage short of any commit, push, or merge while that window is closed. Every stop any stage hits is recorded as a comment or label on its Linear ticket (or its PR, if none resolved), so nothing a run stops on depends on this session's own context surviving. Use when asked to run the queue, work the next tickets, orchestrate a batch, or process Linear tickets in parallel. Do not use for a single ticket a human is already driving — use implement-ticket, adversarial-review, or merge-queue directly for that.
 ---
 
-# Dispatch
+# Orchestrate
 
 You are the orchestrator. You pick a batch of tickets, get the picks
 approved, have each one planned, get the plans approved, and then run
@@ -21,7 +21,7 @@ the three skills it delegates to, each equally usable on its own:
 "merge everything that's approved". A fifth, `decision-queue`, renders
 whatever a run stopped on as decisions to answer; it reads state
 rather than producing it, so it can be run mid-run, afterwards, or
-against a repo no dispatch run is touching. Read their SKILL.md files
+against a repo no orchestrate run is touching. Read their SKILL.md files
 before changing what a stage does; change this file for how runs are
 queued. These files call all five by their bare names throughout; in
 Claude Code they arrive as the `factory` plugin, so invoke them
@@ -31,7 +31,7 @@ skill lives".
 ## Repo configuration (read this first)
 
 Nothing in this pipeline is hardcoded to a particular project. Every
-repo-specific value comes from a `## Dispatch` section in the host
+repo-specific value comes from a `## Orchestrate` section in the host
 repo's `AGENTS.md`. **Read it before doing anything else.** It
 declares at minimum:
 
@@ -54,15 +54,19 @@ declares at minimum:
 
 This pipeline keeps no run manifest — see "Context rules" and
 "Escalation comments" below for where that state actually lives. A
-repo whose `## Dispatch` section still declares a **Run manifest**
+repo whose `## Orchestrate` section still declares a **Run manifest**
 field is not in error; nothing here reads it, and the line is simply
 ignored.
 
-If `AGENTS.md` has no `## Dispatch` section, this repo has not opted
+If `AGENTS.md` has no `## Orchestrate` section, this repo has not opted
 in: say so and stop, rather than guessing a team key, a check command,
 or a place to put worktrees. If the section exists but a field is
 missing or marked as not yet filled in, say which field and stop
 before the point where you would need it — never substitute a guess.
+
+If `AGENTS.md` has no `## Orchestrate` section but does have a `##
+Dispatch` one, the repo was set up for `factory` 0.4 or earlier. Say
+the heading needs renaming to `## Orchestrate`, and stop.
 
 Pass the relevant fields down to every skill and subagent you invoke.
 They read the same section, but stating the values keeps a subagent
@@ -85,7 +89,7 @@ invocation, and the ordinary way they do it is by naming a mode.
 ## Modes
 
 Gates are the mechanism; modes are names for the three settings of
-them worth having. Naming one at invocation — "dispatch in autonomous
+them worth having. Naming one at invocation — "orchestrate in autonomous
 mode" — carries the whole authorization, so nobody has to recite which
 gates are held every time:
 
@@ -149,7 +153,7 @@ held.
 ## The stop-list
 
 Some changes stop for a human however the run is configured. The repo
-declares which in its `## Dispatch` section — paths, plus subjects
+declares which in its `## Orchestrate` section — paths, plus subjects
 named in prose where a path won't capture them. Schema and migrations,
 anything touching authentication or authorization, and secret handling
 are the usual entries, but the list is the repo's to write and never
@@ -201,7 +205,7 @@ gate the same way.
 
 ## The write window
 
-A repo's `## Dispatch` section declares a **write window** — when
+A repo's `## Orchestrate` section declares a **write window** — when
 gated writes (below) are allowed to actually happen. It exists so a
 commit's timestamp is never the evidence of when someone worked, not
 because a run needs supervision at those hours. The repo's own
@@ -218,7 +222,7 @@ values: `closed Tuesday and Thursday 22:00–02:00 Asia/Tokyo; open
 otherwise` — that closes from Tuesday 22:00 through Wednesday 02:00,
 and separately from Thursday 22:00 through Friday 02:00.
 
-**Required field.** A `## Dispatch` section with no **Write window**
+**Required field.** A `## Orchestrate` section with no **Write window**
 line is exactly like one with no check command: stop before the first
 gated write and name the missing field, rather than guessing the
 window is open. `none` is a valid declaration and means no window —
@@ -327,7 +331,7 @@ an escalation. That is the whole record. There is no other
 field-by-field state to preserve beyond it, because nothing carries
 over — see "Restarting" below.
 
-**Restarting.** There is no automatic resume, and `dispatch` never
+**Restarting.** There is no automatic resume, and `orchestrate` never
 restarts a deferred ticket itself — Phase 1 draws only from `Todo`
 (see "Statuses and labels"). A deferred ticket sits where it stopped
 until a human deliberately picks it back up, by directly re-invoking
@@ -376,7 +380,7 @@ asking does.
 
 ## Where this skill lives
 
-The canonical copy of `dispatch`, `implement-ticket`,
+The canonical copy of `orchestrate`, `implement-ticket`,
 `adversarial-review`, `merge-queue`, and `decision-queue` lives once,
 in the `mattwalters/skills` plugin marketplace repo, at
 `plugins/factory/skills/<name>/`. There is deliberately no per-project
@@ -389,7 +393,7 @@ Two mechanisms carry it into a project repo:
   marketplace. Each project repo declares the marketplace and enables
   the plugin in a tracked `.claude/settings.json`, so a clone wires
   itself up. A plugin namespaces its skills, so in Claude Code these
-  five are invoked as `/factory:dispatch`, `/factory:implement-ticket`,
+  five are invoked as `/factory:orchestrate`, `/factory:implement-ticket`,
   `/factory:adversarial-review`, `/factory:merge-queue` and
   `/factory:decision-queue`. Everywhere else in these files they are
   referred to by their bare names, which is what the other harnesses
@@ -406,7 +410,7 @@ this pipeline runs every ticket in a git worktree, which is precisely
 where a directory-relative scheme breaks; a plugin is installed once
 and is found regardless of cwd, which is the whole reason for it.
 
-A repo opts in by having a `## Dispatch` section in its `AGENTS.md`.
+A repo opts in by having a `## Orchestrate` section in its `AGENTS.md`.
 That section, and nothing else, is what makes these skills applicable
 to it.
 
@@ -417,7 +421,7 @@ Only Linear's stock statuses are used, plus two workspace labels:
 - `Todo` — the queue this skill draws new picks from, and the only
   one for that. A ticket sitting `In Progress` or `In Review` with a
   deferral comment is never picked up from here — see Phase 1 — and
-  dispatch never re-picks it itself either way.
+  orchestrate never re-picks it itself either way.
 - `In Progress` — being implemented.
 - `In Review` — a PR exists and is under review. This is a reading
   gate: a ticket rests here until its merge gate is passed.
@@ -523,7 +527,7 @@ instead — there is nothing to label or comment on in Linear.
 records (adding a label, where one applies) — the skill that causes a
 stop is the one that records it, so the two can never drift apart:
 
-- Planner unplannable or blocked (a dropped ticket): `dispatch`, in
+- Planner unplannable or blocked (a dropped ticket): `orchestrate`, in
   Phase 3.
 - Implement `blocked` or `failed`: `implement-ticket`.
 - Review `blocked`, `failed`, or `capped`, and every stop-list hold:
@@ -575,7 +579,7 @@ reason to reach further.
 
 A ticket sitting `In Progress` or `In Review` with a deferral comment
 (see "The write window") is not picked up here — Phase 1 only draws
-from `Todo`, and dispatch never restarts a deferred ticket itself, in
+from `Todo`, and orchestrate never restarts a deferred ticket itself, in
 any mode. Restarting one is a human's deliberate act: they re-invoke
 the stage directly against the ticket or PR (see "Restarting").
 
@@ -584,7 +588,7 @@ the stage directly against the ticket or PR (see "Restarting").
 `Backlog` is where the human parks work they do not want started —
 their own tickets, decisions they are still thinking through, things
 deliberately set aside. Promoting a ticket to `Todo` is how they hand
-it to dispatch. **You never pick a `Backlog` ticket into a batch**, and
+it to orchestrate. **You never pick a `Backlog` ticket into a batch**, and
 you never promote one yourself.
 
 What you may do, at the selection gate and only there, is *propose*

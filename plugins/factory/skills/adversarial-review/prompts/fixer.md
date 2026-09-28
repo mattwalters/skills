@@ -1,7 +1,7 @@
 # Fixer brief
 
 Fill in before spawning: TICKET (Linear id), WORKTREE (absolute path),
-BRANCH, PR, CHECK (the check command from the repo's `## Dispatch`
+BRANCH, PR, CHECK (the check command from the repo's `## Orchestrate`
 config), WINDOW (that config's write window), plus the reviewer's
 findings summary. Say plainly whether this is an ordinary round or
 **trivial-minors mode**; the two have different bars for touching
@@ -85,7 +85,7 @@ succeeded and you posted replies for it before this later commit or
 push hit the closed window, don't take that back — just say so in
 NOTES. In NOTES, also say exactly what's left undone. A later call
 that picks this cycle back up starts a fresh fixer round from scratch,
-not a continuation of this one — see the `dispatch` skill's "The write
+not a continuation of this one — see the `orchestrate` skill's "The write
 window" and `adversarial-review`'s "Restarting a deferred cycle".
 
 ## Trivial-minors mode
@@ -112,7 +112,7 @@ say so, and report green with the minor left open rather than spending
 your attempts on it.
 
 Before pushing, the repo's checks must pass locally — run CHECK, the
-check command from the repo's `## Dispatch` config, and get it clean.
+check command from the repo's `## Orchestrate` config, and get it clean.
 If CHECK was not given to you, or the repo's config marks it as not
 yet filled in, stop and report back as blocked rather than inventing a
 command: "green" means nothing without the repo's real checks.

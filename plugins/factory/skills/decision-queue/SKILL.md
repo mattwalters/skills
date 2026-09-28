@@ -1,6 +1,6 @@
 ---
 name: decision-queue
-description: Turn everything a dispatch run stopped on into a queue of answerable decisions — each blocked, failed, capped or stop-listed item stated as one question with its options and a recommendation, ordered by how much work an answer unblocks. Reads the host repo's `AGENTS.md` `## Dispatch` section for its Linear team, and reads Linear and the open PRs directly — it keeps no state of its own. Use when asked for a status report, what needs a decision, what is blocked, or what to look at first. Called by the dispatch skill in place of a plain status table; equally fine invoked standalone against a repo mid-run or the morning after one.
+description: Turn everything an orchestrate run stopped on into a queue of answerable decisions — each blocked, failed, capped or stop-listed item stated as one question with its options and a recommendation, ordered by how much work an answer unblocks. Reads the host repo's `AGENTS.md` `## Orchestrate` section for its Linear team, and reads Linear and the open PRs directly — it keeps no state of its own. Use when asked for a status report, what needs a decision, what is blocked, or what to look at first. Called by the orchestrate skill in place of a plain status table; equally fine invoked standalone against a repo mid-run or the morning after one.
 ---
 
 # Decision queue
@@ -22,8 +22,8 @@ about the run, and a guessed one is worse than the gap.
 
 ## Repo configuration
 
-Read the `## Dispatch` section of the host repo's `AGENTS.md` first:
-the **Linear team key**. No `## Dispatch` section means the repo has
+Read the `## Orchestrate` section of the host repo's `AGENTS.md` first:
+the **Linear team key**. No `## Orchestrate` section means the repo has
 not opted into the pipeline — say so and stop. This skill keeps no
 state of its own and reads no run manifest, whether or not the repo's
 section still declares one.
@@ -35,11 +35,11 @@ unlinked PR) can carry more than one marker comment at once — a
 deferred fixer's stop-list hold, a stuck `merge-queue`'s escalation —
 so read each kind's **latest** comment separately (`factory:
 escalation`, `factory: stop-list hold`, `factory: deferred` — see the
-`dispatch` skill's "Escalation comments": only the latest comment of
+`orchestrate` skill's "Escalation comments": only the latest comment of
 *each kind* counts, never the latest of any kind across them), then
 apply the one rule that decides which of the three a row below is
 reading: **the newest of the three latest comments is the ticket's (or
-PR's) current record**, whatever the older two say (see the `dispatch`
+PR's) current record**, whatever the older two say (see the `orchestrate`
 skill's "Escalation comments"). There is no per-row freshness test
 beyond that single comparison, and it applies the same way to a ticket
 or an unlinked PR.
@@ -62,11 +62,11 @@ The label coming off row 1 is the human's own signal that they've
 looked, even before any new marker is posted — an escalation whose
 ticket has already lost the label falls through to row 4, not a queue
 item. This is why a stuck `merge-queue` deferral — which posts only the
-escalation, never a separate deferral note (see the `dispatch` skill's
+escalation, never a separate deferral note (see the `orchestrate` skill's
 "Escalation comments") — is always row 1 for as long as
 `needs-attention` stays on, whatever an older, now-superseded hold or
 deferral note on the same ticket says. The escalation comment can also
-carry a `Stop-list` line (see the `dispatch` skill's "Escalation
+carry a `Stop-list` line (see the `orchestrate` skill's "Escalation
 comments") when a blocked, failed, or capped review result hit the
 stop-list; read it the same way you read `Entries` on a hold comment.
 
@@ -105,7 +105,7 @@ tickets blocked by it in Linear, the tickets serialized behind it in
 the caller's wave plan (if the caller passed one — a standalone
 invocation won't have one, and that term of the count is then zero),
 and the open PRs that share files with it (`gh pr diff --name-only`,
-never diff content — the same lightweight overlap check `dispatch`'s
+never diff content — the same lightweight overlap check `orchestrate`'s
 wave planning and `merge-queue`'s ordering use). Ten tickets waiting on
 one ruling belongs at the top even if it stopped an hour ago; a leaf
 that stopped first thing belongs at the bottom.
@@ -179,13 +179,13 @@ either:
 - **Deferred.** Row 3: a ticket or unlinked PR whose newest marker (see
   "What goes in the queue" above) is a `factory: deferred` comment. The
   deferral note itself names no restart invocation or PR number (see
-  the `dispatch` skill's "The deferral note"); derive one instead from
+  the `orchestrate` skill's "The deferral note"); derive one instead from
   the note's `Stage` line plus the ticket id or its linked PR:
   `implement` → `implement-ticket <TICKET>`, `review-fixer` or
   `trivial-minors` → `adversarial-review <PR>`, `merge-resolver` or
   `merge` → `merge-queue <PR>`. `merge-queue`'s stuck sub-case posts
   only the escalation, never a separate deferral note (see the
-  `dispatch` skill's "Escalation comments"), so it is never this line —
+  `orchestrate` skill's "Escalation comments"), so it is never this line —
   it's row 1 for as long as `needs-attention` stays on. Once a restart
   posts anything at all, that new comment is the newest marker and a
   ticket stops matching row 3 on its own, whether or not the restart
