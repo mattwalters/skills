@@ -46,13 +46,15 @@ or an unlinked PR.
 
 Check every ticket, and every unlinked open PR, against this table, top
 to bottom. The first row that matches decides where it lands; every
-ticket and every unlinked open PR matches exactly one row.
+ticket and every unlinked open PR matches exactly one row. This applies
+only to tickets that aren't already `Done` or `Canceled`, and, for
+unlinked PRs, only to open ones.
 
 | # | Condition | Goes to |
 |---|---|---|
-| 1 | Has an open **`needs-attention`** label (excluding `Done` and `Canceled` tickets) | Queue item, escalation-shaped — built from the newest `factory: escalation` comment if there is one, else list it anyway with one line saying no escalation was recorded |
-| 2 | Newest marker is a `factory: stop-list hold` naming at least one entry (`Entries` not `none`), and the ticket carries no **`approved-to-merge`** | Queue item, hold-shaped (fixed shape — see "Item shape") |
-| 3 | Newest marker is a `factory: deferred` comment | FYI — Deferred, with a restart invocation derived from its `Stage` line (see "FYI, below the queue") |
+| 1 | Has an open **`needs-attention`** label | Queue item — if the newest marker is a `factory: escalation` comment, escalation-shaped, built from it as usual; if the newest marker is a hold or a deferral instead, the question is "`needs-attention` is still on, but the latest record is a <hold\|deferral>: clear the label?"; if there is no marker at all, list it anyway with one line saying no escalation was recorded |
+| 2 | Newest marker is a `factory: stop-list hold` naming at least one entry (`Entries` not `none`), the ticket is `In Review` with an open PR, and it carries no **`approved-to-merge`** | Queue item, hold-shaped (fixed shape — see "Item shape") |
+| 3 | Newest marker is a `factory: deferred` comment, and the ticket's status and PR head haven't changed since it was posted | FYI — Deferred, with a restart invocation derived from its `Stage` line (see "FYI, below the queue") |
 | 4 | `In Review` with an open PR — everything else lands here: a hold naming no entries, an escalation whose ticket has already lost the label, no marker at all, or `approved-to-merge` sitting on a green PR waiting for `merge-queue` | FYI — awaiting merge approval, still in review, or queued to merge |
 | 5 | Anything else | Not listed |
 
@@ -192,8 +194,13 @@ either:
   `adversarial-review`'s "Recording the stop-list hold"), and that hold
   is what row 2 or row 4 next reads, moving the ticket to a queue item
   or the "awaiting merge approval" line below instead. A stopped restart
-  posts a newer marker of its own, which is read the same way; there is
-  no separate "status hasn't moved" test to make here.
+  posts a newer marker of its own, which is read the same way. A restart
+  that succeeds without posting anything — a clean `implement-ticket`
+  run or a `merge-queue` merge, neither of which leaves a marker behind
+  — is what row 3's status-and-PR-head test is for: the deferral
+  comment is still the newest marker, but the ticket's status or its
+  PR's head has moved since it posted, so the ticket falls through to
+  row 4 or row 5 instead of sitting here forever.
 - **Awaiting merge approval, still in review, or queued to merge.** Row
   4: a ticket that's `In Review` with an open PR and didn't match row 1,
   2, or 3 — whatever's left once those are ruled out: no marker at all,
