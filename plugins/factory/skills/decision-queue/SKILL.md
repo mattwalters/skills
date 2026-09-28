@@ -30,76 +30,70 @@ section still declares one.
 
 ## What goes in the queue
 
-Three sources, all of them read straight from Linear and GitHub. A
-ticket (or unlinked PR) can carry more than one marker comment at
-once — a deferred fixer's stop-list hold, a stuck `merge-queue`'s
-escalation — so read each kind's **latest** comment separately
-(`factory: escalation`, `factory: stop-list hold`, `factory: deferred`
-— see the `dispatch` skill's "Escalation comments": only the latest
-comment of *each kind* counts, never the latest of any kind across
-them), then apply the one rule that decides which source applies and
-whether it's still live: **the newest of the three latest comments is
-the ticket's (or PR's) current record**, whatever the older two say
-(see the `dispatch` skill's "Escalation comments"). There is no
-per-source freshness test beyond that single comparison, and it
-applies the same way to a ticket or an unlinked PR.
+Everything is read straight from Linear and GitHub. A ticket (or
+unlinked PR) can carry more than one marker comment at once — a
+deferred fixer's stop-list hold, a stuck `merge-queue`'s escalation —
+so read each kind's **latest** comment separately (`factory:
+escalation`, `factory: stop-list hold`, `factory: deferred` — see the
+`dispatch` skill's "Escalation comments": only the latest comment of
+*each kind* counts, never the latest of any kind across them), then
+apply the one rule that decides which of the three a row below is
+reading: **the newest of the three latest comments is the ticket's (or
+PR's) current record**, whatever the older two say (see the `dispatch`
+skill's "Escalation comments"). There is no per-row freshness test
+beyond that single comparison, and it applies the same way to a ticket
+or an unlinked PR.
 
-1. **Newest marker is an escalation, ticketed.** An open
-   **`needs-attention`** label together with that escalation comment is
-   a queue item (below), excluding `Done` and `Canceled` tickets — the
-   label coming off is the human's own signal that they've looked, even
-   before any new marker is posted, so an escalation whose ticket has
-   already lost the label isn't a queue item. If a labelled ticket has
-   no escalation comment at all, list it anyway, with one line saying
-   no escalation was recorded rather than skipping it. This is why a
-   stuck `merge-queue` deferral — which posts only the escalation,
-   never a separate deferral note (see the `dispatch` skill's
-   "Escalation comments") — is always a queue item here for as long as
-   `needs-attention` stays on, whatever an older, now-superseded hold
-   or deferral note on the same ticket says. The escalation comment can
-   also carry a `Stop-list` line (see the `dispatch` skill's
-   "Escalation comments") when a blocked, failed, or capped review
-   result hit the stop-list; read it the same way you read `Entries` on
-   a hold comment.
-2. **Newest marker is a stop-list hold naming at least one entry,
-   ticketed.** The team's `In Review` tickets with an open PR whose
-   newest marker is a `factory: stop-list hold` comment with `Entries`
-   not `none`, that carry neither **`approved-to-merge`** nor
-   **`needs-attention`**. Every ready cycle posts a hold, `Entries:
-   none` included (see `adversarial-review`'s "Recording the stop-list
-   hold"), so among holds alone the latest is always the whole of the
-   current truth: an `Entries: none` hold becoming the newest marker
-   clears an earlier hit as surely as a later non-empty hold re-asserts
-   it. A ticket whose newest marker is instead an escalation or a
-   deferral note isn't this source: an escalation newer than the
-   ticket's latest hold means a standalone re-review has already moved
-   past that hold (that ticket is source 1 above if `needs-attention`
-   is still open, an FYI line otherwise), and a deferral note newer
-   than the latest hold means a deferred review never came back ready,
-   so that ticket is the FYI deferred line below instead — neither is a
-   merge-approval question.
-3. **Newest marker is an escalation, or a stop-list hold naming at
-   least one entry, on an open PR with no linked ticket.** Found the
-   same way `adversarial-review` and `merge-queue` post them: on the PR
-   itself, since there's no ticket to hold it. Whichever kind is newest
-   decides the item's shape — escalation-shaped per source 1's item
-   shape, or hold-shaped per source 2's — and either kind counts as
-   live only while the PR stays open and has gained no newer
-   *approving* GitHub review since: a later approving review clears an
-   unlinked PR's marker the same way `approved-to-merge` clears a
-   ticketed one, whatever the marker says, and the PR closing clears it
-   too. This is what keeps a capped or stuck review's question from
-   outliving its own answer: once a later cycle posts a newer marker —
-   a ready cycle's hold, `Entries: none` included, or a fresh
-   escalation of its own — that comment is what's newest, and the older
-   one it followed stops being read at all, whether or not the PR has
-   closed. None of that turns on the PR's commit history: a plain push
-   with no marker, escalation, deferral, or approval of its own changes
-   nothing here.
+Check every ticket, and every unlinked open PR, against this table, top
+to bottom. The first row that matches decides where it lands; every
+ticket and every unlinked open PR matches exactly one row.
 
-A ticket or PR that matches more than one of these is one item, not
-two — it can't: the newest marker is a single comment, so only one
-bullet's condition is ever the one that applies.
+| # | Condition | Goes to |
+|---|---|---|
+| 1 | Has an open **`needs-attention`** label (excluding `Done` and `Canceled` tickets) | Queue item, escalation-shaped — built from the newest `factory: escalation` comment if there is one, else list it anyway with one line saying no escalation was recorded |
+| 2 | Newest marker is a `factory: stop-list hold` naming at least one entry (`Entries` not `none`), and the ticket carries no **`approved-to-merge`** | Queue item, hold-shaped (fixed shape — see "Item shape") |
+| 3 | Newest marker is a `factory: deferred` comment | FYI — Deferred, with a restart invocation derived from its `Stage` line (see "FYI, below the queue") |
+| 4 | `In Review` with an open PR — everything else lands here: a hold naming no entries, an escalation whose ticket has already lost the label, no marker at all, or `approved-to-merge` sitting on a green PR waiting for `merge-queue` | FYI — awaiting merge approval, still in review, or queued to merge |
+| 5 | Anything else | Not listed |
+
+The label coming off row 1 is the human's own signal that they've
+looked, even before any new marker is posted — an escalation whose
+ticket has already lost the label falls through to row 4, not a queue
+item. This is why a stuck `merge-queue` deferral — which posts only the
+escalation, never a separate deferral note (see the `dispatch` skill's
+"Escalation comments") — is always row 1 for as long as
+`needs-attention` stays on, whatever an older, now-superseded hold or
+deferral note on the same ticket says. The escalation comment can also
+carry a `Stop-list` line (see the `dispatch` skill's "Escalation
+comments") when a blocked, failed, or capped review result hit the
+stop-list; read it the same way you read `Entries` on a hold comment.
+
+Every ready review cycle posts a hold, `Entries: none` included (see
+`adversarial-review`'s "Recording the stop-list hold"), so among holds
+alone the latest is always the whole of the current truth: an `Entries:
+none` hold becoming the newest marker clears an earlier hit as surely
+as a later non-empty hold re-asserts it. That is exactly what row 2's
+"newest marker" test relies on to decide whether a hold is still live,
+and it's why an escalation or deferral note that has since become the
+newest marker takes a ticket out of row 2 without row 2 needing to say
+so — the row above or below it will already have matched first.
+
+For an unlinked open PR, found the same way `adversarial-review` and
+`merge-queue` post them — on the PR itself, since there's no ticket to
+hold it — read the same table with three rows adjusted, since there's
+no ticket label to read:
+
+- **Row 1** reads "newest marker is an escalation, and no GitHub review
+  approving the PR is newer than it" in place of `needs-attention`.
+- **Row 2** keeps its `Entries` test but reads "and no GitHub review
+  approving the PR is newer than it" in place of "carries no
+  `approved-to-merge`" — an approving review clears an unlinked PR's
+  hold the same way `approved-to-merge` clears a ticketed one.
+- **Row 4** becomes "any other open unlinked PR carrying a marker."
+
+None of this turns on the PR's commit history: a plain push with no
+marker, escalation, deferral, or approval of its own changes nothing
+here.
 
 ## Ordering
 
@@ -115,9 +109,9 @@ one ruling belongs at the top even if it stopped an hour ago; a leaf
 that stopped first thing belongs at the bottom.
 
 Break ties by the cost of being wrong: at equal impact, a stop-list
-item outranks an ordinary one — that includes a source 1 item whose
-escalation comment's `Stop-list` line is non-`none`, not only a
-source 2 or source 3 hold.
+item outranks an ordinary one — that includes a row 1 item whose
+escalation comment's `Stop-list` line is non-`none`, not only a row 2
+hold.
 
 State the count in the item itself, so the ordering is visible rather
 than asserted.
@@ -144,19 +138,20 @@ comment: `Stopped at` is its `Stage` line, and the heading question is
 built from its `Question` line — you are rendering what the comment
 already says, not re-deriving it from the diff.
 
-A stop-list hold item — source 2, or a source 3 item carrying that
-marker — has no `Stage`, `Question`, or `Options` to read; the hold
-comment carries only `PR`, `Entries`, and `Round`. Build it in this
-fixed shape instead, every time: **Stopped at** is `ready, waiting on
-stop-list merge approval`; the heading question is `Merge PR <n>? It
-touches: <Entries>`; the options are always **A.** merge and **B.**
-don't merge yet — leaves it queued here. Option A's consequence is
-source-specific: for a source 2 item it's "clears the hold and lets it
-proceed" (adding `approved-to-merge` is what clears it); for a source 3
-item it's "approve the PR on GitHub, which clears the hold and lets it
-proceed" — an unlinked PR's hold clears on an approving GitHub review,
-not a label. Never invent a `Stage` or extra options for this kind of
-item; this fixed shape is the whole of what a hold comment gives you.
+A stop-list hold item — row 2, ticketed or unlinked-PR form — has no
+`Stage`, `Question`, or `Options` to read; the hold comment carries only
+`PR`, `Entries`, and `Round`. Build it in this fixed shape instead,
+every time: **Stopped at** is `ready, waiting on stop-list merge
+approval`; the heading question is `Merge PR <n>? It touches:
+<Entries>`; the options are always **A.** merge and **B.** don't merge
+yet — leaves it queued here. Option A's consequence depends on which
+form of row 2 matched: for a ticketed item it's "clears the hold and
+lets it proceed" (adding `approved-to-merge` is what clears it); for an
+unlinked PR it's "approve the PR on GitHub, which clears the hold and
+lets it proceed" — an unlinked PR's hold clears on an approving GitHub
+review, not a label. Never invent a `Stage` or extra options for this
+kind of item; this fixed shape is the whole of what a hold comment
+gives you.
 
 Two or three options. If the honest answer is that there are two and
 one of them is "drop the ticket", say that — a queue that dresses
@@ -179,9 +174,8 @@ no options. One line each.
 Two further kinds of line belong here too, since neither is a decision
 either:
 
-- **Deferred.** A ticket or unlinked PR whose newest marker (see "What
-  goes in the queue" above) is a `factory: deferred` comment, and whose
-  status and PR haven't moved since — nobody has restarted it yet. The
+- **Deferred.** Row 3: a ticket or unlinked PR whose newest marker (see
+  "What goes in the queue" above) is a `factory: deferred` comment. The
   deferral note itself names no restart invocation or PR number (see
   the `dispatch` skill's "The deferral note"); derive one instead from
   the note's `Stage` line plus the ticket id or its linked PR:
@@ -190,26 +184,24 @@ either:
   `merge` → `merge-queue <PR>`. `merge-queue`'s stuck sub-case posts
   only the escalation, never a separate deferral note (see the
   `dispatch` skill's "Escalation comments"), so it is never this line —
-  it's a queue item above (source 1) for as long as `needs-attention`
-  stays on. Once a restart posts anything at all, that new comment is
-  the newest marker and this line stops applying on its own, whether or
-  not the restart ever pushed a commit: a review that comes back ready
-  without pushing still posts a fresh hold (`Entries: none` included —
-  see `adversarial-review`'s "Recording the stop-list hold"), and that
-  hold outranks the older deferral note the moment it posts, moving the
-  ticket to the "Awaiting merge approval" line below instead.
-- **Awaiting merge approval, or still in review.** A ticket that's
-  `In Review` with an open PR, not carrying `needs-attention`, and
-  whose newest marker (see "What goes in the queue" above) is either
-  nothing at all or a stop-list hold naming no entries. A ticket isn't
-  this line if its newest marker is a live escalation or a non-empty
-  hold — those are queue items above instead, because clearing them
-  takes a specific human call rather than just watching a review
-  finish — and isn't this line if its newest marker is a deferral note —
-  that's the Deferred line above instead, since that ticket isn't
-  "still in review", it's stopped until a human restarts it. This is
-  not a decision for the human either; it's here so the report accounts
-  for every ticket a run touched, not only the ones stuck.
+  it's row 1 for as long as `needs-attention` stays on. Once a restart
+  posts anything at all, that new comment is the newest marker and a
+  ticket stops matching row 3 on its own, whether or not the restart
+  ever pushed a commit: a review that comes back ready without pushing
+  still posts a fresh hold (`Entries: none` included — see
+  `adversarial-review`'s "Recording the stop-list hold"), and that hold
+  is what row 2 or row 4 next reads, moving the ticket to a queue item
+  or the "awaiting merge approval" line below instead. A stopped restart
+  posts a newer marker of its own, which is read the same way; there is
+  no separate "status hasn't moved" test to make here.
+- **Awaiting merge approval, still in review, or queued to merge.** Row
+  4: a ticket that's `In Review` with an open PR and didn't match row 1,
+  2, or 3 — whatever's left once those are ruled out: no marker at all,
+  a stop-list hold naming no entries, an escalation whose ticket has
+  already lost `needs-attention`, or `approved-to-merge` sitting on a
+  green PR still waiting for `merge-queue` to pick it up. This is not a
+  decision for the human either; it's here so the report accounts for
+  every ticket a run touched, not only the ones stuck.
 
 If the human asks for any of them to be filed, file into **`Backlog`**,
 never `Todo`. `Backlog` is where they park what they have not started,

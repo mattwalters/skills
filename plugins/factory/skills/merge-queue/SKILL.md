@@ -272,14 +272,16 @@ the rule and the escalation is the newer, more informative of the two
 here — with stage `merge`, result `blocked`, `Found` explaining the
 stuck head (pushed, and red, still running, or unverified) plus what a
 deferral note would otherwise have carried (what's left undone and the
-worktree path), a `Stop-list` line (the resolver's `STOPLIST` if it had
-one in hand when it stopped, or `none`), and `Options` written by you —
-this is your own read of the stuck head, not a resolver's report, so
-write 2-3 options and your pick the same way a capped review round
-does, rather than reaching for "none recorded". This carries
-`needs-attention` like any other labelled stop, so it gets the same
-record. Say so in your report: a human has to get the pushed head's CI
-green, or decide what to do with it, before this PR can requeue at all.
+worktree path), a `Stop-list` line (the ticket's, or PR's, latest
+`factory: stop-list hold` comment's `Entries`, or `none` if it has no
+hold — the resolver doesn't report a stop-list of its own), and
+`Options` written by you — this is your own read of the stuck head, not
+a resolver's report, so write 2-3 options and your pick the same way a
+capped review round does, rather than reaching for "none recorded".
+This carries `needs-attention` like any other labelled stop, so it gets
+the same record. Say so in your report: a human has to get the pushed
+head's CI green, or decide what to do with it, before this PR can
+requeue at all.
 
 Everything else is an ordinary deferral — including a rebased,
 force-pushed head that's already green when the window closes, which
