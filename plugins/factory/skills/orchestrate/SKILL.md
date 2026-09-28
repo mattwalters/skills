@@ -351,22 +351,16 @@ whatever runs `Next` which invocation to make: none of
 ticket's own description and PR, the same as any other invocation (see
 "The one worktree rule"). If the decision answers a question one of
 those stages actually raised, the human's answer only reaches a
-restart if it's written somewhere that restart reads.
-`implement-ticket`'s implementer, and `adversarial-review`'s reviewer
-at the top of every fresh round, both read the ticket's brief — its
-description, `## Plan` included — so editing that is where an answer
-to a question either of them raised belongs. No subagent in this
-plugin reads a plain PR comment, so one left there answers nothing. A
-question a review-fixer or the `merge-queue` resolver raised has no
-channel like this at all: the fixer is handed only that round's
-findings, and the resolver reads only WORKTREE, BRANCH, BASE, PR, and
-the rebase itself — neither reads the ticket or any comment. For those
-two, a decision only fits a question the invocation itself settles,
-paired with the human's own action alongside it — the merge approval
-added with a `merge-queue <PR>` decision, say — not a judgment call
-spelled out for the subagent to read back. Get this wrong and the
-resumed stage hits the same fork again and, under cron, escalates
-again on every pass.
+restart by going into the ticket's description — the brief — since the
+brief is the one thing every stage's subagents are held to; that's
+where the answer belongs. One exception: the `merge-queue` resolver
+reads no ticket brief at all, so a `merge-queue <PR>` decision can't
+carry a new instruction to it — it fits only when the approval itself
+is the answer, alongside whatever action the human took to grant it.
+For an unlinked PR there is no ticket and so no brief either: a
+decision there fits only where the invocation itself is the answer.
+Get this wrong and the resumed stage hits the same fork again and,
+under cron, escalates again on every pass.
 
 **The one worktree rule.** All three skills set up their worktree the
 same way, at the same path, whatever state they find it in —
@@ -591,17 +585,15 @@ the ticket read as having no marker at all:
    the ticket's status or the branch head, and a `merge-queue` merge
    moves the ticket to `Done`.
 
-"Pending" means condition 3 above still holds — status and head
-unchanged since the decision was created — not that no resume has
-started. It stays true for as long as a resume triggered by this
-decision is running: `implement-ticket` leaves the ticket's status
-alone until the implementer's own push (its step 1), and
-`adversarial-review`/`merge-queue` move nothing until a fixer or
-resolver pushes or the cycle posts a marker. A second reading of this
-rule while that first resume is still in flight sees the same pending
-decision and can invoke `Next` again. Not re-invoking an already
-running `Next` is on whatever runs it (OPS-32), not a distinction this
-marker's freshness rule makes.
+"Pending" means all three conditions above hold, together — not that
+no resume has started. A decision can stay pending while a resume it
+triggered is already running, since nothing about starting a stage is
+guaranteed to change the ticket's status or the branch head before
+that stage's first push or posted marker. A second reading of this
+rule while that first resume is still in flight can therefore see the
+same pending decision and invoke `Next` again; not re-invoking an
+already running `Next` is on whatever runs it (OPS-32), not a
+distinction this marker's freshness rule makes.
 
 A decision marker is not merge approval and not a released gate.
 Posting one clears `needs-attention` (see "Statuses and labels") and

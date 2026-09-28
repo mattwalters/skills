@@ -61,7 +61,7 @@ unlinked PRs, only to open ones.
 
 | # | Condition | Goes to |
 |---|---|---|
-| 0 | Newest marker is a *pending* `factory: decision` (see the `orchestrate` skill's "Escalation comments"), whether or not `needs-attention` is still on | FYI — Decided, naming its `Next` invocation (see "FYI, below the queue"). One exception: if `Next` is `merge-queue <PR>` and the ticket carries no **`approved-to-merge`** (unlinked PR: no GitHub review approving the PR newer than the PR's latest `factory: stop-list hold` comment), it's a **queue item** instead, fixed-shaped (see "Item shape") — the guard that keeps a stop-list hold, which a newer decision would otherwise supersede, from dropping out of the queue |
+| 0 | Newest marker is a *pending* `factory: decision` (see the `orchestrate` skill's "Escalation comments"), whether or not `needs-attention` is still on | FYI — Decided, naming its `Next` invocation (see "FYI, below the queue"). One exception: if `Next` is `merge-queue <PR>` and the ticket carries no **`approved-to-merge`** (unlinked PR: no GitHub review approving the PR — and, when the PR's latest `factory: stop-list hold` comment names at least one entry, none newer than that hold — matching `merge-queue`'s Eligibility), it's a **queue item** instead, fixed-shaped (see "Item shape") — the guard that keeps a stop-list hold, which a newer decision would otherwise supersede, from dropping out of the queue |
 | 1 | Has an open **`needs-attention`** label | Queue item — if the current record (the newest-marker rule above, which skips a stale decision) is a `factory: escalation` comment, escalation-shaped, built from it as usual; if it's a hold or a deferral instead, the question is "`needs-attention` is still on, but the latest record is a <hold\|deferral>: clear the label?"; if there is no marker at all — including when the only marker on the ticket is a stale decision — list it anyway with one line saying no escalation was recorded |
 | 2 | The current record (the newest-marker rule above, which skips a stale decision) is a `factory: stop-list hold` naming at least one entry (`Entries` not `none`), the ticket is `In Review` with an open PR, and it carries no **`approved-to-merge`** | Queue item, hold-shaped (fixed shape — see "Item shape") |
 | 3 | Newest marker is a `factory: deferred` comment, and the ticket's status and PR head haven't changed since it was posted | FYI — Deferred, with a restart invocation derived from its `Stage` line (see "FYI, below the queue") |
@@ -99,14 +99,16 @@ so — the row above or below it will already have matched first.
 For an unlinked open PR, found the same way `adversarial-review` and
 `merge-queue` post them — on the PR itself, since there's no ticket to
 hold it — read the same table with three rows adjusted, since there's
-no ticket label to read. Row 0 applies as written and needs no separate
-adjustment here: its "pending" test already reads the PR's head alone
-when there's no linked ticket (see the `orchestrate` skill's
-"Escalation comments"), and its exception clause already names its
-unlinked-PR form — no GitHub review approving the PR newer than the
-PR's latest `factory: stop-list hold` comment, the same "newer than"
-test rows 1 and 2 below use. An approval that predates the hold it
-would otherwise supersede doesn't clear it.
+no ticket label to read. Row 0's "pending" test already reads the PR's
+head alone when there's no linked ticket (see the `orchestrate` skill's
+"Escalation comments"). Its exception clause reads, for an unlinked PR:
+no GitHub review approving the PR — matching `merge-queue`'s
+Eligibility, which asks only for an approving review — except that when
+the PR's latest `factory: stop-list hold` comment names at least one
+entry, that approval must also be newer than the hold, the same "newer
+than" test rows 1 and 2 below apply to their own markers. With no hold
+at all, or a hold naming no entries, any approving review satisfies the
+guard.
 
 - **Row 1** reads "newest marker is an escalation, and no GitHub review
   approving the PR is newer than it" in place of `needs-attention`.
