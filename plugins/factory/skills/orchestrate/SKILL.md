@@ -339,7 +339,31 @@ whichever of `implement-ticket <TICKET>`, `adversarial-review <PR>`,
 or `merge-queue <PR>` deferred — and that stage starts from the start,
 with fresh budgets: a fresh three CI pushes, a fresh round count, a
 fresh ledger. A run's end-of-run report names each deferred ticket
-with that exact invocation (see "Status updates").
+with that exact invocation (see "Status updates"). Instead of
+re-invoking the stage themselves, the human can instead record the
+answer as a `factory: decision` naming that same invocation (see
+"Escalation comments"), for something outside this plugin to run —
+`orchestrate` itself still never runs it, so "no automatic resume"
+stays true of this plugin either way. A `factory: decision` never
+carries a new instruction to a stage: it fits only when running `Next`
+is itself the whole answer — a `merge-queue <PR>` decision recorded
+together with the merge approval, and only when the PR is already
+eligible under `merge-queue`'s "Eligibility" at the moment the decision
+is recorded (approved, no `needs-attention`, no unresolved stop-list
+hit, and CI green on the current head), not merely that the approval
+was just added — or when the human has already edited the ticket's
+`## Plan` to reflect their answer before recording the decision. A PR
+whose CI is red doesn't fit the first case: a human gets it green
+first, then either records the decision or just re-invokes
+`merge-queue <PR>` directly once it is. An unlinked PR has no `## Plan`,
+so a decision there fits only the first case. Get this wrong — record a
+decision that needs a plan edit nobody made, or a `merge-queue <PR>`
+decision on a PR that isn't yet eligible — and the resumed stage either
+hits the same fork again or is refused at Eligibility and does nothing
+at all. `decision-queue`'s row 0 renders that second failure as a queue
+item rather than a silent FYI (see that skill's table), so it doesn't
+stay invisible, but recording it correctly the first time is still
+cheaper.
 
 **The one worktree rule.** All three skills set up their worktree the
 same way, at the same path, whatever state they find it in —
@@ -445,8 +469,9 @@ Move tickets and add labels yourself as they advance; a GitHub
 automation may race you to `Done` on merge, which is harmless.
 
 Take a label off when it stops being true: `needs-attention` comes off
-when the ticket is picked back up, `approved-to-merge` comes off when the
-ticket reaches `Done`. A stale label on a finished ticket is noise in
+when the ticket is picked back up, or when a `factory: decision` is
+posted for it, and `approved-to-merge` comes off when the ticket
+reaches `Done`. A stale label on a finished ticket is noise in
 everyone's views.
 
 **You never pick from `Backlog`** — see Phase 1.
@@ -461,26 +486,30 @@ comment this pipeline posts. A fixed first line is what tells one of
 these apart from an ordinary comment, since the author can't:
 `decision-queue` matches that line with markdown emphasis ignored (so
 `factory: escalation`, `**factory: escalation**`, and `*factory:
-escalation*` all match). Only a ticket's **latest** comment of each
-kind counts — a new one supersedes, it doesn't append.
+escalation*` all match — and the same for `factory: decision`). Only a
+ticket's **latest** comment of each kind counts — a new one supersedes,
+it doesn't append.
 
-Across all three kinds, **the newest comment of any kind is the
-ticket's (or unlinked PR's) current record**, whatever the other two
-say: a fresh escalation supersedes an older hold or deferral note, a
-fresh hold supersedes an older escalation or deferral note, and a
-fresh deferral note supersedes an older hold or escalation — whichever
-kind actually posted most recently decides it. There is no separate
-per-kind freshness rule beyond this one comparison; `decision-queue`
-reads every source this same way, ticketed or not. This is also why a
-stage never posts two of these at once for the same stop: only one can
-be newest, and posting a second immediately after the first would only
-contradict it (see "Who posts which record" below and each stage's own
-skill for where this matters — `adversarial-review`'s ready cycle posts
-only the hold, `merge-queue`'s stuck sub-case posts only the
-escalation).
+Across all four kinds, **the newest comment of any kind is the
+ticket's (or unlinked PR's) current record**, whatever the other three
+say: a fresh escalation, hold, or deferral note supersedes an older
+decision, and a fresh decision supersedes an older escalation, hold, or
+deferral note — whichever kind actually posted most recently decides
+it. There is no separate per-kind freshness rule beyond this one
+comparison for the first three kinds; `decision-queue` reads every
+source this same way, ticketed or not. A decision marker carries one
+freshness rule of its own on top of this — see its semantics below —
+because unlike the other three it can go stale without anything newer
+being posted at all. This is also why a stage never posts two of these
+at once for the same stop: only one can be newest, and posting a second
+immediately after the first would only contradict it (see "Who posts
+which record" below and each stage's own skill for where this
+matters — `adversarial-review`'s ready cycle posts only the hold,
+`merge-queue`'s stuck sub-case posts only the escalation).
 
-Two templates, plus a third that is really `factory: deferred`'s
-existing home (see "The write window"):
+Two templates, a third that is really `factory: deferred`'s existing
+home (see "The write window"), and a fourth for a human's recorded
+answer:
 
     **factory: escalation**
     Stage: planning | implementing | review round <n> of <budget> | merge
@@ -514,10 +543,74 @@ existing home (see "The write window"):
     carries no such wait; it is posted, like every ready cycle's hold,
     only to clear whatever an earlier hold on this same PR recorded.
 
+    **factory: decision**
+    Decision: <the human's answer, in their own terms>
+    Next: implement-ticket <TICKET> | adversarial-review <PR> | merge-queue <PR>
+    Recorded: <who recorded it>, <ISO-8601 date-time the decision was made>
+
 `**factory: deferred**` is the fixed first line of the deferral note
 "The write window" defines. Everything after that line is that note's,
 unchanged — this section doesn't redefine it, only names it alongside
-the other two markers so all three are found the same way.
+the other three markers so all four are found the same way.
+
+A `factory: decision` marker records a human's answer to a question the
+pipeline raised — it never comes from a stage or a subagent. `Next` is
+exactly one of the three invocations the template names; a decision
+that hands nothing back to a machine — drop the ticket, rescope it,
+replan it — is never recorded with this marker, and that includes every
+planning-stage stop, since none of the three invocations replans: the
+human cancels the ticket, or edits it and clears `needs-attention`
+directly, the same way that's done today with no decision marker
+involved.
+
+The marker carries one freshness rule of its own, because unlike the
+other three kinds it can go stale without anything newer being posted:
+it is **pending** (its `Next` still to run) only while all of the
+following hold, and **stale** the moment any of them stop holding. A
+stale decision is skipped, not treated as the ticket's current record:
+for every purpose above and in `decision-queue`, the current record
+becomes the newest of the other three kinds — escalation, hold, or
+deferral note — if any of them exists, exactly as if the decision had
+never been posted; only when none of the other three exists either is
+the ticket read as having no marker at all:
+
+1. it is the newest marker of the four kinds — a stage that restarts
+   and stops, defers, or comes back ready posts a newer marker of its
+   own, which supersedes the decision on its own;
+2. the ticket is not `Done` or `Canceled` (for an unlinked PR: the PR
+   is still open) — this alone excludes a `merge-queue <PR>` decision
+   whose PR has since merged;
+3. the ticket's status and its linked PR's head (for an unlinked PR,
+   the PR's head alone) haven't changed since the decision comment was
+   **created** — compare against the comment's own timestamp, not its
+   `Recorded` line. This is what catches a resume that succeeds without
+   posting anything of its own: a clean `implement-ticket` run moves
+   the ticket's status or the branch head, and a `merge-queue` merge
+   moves the ticket to `Done`.
+
+"Pending" means all three conditions above hold, together — not that
+no resume has started. A decision can stay pending while a resume it
+triggered is already running, since nothing about starting a stage is
+guaranteed to change the ticket's status or the branch head before
+that stage's first push or posted marker. A second reading of this
+rule while that first resume is still in flight can therefore see the
+same pending decision and invoke `Next` again; not re-invoking an
+already running `Next` is on whatever runs it, outside this plugin, not
+a distinction this marker's freshness rule makes.
+
+A decision marker is not merge approval and not a released gate.
+Posting one clears `needs-attention` (see "Statuses and labels") and
+does nothing else: it never clears a stop-list hit, and it never lets a
+capped, blocked, or failed ticket merge under a released gate — "The
+stop-list" and Phase 8's rules on both stand exactly as written. A
+`merge-queue <PR>` decision is recorded alongside the approval itself
+(the human adding `approved-to-merge`, or an approving GitHub review on
+an unlinked PR), never in place of it. If the ticket still carries
+`approved-to-merge` from before the stop and `Next` names anything
+other than `merge-queue <PR>`, whoever posts the decision removes that
+label too — otherwise clearing `needs-attention` would leave the old
+head eligible for an "all eligible PRs" sweep the decision never asked
+for.
 
 Where a PR has no linked ticket, the same comment goes on the PR
 instead — there is nothing to label or comment on in Linear.
@@ -539,9 +632,12 @@ stop is the one that records it, so the two can never drift apart:
   escalation` (result `blocked`) carrying what the deferral note would
   have said instead of posting one at all; see that skill's "On a
   deferred report".
+- `decision`: the human, or tooling acting on their explicit, recorded
+  answer — never a skill or subagent in this plugin. `orchestrate`
+  still never runs the `Next` invocation itself.
 
-This is the canonical reference for what an escalation comment looks
-like, the way "Models and effort" is for models — `implement-ticket`,
+This is the canonical reference for what these comments look like, the
+way "Models and effort" is for models — `implement-ticket`,
 `adversarial-review`, and `merge-queue` point back here rather than
 each carrying their own copy of the templates.
 
@@ -570,8 +666,11 @@ in `Todo`, sorted by priority.
 
 Within `Todo`, skip anything blocked by an open ticket, anything
 carrying the `needs-attention` label (a human is meant to look at that
-first), anything too vague to implement without a human, and anything
-whose scope is plainly a project rather than a change. Use judgment: a
+first), anything too vague to implement without a human, anything
+whose scope is plainly a project rather than a change, and a ticket
+whose newest marker is a pending `factory: decision` (see "Escalation
+comments") — its next step belongs to whatever resumes it, and picking
+it here too would run it twice. Use judgment: a
 slightly lower-priority ticket that unblocks others, or rounds out a
 coherent batch, can jump the line. Pick 5–10 — or everything eligible
 in `Todo` if it holds fewer. A short batch is a normal outcome, not a
@@ -581,7 +680,9 @@ A ticket sitting `In Progress` or `In Review` with a deferral comment
 (see "The write window") is not picked up here — Phase 1 only draws
 from `Todo`, and orchestrate never restarts a deferred ticket itself, in
 any mode. Restarting one is a human's deliberate act: they re-invoke
-the stage directly against the ticket or PR (see "Restarting").
+the stage directly against the ticket or PR, or record their answer as
+a `factory: decision` for something outside this plugin to act on (see
+"Restarting").
 
 ### `Backlog`
 
@@ -623,7 +724,8 @@ that is the next gate's job. Add, separately:
   look runnable now.
 - **What you skipped and why**, for anything a human would want to
   know about: blocked by an open ticket, carrying `needs-attention`,
-  too vague, or too big.
+  too vague, too big, or carrying a pending `factory: decision` (its
+  resume belongs to whatever runs `Next`).
 
 The human can drop picks, add tickets, promote something you proposed
 (or promote something you didn't), or reorder priorities. Then they

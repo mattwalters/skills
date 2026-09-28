@@ -1,7 +1,7 @@
 {
   "name": "factory",
   "description": "Software factory skills: orchestrate takes Linear tickets through implement-ticket, adversarial-review and merge-queue to a merged PR, and decision-queue turns whatever stopped into decisions to answer.",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "author": {
     "name": "Matt Walters"
   }
