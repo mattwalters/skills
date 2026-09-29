@@ -407,14 +407,14 @@ way. There is no resume: a later call restarts this cycle from round 1
 `RESULT: ready` means no major or medium findings on the latest round
 and CI green — it is not a merge, and it is not merge approval. It also
 means the PR was marked ready for review (un-drafted), unless NOTES
-says it was left draft because the write window was closed; either
-way, un-drafting is a signal to readers that review has finished, not
-merge approval — `approved-to-merge` remains the only merge gate. This
-skill never merges anything; a human (directly, or via the `orchestrate`
-skill's
-merge queue) still approves that separately, and approval is what puts
-the `approved-to-merge` label on the ticket. Never add that label
-yourself.
+says it was left draft — the write window was closed, or `gh pr ready`
+itself errored; either way, un-drafting is a signal to readers that
+review has finished, not merge approval, and merge eligibility is
+unchanged (see `merge-queue`'s "Eligibility"). This skill never merges
+anything; a human (directly, or via the `orchestrate` skill's merge
+queue) still approves that separately, and for a ticketed PR, approval
+is what puts the `approved-to-merge` label on the ticket. Never add
+that label yourself.
 
 A non-empty `STOPLIST` line means the caller holds this ticket's merge
 gate for a human however the run is configured — including a run whose

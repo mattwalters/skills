@@ -897,9 +897,9 @@ findings, not zero findings: open minors come back listed in the
 report and are not a reason to hold the ticket. Pass them through to
 the human as part of the ready report and leave them on the PR.
 `adversarial-review` has already marked the PR ready for review
-(un-drafted it), unless its NOTES say it left the PR draft because the
-write window was closed — relay whichever happened as part of the
-ready report.
+(un-drafted it), unless its NOTES say it left the PR draft — the write
+window was closed, or `gh pr ready` itself errored — relay whichever
+happened as part of the ready report.
 
 On `RESULT: capped`, the ticket does not proceed to merge under any
 gate configuration — leave it in `In Review`. `adversarial-review` has
