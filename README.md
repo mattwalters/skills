@@ -3,12 +3,25 @@
 A Claude Code plugin marketplace. Projects install skills from here; nothing
 here belongs to any one project.
 
-The repo is public on purpose. Claude Code can clone it without a token, so a
-project adopts it with a settings block and no credentials.
+The repo is public on purpose. Claude Code can clone it without a token, so
+installing from it needs no credentials.
 
-## Adopting it in a project
+## Installing
 
-Add this to the project's `.claude/settings.json`:
+Plugins from here are installed once per machine, at user scope:
+
+```
+claude plugin marketplace add mattwalters/skills
+claude plugin install factory@mattwalters --scope user
+```
+
+Don't pin a plugin in a project: no `enabledPlugins` entry for it in the
+project's `.claude/settings.json`, and no `--scope project` install. A project
+pin registers a separate install for every checkout and worktree that opens
+the project, and those drift from the user-scope version.
+
+A project may still declare the marketplace in its `.claude/settings.json`, so
+Claude Code knows where it lives on a machine that hasn't added it yet:
 
 ```json
 {
@@ -19,26 +32,17 @@ Add this to the project's `.claude/settings.json`:
         "repo": "mattwalters/skills"
       }
     }
-  },
-  "enabledPlugins": {
-    "factory@mattwalters": true
   }
 }
 ```
 
-- `extraKnownMarketplaces` tells Claude Code where the marketplace lives. The
-  key (`mattwalters`) must match `name` in `.claude-plugin/marketplace.json`.
-- `enabledPlugins` turns individual plugins on, as `<plugin>@<marketplace>`.
-  Enable only the plugins the project uses.
-
-When someone trusts the project folder, Claude Code offers to install the
-marketplace and the enabled plugins. To pick up later changes, run
-`claude plugin marketplace update mattwalters`.
+The key (`mattwalters`) must match `name` in `.claude-plugin/marketplace.json`.
+To pick up later changes, run `claude plugin marketplace update mattwalters`.
 
 ### Opting in to `factory`
 
-The settings block installs `factory`, but installing it isn't enough to run
-it. The project also needs a `## Orchestrate` section in its own `AGENTS.md`. If
+Installing `factory` isn't enough to run it in a project. The project also
+needs a `## Orchestrate` section in its own `AGENTS.md`. If
 that section is missing, `orchestrate` stops straight away instead of guessing.
 The other factory skills read the same section.
 

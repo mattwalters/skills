@@ -3,7 +3,8 @@
 This repo is a Claude Code plugin marketplace. It is almost entirely
 prose: each skill is a `SKILL.md` plus the prompts it hands to
 subagents, and the only code is `bin/validate`. See `README.md` for the
-layout and for how a project adopts a plugin.
+layout, for installing a plugin (once per machine, at user scope — never
+pinned in a project), and for how a project opts in to `factory`.
 
 The `factory` plugin is developed with the `factory` plugin. The
 `README.md` section "Developing the factory with the factory" explains
