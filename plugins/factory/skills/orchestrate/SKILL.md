@@ -135,38 +135,6 @@ If an invocation names a mode *and* adjusts a gate — "autonomous, but
 hold merge" — the adjustment wins. Spelling gates out without a mode
 works as it always did.
 
-### Per-ticket holds
-
-A ticket carrying the `hold-plan` or `hold-merge` label in Linear has
-that one gate held for it, whatever mode the run was invoked in:
-
-- **`hold-plan`** — the ticket is planned as usual, the plan is written
-  into its description, and then its plan gate is held for that ticket
-  even if the run's plan gate is released.
-- **`hold-merge`** — the ticket's merge gate is held even if the run's
-  merge gate is released, with the same effect as a stop-list hit,
-  triggered by the ticket rather than by the paths the diff reached.
-
-A hold label beats the mode, beats a gate spelled out at invocation
-("no gates" does not clear it), and beats a plan-gate
-pre-authorization. Only the human clears it, for that ticket: in chat
-during the run, or — for `hold-merge` — by adding `approved-to-merge`
-or approving the PR on GitHub. Removing the label clears it for future
-runs too. No released gate anywhere clears it.
-
-Other tickets are unaffected. In autonomous mode a batch with one
-`hold-plan` ticket runs the rest to merge and stops once, on that one
-plan.
-
-The pipeline never adds or removes either label. They are the human's
-standing instruction for that ticket and persist across runs. A
-workspace that doesn't have them simply has no held tickets.
-
-Name the hold wherever a gate names its stop-list hits: "SKL-n is held
-at plan by label", "SKL-n is held at merge by label". When any picked
-ticket carries one, the one-line configuration echo before the first
-gate says so and names both labels.
-
 If a word at invocation is neither one of the three modes nor a gate
 spelled out, it is not a mode: **run supervised** and say that you
 did. A gate held unnecessarily costs one message; a gate released by
@@ -186,6 +154,39 @@ phase's status update; the transcript is the record, not a file.
 The human can re-hold a released gate at any point mid-run, and
 release one only by saying so. When in doubt mid-run, the gate is
 held.
+
+### Per-ticket holds
+
+A ticket carrying the `hold-plan` or `hold-merge` label in Linear has
+that one gate held for it, whatever mode the run was invoked in:
+
+- **`hold-plan`** — the ticket is planned as usual, the plan is written
+  into its description, and then its plan gate is held for that ticket
+  even if the run's plan gate is released.
+- **`hold-merge`** — the ticket's merge gate is held even if the run's
+  merge gate is released, with the same effect as a stop-list hit,
+  triggered by the ticket rather than by the paths the diff reached.
+
+A hold label beats the mode, beats a gate spelled out at invocation
+("no gates" does not clear it), and beats a plan-gate
+pre-authorization. Only the human clears it, for that ticket: in chat
+during the run, or — for `hold-merge` — by adding `approved-to-merge`.
+An approving GitHub review alone does not clear it: `merge-queue`
+merges a linked ticket only on `approved-to-merge`. Removing the label
+clears it for future runs too. No released gate anywhere clears it.
+
+Other tickets are unaffected. In autonomous mode a batch with one
+`hold-plan` ticket runs the rest to merge and stops once, on that one
+plan.
+
+The pipeline never adds or removes either label. They are the human's
+standing instruction for that ticket and persist across runs. A
+workspace that doesn't have them simply has no held tickets.
+
+Name the hold wherever a gate names its stop-list hits: "SKL-n is held
+at plan by label", "SKL-n is held at merge by label". When any picked
+ticket carries one, the one-line configuration echo before the first
+gate says so and names both labels.
 
 ## The stop-list
 
@@ -890,7 +891,8 @@ ticket whose plan the human approves joins the next wave. If the run
 otherwise finishes with a held plan still unanswered, the run ends
 there: the ticket stays in `Todo` with its plan written, not labelled
 `needs-attention` (it is not stalled), and the end-of-run report names
-it. The next run will pick it again and re-plan it, overwriting that
+it, along with every ticket serialized behind it (planned, never
+run). The next run will pick it again and re-plan it, overwriting that
 plan, until the human approves it in chat or removes the label.
 
 ## Phase 6 — Implement
@@ -956,11 +958,11 @@ Every report comes back with a `STOPLIST` line. A non-empty one holds
 that ticket's merge gate for the human whatever the mode. At the same
 point, re-read the ticket's labels: a `hold-merge` label holds its
 merge gate for the human whatever the mode, exactly like a non-empty
-`STOPLIST`. Nothing is posted for it — no comment, no `needs-attention`;
-the label is the record. On
+`STOPLIST`. Nothing is posted for the label hold — no comment, no
+`needs-attention`; the label is the record. Separately, on
 `RESULT: ready`, `adversarial-review` has already posted the `factory:
-stop-list hold` comment for it — every ready result gets one, `Entries:
-none` included; carry it into Phase 8. On `RESULT: capped`, `blocked`,
+stop-list hold` comment about the `STOPLIST` line — every ready result
+gets one, `Entries: none` included; carry it into Phase 8. On `RESULT: capped`, `blocked`,
 or `failed`, it's instead recorded on that result's `factory:
 escalation` comment, in its `Stop-list` line. On `RESULT: deferred`,
 it's recorded on the deferral note's `Stop-list` line instead — see
@@ -1036,7 +1038,9 @@ mode, the same as a stop-list hit, including under a released merge
 gate and for a ticket pre-authorized at the plan gate. Report it as
 ready and say "held at merge by label"; the ticket rests in `In Review`
 until the human clears it (adds `approved-to-merge`, approves in chat,
-or approves the PR on GitHub — or removes the label). Don't label it
+or removes the label). A GitHub approval alone does not clear it:
+`merge-queue` merges a linked ticket only on `approved-to-merge`. Don't
+label it
 `needs-attention`, for the same reason as above.
 
 Clearing a ticket makes it eligible; it does not set the order. Five
@@ -1151,8 +1155,11 @@ never restarts one itself.
 At the end of a run, also list any ticket still held at plan or at
 merge by label, one line each, with what clears it: for a plan hold,
 the human's approval in chat or removing `hold-plan`; for a merge
-hold, `approved-to-merge`, an approving GitHub review, or removing
-`hold-merge`.
+hold, `approved-to-merge` or removing `hold-merge` (an approving GitHub
+review alone does not clear it: `merge-queue` merges a linked ticket
+only on `approved-to-merge`). Also list any ticket serialized behind a
+`hold-plan` ticket whose plan is still unanswered: planned, not run,
+and waiting on that ticket's plan.
 
 A run in semi or autonomous mode reports more, not less, because
 nobody is watching it happen: post a status update at the end of each
