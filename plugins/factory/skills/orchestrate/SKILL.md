@@ -173,7 +173,10 @@ pre-authorization. Only the human clears it, for that ticket: in chat
 during the run, or — for `hold-merge` — by adding `approved-to-merge`.
 An approving GitHub review alone does not clear it: `merge-queue`
 merges a linked ticket only on `approved-to-merge`. Removing the label
-clears it for future runs too. No released gate anywhere clears it.
+only stops later runs from holding the ticket; it does not merge
+anything, and a ticket already resting in `In Review` is not re-picked,
+so after a run the human still clears the merge with
+`approved-to-merge`. No released gate anywhere clears it.
 
 Other tickets are unaffected. In autonomous mode a batch with one
 `hold-plan` ticket runs the rest to merge and stops once, on that one
@@ -1037,10 +1040,10 @@ the ticket, from `adversarial-review` (see "Escalation comments").
 mode, the same as a stop-list hit, including under a released merge
 gate and for a ticket pre-authorized at the plan gate. Report it as
 ready and say "held at merge by label"; the ticket rests in `In Review`
-until the human clears it (adds `approved-to-merge`, approves in chat,
-or removes the label). A GitHub approval alone does not clear it:
-`merge-queue` merges a linked ticket only on `approved-to-merge`. Don't
-label it
+until the human clears it (adds `approved-to-merge`, or approves in
+chat). Removing the label does not clear the merge: nothing re-reads it
+after this point, and `merge-queue` still needs `approved-to-merge`. A
+GitHub approval alone does not clear it either. Don't label it
 `needs-attention`, for the same reason as above.
 
 Clearing a ticket makes it eligible; it does not set the order. Five
@@ -1155,9 +1158,9 @@ never restarts one itself.
 At the end of a run, also list any ticket still held at plan or at
 merge by label, one line each, with what clears it: for a plan hold,
 the human's approval in chat or removing `hold-plan`; for a merge
-hold, `approved-to-merge` or removing `hold-merge` (an approving GitHub
-review alone does not clear it: `merge-queue` merges a linked ticket
-only on `approved-to-merge`). Also list any ticket serialized behind a
+hold, `approved-to-merge` (removing `hold-merge` does not clear it, and
+neither does an approving GitHub review alone: `merge-queue` merges a
+linked ticket only on `approved-to-merge`). Also list any ticket serialized behind a
 `hold-plan` ticket whose plan is still unanswered: planned, not run,
 and waiting on that ticket's plan.
 
