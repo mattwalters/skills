@@ -52,10 +52,11 @@ The section declares:
   outside the repo is recommended, so no ancestor `AGENTS.md`/`CLAUDE.md` can
   load into a run; it's shared across every clone of the repo on the machine.
   Namespace it per repo (this repo's own field uses
-  `.../worktrees/skills/`) — two adopting repos pointed at the same shared
-  directory would collide on worktree paths. A path inside the repo must
-  be gitignored. A section that still declares a **Run manifest** field is
-  fine; the pipeline keeps no manifest and the line is simply ignored.
+  `.../worktrees/mattwalters/skills/`) — two adopting repos pointed at
+  the same shared directory would collide on worktree paths. A path
+  inside the repo must be gitignored. A section that still declares a
+  **Run manifest** field is fine; the pipeline keeps no manifest and the
+  line is simply ignored.
 - **Review invariants**: what a reviewer should be adversarial about in this
   project. Reviewers bring no invariants of their own.
 - **Stop-list**: the paths and subjects whose merge always waits for a human,
