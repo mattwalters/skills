@@ -15,28 +15,13 @@ claude plugin marketplace add mattwalters/skills
 claude plugin install factory@mattwalters --scope user
 ```
 
-Don't pin a plugin in a project: no `enabledPlugins` entry for it in the
-project's `.claude/settings.json`, and no `--scope project` install. A project
-pin registers a separate install for every checkout and worktree that opens
-the project, and those drift from the user-scope version.
+A project declares nothing: no `enabledPlugins` and no
+`extraKnownMarketplaces` in any of its `.claude/settings*.json`, and no
+`--scope project` install. A project pin registers a separate install for
+every checkout and worktree that opens the project, and those drift from the
+user-scope version. Every machine that runs the factory, the cron host
+included, runs the two commands above once instead.
 
-A project may still declare the marketplace in its `.claude/settings.json`, so
-Claude Code knows where it lives on a machine that hasn't added it yet:
-
-```json
-{
-  "extraKnownMarketplaces": {
-    "mattwalters": {
-      "source": {
-        "source": "github",
-        "repo": "mattwalters/skills"
-      }
-    }
-  }
-}
-```
-
-The key (`mattwalters`) must match `name` in `.claude-plugin/marketplace.json`.
 To pick up later changes, run `claude plugin marketplace update mattwalters`.
 
 ### Opting in to `factory`
@@ -73,7 +58,7 @@ This repo's own [`AGENTS.md`](AGENTS.md) is a worked example.
 
 For a brand-new project, `/factory:new-project` does all of this in one
 sitting: it creates the repo, the Linear team, the `AGENTS.md` `## Orchestrate`
-section and the marketplace declaration, and refuses a repo or team that
+section, and refuses a repo or team that
 already exists. The manual steps above remain the path for an existing repo.
 
 ### Upgrading from factory 0.4 or earlier
