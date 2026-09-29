@@ -94,6 +94,14 @@ closed, stop before creating anything remote, say when it next opens, and print 
 `AGENTS.md` and `.claude/settings.json` so nothing typed is lost. There
 is no override.
 
+The window is checked again before each later write (see "Create, in
+order"), because it can close while the human creates the Linear team.
+If it closes partway, stop dead: report exactly what was created and
+what remains, and name the manual steps to finish once the window
+reopens. That partial state is an explicit exception to "Refuse if
+anything exists": the human finishes it by hand, and this skill does not
+adopt it or resume it. The refusal applies to fresh invocations.
+
 ## The Linear team
 
 The Linear MCP cannot create a team. After the absence check and the
@@ -106,8 +114,9 @@ statuses come with the team; there is nothing more to create.
 
 ## Create, in order
 
-1. Check the write window (above); it has already passed before the
-   Linear team was requested.
+1. Re-read the clock fresh, per "The write window" (above), before each
+   write from here on: `gh repo create`, the seed push, the wiring
+   push, and `gh pr create`. The earlier check does not cover them.
 2. `gh repo create` with no template and no auto-init.
 3. Clone to the human path, and to the cron path if chosen: two
    independent `gh repo clone`s, not worktrees of one another.
