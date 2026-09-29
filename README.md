@@ -71,6 +71,11 @@ The section declares:
 
 This repo's own [`AGENTS.md`](AGENTS.md) is a worked example.
 
+For a brand-new project, `/factory:new-project` does all of this in one
+sitting: it creates the repo, the Linear team, the `AGENTS.md` `## Orchestrate`
+section and the marketplace declaration, and refuses a repo or team that
+already exists. The manual steps above remain the path for an existing repo.
+
 ### Upgrading from factory 0.4 or earlier
 
 `factory` 0.5 renamed the `dispatch` skill to `orchestrate`, including the
@@ -91,7 +96,7 @@ running against a `## Dispatch` section it no longer reads.
 
 | Plugin | What it is |
 |---|---|
-| `factory` | Software factory skills. `orchestrate` takes Linear tickets through `implement-ticket`, `adversarial-review` and `merge-queue` to a merged PR; `decision-queue` turns whatever stopped into decisions to answer. Each repo that uses them declares its settings in an `AGENTS.md` `## Orchestrate` section. |
+| `factory` | Software factory skills. `orchestrate` takes Linear tickets through `implement-ticket`, `adversarial-review` and `merge-queue` to a merged PR; `decision-queue` turns whatever stopped into decisions to answer; `new-project` stands up a new repo, Linear team and the factory wiring in one interactive sitting. Each repo that uses them declares its settings in an `AGENTS.md` `## Orchestrate` section. |
 
 ## Layout
 
