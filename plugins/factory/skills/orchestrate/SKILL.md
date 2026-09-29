@@ -1,6 +1,6 @@
 ---
 name: orchestrate
-description: Batch-run the next tickets from Linear for the repo you are in. Picks 5–10 unblocked tickets from `Todo` by priority, stops for human approval on the selection, has each one planned into its ticket description, plans parallel vs serial execution, stops for approval again on the plans, then runs each ticket through the implement-ticket, adversarial-review, and merge-queue skills to a merged pull request. Its three gates — selection, plan, merge — are set by naming a mode at invocation: supervised, semi, or autonomous. Reads the host repo's `AGENTS.md` `## Orchestrate` section for its Linear team, check command, base branch, write window, and worktree locations, and stops a stage short of any commit, push, or merge while that window is closed. Every stop any stage hits is recorded as a comment or label on its Linear ticket (or its PR, if none resolved), so nothing a run stops on depends on this session's own context surviving. Use when asked to run the queue, work the next tickets, orchestrate a batch, or process Linear tickets in parallel. Do not use for a single ticket a human is already driving — use implement-ticket, adversarial-review, or merge-queue directly for that.
+description: Batch-run the next tickets from Linear for the repo you are in. Picks 5–10 unblocked tickets from `Todo` by priority, stops for human approval on the selection, has each one planned into its ticket description, plans parallel vs serial execution, stops for approval again on the plans, then runs each ticket through the implement-ticket, adversarial-review, and merge-queue skills to a merged pull request. Its three gates — selection, plan, merge — are set by naming a mode at invocation: supervised, semi, or autonomous. A ticket carrying a `hold-plan` or `hold-merge` label has that gate held for it alone, whatever the mode. Reads the host repo's `AGENTS.md` `## Orchestrate` section for its Linear team, check command, base branch, write window, and worktree locations, and stops a stage short of any commit, push, or merge while that window is closed. Every stop any stage hits is recorded as a comment or label on its Linear ticket (or its PR, if none resolved), so nothing a run stops on depends on this session's own context surviving. Use when asked to run the queue, work the next tickets, orchestrate a batch, or process Linear tickets in parallel. Do not use for a single ticket a human is already driving — use implement-ticket, adversarial-review, or merge-queue directly for that.
 ---
 
 # Orchestrate
@@ -86,6 +86,11 @@ Three points in a run stop for a human:
 **By default all three are held.** Only the human can release one, at
 invocation, and the ordinary way they do it is by naming a mode.
 
+Two of the gates can also be held for one ticket alone, by a label the
+human puts on it: `hold-plan` and `hold-merge`. See "Per-ticket
+holds". There is no `hold-selection` — selection is a batch decision,
+and a ticket that shouldn't be picked stays in `Backlog`.
+
 ## Modes
 
 Gates are the mechanism; modes are names for the three settings of
@@ -150,6 +155,42 @@ The human can re-hold a released gate at any point mid-run, and
 release one only by saying so. When in doubt mid-run, the gate is
 held.
 
+### Per-ticket holds
+
+A ticket carrying the `hold-plan` or `hold-merge` label in Linear has
+that one gate held for it, whatever mode the run was invoked in:
+
+- **`hold-plan`** — the ticket is planned as usual, the plan is written
+  into its description, and then its plan gate is held for that ticket
+  even if the run's plan gate is released.
+- **`hold-merge`** — the ticket's merge gate is held even if the run's
+  merge gate is released, with the same effect as a stop-list hit,
+  triggered by the ticket rather than by the paths the diff reached.
+
+A hold label beats the mode, beats a gate spelled out at invocation
+("no gates" does not clear it), and beats a plan-gate
+pre-authorization. Only the human clears it, for that ticket: in chat
+during the run, or — for `hold-merge` — by adding `approved-to-merge`.
+An approving GitHub review alone does not clear it: `merge-queue`
+merges a linked ticket only on `approved-to-merge`. Removing the label
+only stops later runs from holding the ticket; it does not merge
+anything, and a ticket already resting in `In Review` is not re-picked,
+so after a run the human still clears the merge with
+`approved-to-merge`. No released gate anywhere clears it.
+
+Other tickets are unaffected. In autonomous mode a batch with one
+`hold-plan` ticket runs the rest to merge and stops once, on that one
+plan.
+
+The pipeline never adds or removes either label. They are the human's
+standing instruction for that ticket and persist across runs. A
+workspace that doesn't have them simply has no held tickets.
+
+Name the hold wherever a gate names its stop-list hits: "SKL-n is held
+at plan by label", "SKL-n is held at merge by label". When any picked
+ticket carries one, the one-line configuration echo before the first
+gate says so and names both labels.
+
 ## The stop-list
 
 Some changes stop for a human however the run is configured. The repo
@@ -201,7 +242,8 @@ wait on it. In particular a **capped review never merges**, whatever
 the merge gate is set to: a released merge gate authorizes merging
 work that came back ready, not work review couldn't finish. The
 **stop-list** is not a gate either, and it overrides a released merge
-gate the same way.
+gate the same way. So does a `hold-merge` label, triggered by the
+ticket rather than the diff — see "Per-ticket holds".
 
 ## The write window
 
@@ -448,7 +490,7 @@ to it.
 
 ## Statuses and labels
 
-Only Linear's stock statuses are used, plus two workspace labels:
+Only Linear's stock statuses are used, plus four workspace labels:
 
 - `Todo` — the queue this skill draws new picks from, and the only
   one for that. A ticket sitting `In Progress` or `In Review` with a
@@ -472,15 +514,24 @@ Only Linear's stock statuses are used, plus two workspace labels:
   `factory: escalation` comment on the same ticket (see "Escalation
   comments").
 
-Both are workspace labels, so they exist on every team automatically.
-Move tickets and add labels yourself as they advance; a GitHub
-automation may race you to `Done` on merge, which is harmless.
+- The **`hold-plan`** and **`hold-merge`** labels — human-owned. The
+  human puts one on a ticket to hold that ticket's plan or merge gate
+  whatever the run's mode (see "Per-ticket holds"). `orchestrate` reads
+  them and never adds or removes either.
+
+All four are workspace labels. `needs-attention` and `approved-to-merge`
+exist on every team automatically; the hold labels are created by the
+human when first wanted, and a workspace without them simply has no
+held tickets. Move tickets and add labels yourself as they advance,
+except the hold labels; a GitHub automation may race you to `Done` on
+merge, which is harmless.
 
 Take a label off when it stops being true: `needs-attention` comes off
 when the ticket is picked back up, or when a `factory: decision` is
 posted for it, and `approved-to-merge` comes off when the ticket
 reaches `Done`. A stale label on a finished ticket is noise in
-everyone's views.
+everyone's views. The hold labels are exempt: they stay until the human
+removes them, `Done` included.
 
 **You never pick from `Backlog`** — see Phase 1.
 
@@ -684,6 +735,10 @@ coherent batch, can jump the line. Pick 5–10 — or everything eligible
 in `Todo` if it holds fewer. A short batch is a normal outcome, not a
 reason to reach further.
 
+Note which picks carry `hold-plan` or `hold-merge` (see "Per-ticket
+holds"), in your own context. A hold label is not a reason to skip a
+ticket.
+
 A ticket sitting `In Progress` or `In Review` with a deferral comment
 (see "The write window") is not picked up here — Phase 1 only draws
 from `Todo`, and orchestrate never restarts a deferred ticket itself, in
@@ -723,7 +778,8 @@ empty `Todo` means there is nothing to run — say so and stop.
 ## Phase 2 — Selection gate
 
 Present the picks and stop: a table of ticket, title, priority,
-estimate, and one line of why-now drawn from the description. Nothing
+estimate, and one line of why-now drawn from the description, flagging
+any pick that carries a hold label. Nothing
 is planned yet, so there are no plan summaries here and no waves —
 that is the next gate's job. Add, separately:
 
@@ -743,7 +799,8 @@ Do not spawn a planner, and do not move any ticket, until they do.
 The approval covers this selection only.
 
 If this gate is released, say in one line which tickets you took and
-what you passed over, and go straight to Phase 3.
+what you passed over, naming any pick that carries a hold label, and go
+straight to Phase 3.
 
 ## Phase 3 — Plan each ticket
 
@@ -761,7 +818,10 @@ plan in a comment, where it sinks under later traffic.
 
 Each planner also checks the files it expects to touch against the
 repo's stop-list and reports what they hit. Hold it for the plan gate;
-that's what you present there.
+that's what you present there. At that same point, re-read each
+ticket's labels (a human may have added one since Phase 1) and record
+which carry `hold-plan` or `hold-merge`. The planner prompt is
+unchanged; it knows nothing of the labels.
 
 A planner that finds a ticket too vague, or big enough to be several
 tickets, reports it unplannable instead of guessing. A planner that
@@ -798,14 +858,18 @@ Group:
 The output is waves: wave 1 runs in parallel, wave 2 starts as its
 prerequisites merge, and so on.
 
+A `hold-plan` ticket joins a wave only once its plan is approved (see
+Phase 5), and a ticket that depends on it is serialized behind it.
+
 ## Phase 5 — Plan gate
 
 Present the plans and stop: a table of ticket, wave, and the plan's
 one-line summary, plus a note on anything serialized and why, which
 tickets the planners flagged as stop-list hits and which entry each
-one hit, and any tickets the planners dropped as unplannable or
-blocked (say which, and for blocked, what the planner found and the
-options it gave). Approving here approves the
+one hit, which tickets are held at plan by label and which at merge by
+label (see "Per-ticket holds"), and any tickets the planners dropped as
+unplannable or blocked (say which, and for blocked, what the planner
+found and the options it gave). Approving here approves the
 plans — the full plans are on the tickets for anyone who wants the
 detail. The human can still drop a ticket, or add one (an added ticket
 gets a planner pass before it joins a wave).
@@ -815,14 +879,24 @@ though the human can pre-authorize a particular ticket's merge here if
 they say so. A pre-authorization does **not** cover a stop-list
 ticket, even one flagged right here: the list exists so that those
 merges are decided after somebody has seen the diff, and nothing at
-plan time has seen it yet.
+plan time has seen it yet. Nor does it cover a `hold-merge` ticket, for
+the same reason.
 
 Do not start any work until the human says yes. The approval covers
 this batch only.
 
 If this gate is released, say in one line what the waves are, any
-stop-list hits, and anything the planners dropped, and go straight to
-Phase 6.
+stop-list hits, any tickets held at merge by label, and anything the
+planners dropped, and go straight to Phase 6 with every ticket *not*
+carrying `hold-plan`. Present each held plan — ticket, the plan's
+one-line summary, "held at plan by label" — and wait on those alone; a
+ticket whose plan the human approves joins the next wave. If the run
+otherwise finishes with a held plan still unanswered, the run ends
+there: the ticket stays in `Todo` with its plan written, not labelled
+`needs-attention` (it is not stalled), and the end-of-run report names
+it, along with every ticket serialized behind it (planned, never
+run). The next run will pick it again and re-plan it, overwriting that
+plan, until the human approves it in chat or removes the label.
 
 ## Phase 6 — Implement
 
@@ -884,10 +958,14 @@ finish.
 The human can name a different budget at invocation; theirs wins.
 
 Every report comes back with a `STOPLIST` line. A non-empty one holds
-that ticket's merge gate for the human whatever the mode. On
+that ticket's merge gate for the human whatever the mode. At the same
+point, re-read the ticket's labels: a `hold-merge` label holds its
+merge gate for the human whatever the mode, exactly like a non-empty
+`STOPLIST`. Nothing is posted for the label hold — no comment, no
+`needs-attention`; the label is the record. Separately, on
 `RESULT: ready`, `adversarial-review` has already posted the `factory:
-stop-list hold` comment for it — every ready result gets one, `Entries:
-none` included; carry it into Phase 8. On `RESULT: capped`, `blocked`,
+stop-list hold` comment about the `STOPLIST` line — every ready result
+gets one, `Entries: none` included; carry it into Phase 8. On `RESULT: capped`, `blocked`,
 or `failed`, it's instead recorded on that result's `factory:
 escalation` comment, in its `Stop-list` line. On `RESULT: deferred`,
 it's recorded on the deferral note's `Stop-list` line instead — see
@@ -942,7 +1020,11 @@ and add the `approved-to-merge` label yourself, then proceed. Tell
 `merge-queue` plainly that the merge gate was released for this run,
 so it is not left inferring where the approval came from. This
 authority covers tickets that came back **ready** and nothing else: a
-capped, blocked, or failed ticket is never cleared under it.
+capped, blocked, or failed ticket is never cleared under it. It never
+covers a `hold-merge` ticket either: don't add `approved-to-merge` to
+one, and don't include it when telling `merge-queue` the merge gate
+was released. Re-check the ticket's labels immediately before adding
+`approved-to-merge` under a released gate.
 
 **Stop-list hit** — the merge waits for the human whatever the mode,
 including a run whose merge gate was released at invocation, and
@@ -953,6 +1035,16 @@ stalled, it is waiting on approval like any other ready ticket, and
 using the stall label here buries the tickets that actually stalled.
 The `factory: stop-list hold` comment naming the entry is already on
 the ticket, from `adversarial-review` (see "Escalation comments").
+
+**Hold-merge label** — the merge waits for the human whatever the
+mode, the same as a stop-list hit, including under a released merge
+gate and for a ticket pre-authorized at the plan gate. Report it as
+ready and say "held at merge by label"; the ticket rests in `In Review`
+until the human clears it (adds `approved-to-merge`, or approves in
+chat). Removing the label does not clear the merge: nothing re-reads it
+after this point, and `merge-queue` still needs `approved-to-merge`. A
+GitHub approval alone does not clear it either. Don't label it
+`needs-attention`, for the same reason as above.
 
 Clearing a ticket makes it eligible; it does not set the order. Five
 may come clear at once — invoke the `merge-queue` skill with all of
@@ -1062,6 +1154,15 @@ green — a bare restart can't fix it: say instead that it needs a human
 to get the rebased head's CI green, then re-run `merge-queue <PR>`.
 Either way, that action is theirs to make (see "Restarting"); this run
 never restarts one itself.
+
+At the end of a run, also list any ticket still held at plan or at
+merge by label, one line each, with what clears it: for a plan hold,
+the human's approval in chat or removing `hold-plan`; for a merge
+hold, `approved-to-merge` (removing `hold-merge` does not clear it, and
+neither does an approving GitHub review alone: `merge-queue` merges a
+linked ticket only on `approved-to-merge`). Also list any ticket serialized behind a
+`hold-plan` ticket whose plan is still unanswered: planned, not run,
+and waiting on that ticket's plan.
 
 A run in semi or autonomous mode reports more, not less, because
 nobody is watching it happen: post a status update at the end of each
