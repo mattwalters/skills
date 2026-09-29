@@ -94,8 +94,8 @@ closed, stop before creating anything remote, say when it next opens, and print 
 `AGENTS.md` and `.claude/settings.json` so nothing typed is lost. There
 is no override.
 
-The window is checked again before each later write (see "Create, in
-order"), because it can close while the human creates the Linear team.
+The window is checked again before each later gated write, commits
+included (see "Create, in order"), because it can close while the human creates the Linear team.
 If it closes partway, stop dead: report exactly what was created and
 what remains, and name the manual steps to finish once the window
 reopens. That partial state is an explicit exception to "Refuse if
@@ -115,8 +115,12 @@ statuses come with the team; there is nothing more to create.
 ## Create, in order
 
 1. Re-read the clock fresh, per "The write window" (above), before each
-   write from here on: `gh repo create`, the seed push, the wiring
-   push, and `gh pr create`. The earlier check does not cover them.
+   gated write from here on, as orchestrate's "Gated writes" defines
+   them: `gh repo create`, the seed commit and the seed push, the wiring
+   commit and the wiring push, and `gh pr create`. A commit stamps its
+   timestamp when it is made, so the check runs before each commit, not
+   only before the push that publishes it. The earlier check does not
+   cover any of them.
 2. `gh repo create` with no template and no auto-init.
 3. Clone to the human path, and to the cron path if chosen: two
    independent `gh repo clone`s, not worktrees of one another.
