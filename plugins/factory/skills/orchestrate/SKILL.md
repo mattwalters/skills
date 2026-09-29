@@ -421,9 +421,10 @@ once it merges and each repo's installed marketplace is updated.
 Two mechanisms carry it into a project repo:
 
 - **Claude Code** gets it as the `factory` plugin from the `mattwalters`
-  marketplace. Each project repo declares the marketplace and enables
-  the plugin in a tracked `.claude/settings.json`, so a clone wires
-  itself up. A plugin namespaces its skills, so in Claude Code these
+  marketplace. It is installed once per machine, at user scope; a
+  project repo may declare the marketplace in its tracked
+  `.claude/settings.json` so Claude Code knows where it lives, but
+  never pins the plugin there (see the README's "Installing"). A plugin namespaces its skills, so in Claude Code these
   five are invoked as `/factory:orchestrate`, `/factory:implement-ticket`,
   `/factory:adversarial-review`, `/factory:merge-queue` and
   `/factory:decision-queue`. Everywhere else in these files they are
