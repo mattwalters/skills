@@ -24,8 +24,7 @@ section for its repo-specific configuration.
   detached worktree per ticket, named for the ticket — outside the
   repo so no `AGENTS.md`/`CLAUDE.md` above the checkout loads into a
   ticket's run.
-- **Write window**: closed Monday–Friday 09:00–17:00
-  America/Los_Angeles; open otherwise, including all weekend.
+- **Write window**: `none`.
 
 This pipeline keeps no run manifest; per-ticket state lives in the
 orchestrator's own context for the life of a run, and whatever must
