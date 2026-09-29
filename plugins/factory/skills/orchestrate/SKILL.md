@@ -306,6 +306,13 @@ it regardless, per "The one worktree rule" below — it's so a human can
 inspect or salvage whatever was left uncommitted or unpushed before
 that reset happens.
 
+One exception, so these two rules don't contradict:
+`adversarial-review`'s un-draft of a PR whose cycle ends ready is
+*skipped*, not deferred, while the window is closed — the cycle still
+reports `ready` and still posts its stop-list hold, and `merge-queue`
+un-drafts the PR itself at merge time instead. See `adversarial-review`'s
+"When a target is ready".
+
 Nothing releases the window except the repo's own declaration. It is
 not a gate and not an escalation: no mode, no released gate, and no
 plan-gate pre-authorization opens it, and a deferred ticket gets no
@@ -889,6 +896,10 @@ On `RESULT: ready`, go to Phase 8. Ready means no major and no medium
 findings, not zero findings: open minors come back listed in the
 report and are not a reason to hold the ticket. Pass them through to
 the human as part of the ready report and leave them on the PR.
+`adversarial-review` has already marked the PR ready for review
+(un-drafted it), unless its NOTES say it left the PR draft because the
+write window was closed — relay whichever happened as part of the
+ready report.
 
 On `RESULT: capped`, the ticket does not proceed to merge under any
 gate configuration — leave it in `In Review`. `adversarial-review` has
