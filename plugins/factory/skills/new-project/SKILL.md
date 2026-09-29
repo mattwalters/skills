@@ -80,17 +80,24 @@ If any check fails, say exactly what exists and stop. Do not adopt it.
 
 ## The write window
 
-After the interview and before the first GitHub write (repo creation,
-the seed push, the PR), evaluate the declared write window using
-orchestrate's "The write window" procedure, without copying it here. With
-`none` it passes trivially. If the window is closed, stop before
-creating anything remote, say when it next opens, and print the drafted
+After the interview and before anything remote is created, including
+asking the human to create the Linear team (so a closed window never
+leaves a team behind that the no-adopt rule then refuses), evaluate the
+declared write window using the "The write window" section of the
+`orchestrate` skill's `SKILL.md` (a sibling of this skill's directory,
+`../orchestrate/SKILL.md`; use `Glob` for `**/skills/orchestrate/SKILL.md`
+under the plugin root if that path does not resolve). Read that section
+now and follow it, including its check that the declared time zone
+exists; do not evaluate the window from memory, and do not copy the
+procedure here. With `none` it passes trivially. If the window is
+closed, stop before creating anything remote, say when it next opens, and print the drafted
 `AGENTS.md` and `.claude/settings.json` so nothing typed is lost. There
 is no override.
 
 ## The Linear team
 
-The Linear MCP cannot create a team. After the absence check, tell the
+The Linear MCP cannot create a team. After the absence check and the
+write-window check, tell the
 human to create the team in Linear with the agreed name and key, and
 wait. Then verify with `get_team` or `list_teams` that the key matches
 and the team has no issues. On a mismatch, say what differs and stop.
@@ -99,7 +106,8 @@ statuses come with the team; there is nothing more to create.
 
 ## Create, in order
 
-1. Check the write window (above).
+1. Check the write window (above); it has already passed before the
+   Linear team was requested.
 2. `gh repo create` with no template and no auto-init.
 3. Clone to the human path, and to the cron path if chosen: two
    independent `gh repo clone`s, not worktrees of one another.
