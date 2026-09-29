@@ -159,14 +159,22 @@ window".
 
 5. **`RESULT: green`**, intent review passed or not required → check
    the write window once more, immediately before merging — it can
-   have closed since step 3 started, and `gh pr merge` is a gated
-   write in its own right, not covered by the resolver's checks. If
-   it's closed, stop here and report this PR `deferred` (see "On a
-   deferred report"): the rebase went green, but nothing gets merged
-   while the window is shut.
+   have closed since step 3 started, and `gh pr ready` and `gh pr
+   merge` are both gated writes in their own right, not covered by the
+   resolver's checks. If it's closed, stop here and report this PR
+   `deferred` (see "On a deferred report"): the rebase went green, but
+   nothing gets merged while the window is shut.
 
-   Mark the PR ready and merge it:
+   Mark the PR ready and merge it — un-drafting here is mechanical,
+   not approval: draft state is never an eligibility input (see
+   "Eligibility" above), and this idempotent pair just covers a PR
+   that reaches this step still draft (a standalone review, a ready
+   cycle that ended while the write window was closed, or a human's PR
+   approved by GitHub review):
 
+       if [ "$(gh pr view <number> --json isDraft -q .isDraft)" = "true" ]; then
+         gh pr ready <number>
+       fi
        gh pr merge <number> --squash
 
    Don't use `gh pr merge`'s own `--delete-branch` flag: it tries to

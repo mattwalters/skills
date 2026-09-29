@@ -1,6 +1,6 @@
 ---
 name: adversarial-review
-description: Run adversarial review rounds on one or more open pull requests — a fresh reviewer subagent each round, a fixer subagent addressing findings, capped at six rounds by default and stopped early when rounds stop making progress — and report which are ready to merge, meaning no major or medium findings left. Reviews against the host repo's own invariants, declared in its `AGENTS.md` `## Orchestrate` section, which also declares a write window that stops the fixer short of any commit or push while it's closed. Labels and records a capped, blocked, or failed outcome, and a stop-list hold, on the linked ticket (or on the PR itself when none resolves). Use when asked to adversarially review a PR, run a review cycle, or review every open PR. Called by the orchestrate skill right after implement-ticket reports a ticket green; equally fine invoked standalone against any open PR, ticket-linked or not.
+description: Run adversarial review rounds on one or more open pull requests — a fresh reviewer subagent each round, a fixer subagent addressing findings, capped at six rounds by default and stopped early when rounds stop making progress — and report which are ready to merge, meaning no major or medium findings left; a ready PR is marked ready for review (un-drafted) in the same step. Reviews against the host repo's own invariants, declared in its `AGENTS.md` `## Orchestrate` section, which also declares a write window that stops the fixer's commits and pushes, and this skill's own un-draft, short while it's closed. Labels and records a capped, blocked, or failed outcome, and a stop-list hold, on the linked ticket (or on the PR itself when none resolves). Use when asked to adversarially review a PR, run a review cycle, or review every open PR. Called by the orchestrate skill right after implement-ticket reports a ticket green; equally fine invoked standalone against any open PR, ticket-linked or not.
 ---
 
 # Adversarial review
@@ -122,8 +122,10 @@ starting. Four fields matter most here:
   "On a deferred report" below). Neither a hold nor a deferral note is
   a label.
 - **Write window** — the weekday hours, if any, during which a commit
-  or push is not allowed to happen. Pass it down to the fixer. See the
-  `orchestrate` skill's "The write window".
+  or push is not allowed to happen. Pass it down to the fixer. It also
+  governs the one gated write this skill makes itself: the `gh pr
+  ready` on a ready result (see "When a target is ready" below). See
+  the `orchestrate` skill's "The write window".
 
 Also take the base branch and the worktree directory (`<runs-dir>`)
 from that section. No `## Orchestrate` section means the repo has not
@@ -292,6 +294,24 @@ leave the minor open and say so — which is exactly what the fixer is
 told to do when it finds one. The pass is optional; skipping it costs
 nothing.
 
+Once the verdict is `ready` — after any trivial-minors pass above, and
+after its reset-and-check-CI handling if that pass deferred — mark the
+PR ready for review, immediately before posting the stop-list hold
+(see "Recording the stop-list hold" below): check the write window per
+the `orchestrate` skill's "The write window" (verify the zone once,
+read the clock fresh — never reuse a reading from earlier in the
+cycle). If it's open, check `gh pr view <PR> --json isDraft -q
+.isDraft`; if that's `true`, run `gh pr ready <PR>`. If the window is
+closed, skip the un-draft and still report `ready` — do **not** report
+`deferred`: the review itself is finished and the hold must still be
+posted; `merge-queue` un-drafts the PR at merge time instead. Say which
+happened in the report's NOTES — `PR marked ready for review`, `PR was
+already ready for review`, or `PR left draft: write window closed`. If
+`gh pr ready` itself errors for another reason, likewise report
+`ready` with the error in NOTES — it is not an escalation, and
+`merge-queue` retries the un-draft when it gets there. This applies to
+every target that ends ready, ticketed or not.
+
 ## Recording the stop-list hold
 
 Once this cycle ends **ready** (see "When a target is ready" above),
@@ -385,12 +405,16 @@ way. There is no resume: a later call restarts this cycle from round 1
            rows behind that read>
 
 `RESULT: ready` means no major or medium findings on the latest round
-and CI green — it is not a merge, and it is not merge approval. This
-skill never merges anything; a human (directly, or via the `orchestrate`
-skill's
-merge queue) still approves that separately, and approval is what puts
-the `approved-to-merge` label on the ticket. Never add that label
-yourself.
+and CI green — it is not a merge, and it is not merge approval. It also
+means the PR was marked ready for review (un-drafted), unless NOTES
+says it was left draft — the write window was closed, or `gh pr ready`
+itself errored; either way, un-drafting is a signal to readers that
+review has finished, not merge approval, and merge eligibility is
+unchanged (see `merge-queue`'s "Eligibility"). This skill never merges
+anything; a human (directly, or via the `orchestrate` skill's merge
+queue) still approves that separately, and for a ticketed PR, approval
+is what puts the `approved-to-merge` label on the ticket. Never add
+that label yourself.
 
 A non-empty `STOPLIST` line means the caller holds this ticket's merge
 gate for a human however the run is configured — including a run whose

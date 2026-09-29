@@ -123,4 +123,6 @@ Relay the implementer's report upward, unchanged:
 
 `RESULT: green` means CI is green on a draft PR — it says nothing
 about review. This skill never runs review and never merges; see
-`adversarial-review` and, for the full pipeline, `orchestrate`.
+`adversarial-review` and, for the full pipeline, `orchestrate`. The PR
+stays draft until `adversarial-review` marks it ready for review on a
+ready result.
