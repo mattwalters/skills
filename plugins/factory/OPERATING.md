@@ -80,12 +80,17 @@ gate. Every blocked, failed or capped stop, and every stop-list hold, lands on
 the Linear ticket, or on the pull request if no ticket resolves, as a
 `factory: escalation` or `factory: stop-list hold` comment, a label, or both.
 
-A closed write window is the quiet exception, and it is not an escalation.
+A closed write window is the quiet exception, and ordinarily not an escalation.
 The stage stops dead and reports deferred. On a ticket it leaves one
 `factory: deferred` comment, no label, and the status unchanged, so a ticket
 can sit in `In Review` overnight looking untouched. On a pull request with no
 ticket it posts nothing, and the stage's own report is the only record. A
-human restarts a deferred stage by hand. See "The stop-list", "Escalation
+human restarts a deferred stage by hand. The one exception is the merge
+queue's stuck head: if the window closes after a rebased head was pushed but
+before its checks are green, that is an escalation, with the
+`needs-attention` label and a `factory: escalation` comment, on the pull
+request if there is no ticket. Re-running the merge queue will not help,
+since it refuses a head that is not green. See "The stop-list", "Escalation
 comments" and "The write window" in
 [orchestrate](skills/orchestrate/SKILL.md).
 
@@ -116,8 +121,8 @@ and the write window. The write window is required, and `none` means there
 is none. Reviewers bring no invariants of their own, so the review
 invariants are what a review is adversarial about in that repo.
 
-If the section is missing, every skill stops and says so rather than
-guessing. If a single field is missing, the run stops before the point where
+If the section is missing, every skill except `new-project`, which creates
+it, stops and says so rather than guessing. If a single field is missing, the run stops before the point where
 it is needed. For a worked example, look at the `AGENTS.md` of the repo the
 session is in. Nothing project-specific lives in the skills. See "Repo
 configuration" and "The write window" in
