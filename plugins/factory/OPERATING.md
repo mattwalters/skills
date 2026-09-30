@@ -123,7 +123,7 @@ invariants are what a review is adversarial about in that repo.
 
 If the section is missing, every skill except `new-project`, which creates
 it, stops and says so rather than guessing. If a single field is missing, the run stops before the point where
-it is needed. For a worked example, look at the `AGENTS.md` of the repo the
+it is needed. The worked example is the `AGENTS.md` of whichever repo the
 session is in. Nothing project-specific lives in the skills. See "Repo
 configuration" and "The write window" in
 [orchestrate](skills/orchestrate/SKILL.md).
