@@ -90,7 +90,11 @@ running against a `## Dispatch` section it no longer reads.
 plugins/<plugin>/
   .claude-plugin/plugin.json      name, description, version
   skills/<skill>/SKILL.md         one directory per skill
+  OPERATING.md                    optional: read-aloud orientation (factory)
 ```
+
+To get oriented on how the factory works, start with
+[`plugins/factory/OPERATING.md`](plugins/factory/OPERATING.md).
 
 This repo is meant to hold many plugins. Skills that aren't related go in
 separate plugins, so each plugin can be versioned and enabled on its own. To
