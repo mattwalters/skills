@@ -464,9 +464,8 @@ Two mechanisms carry it into a project repo:
 
 - **Claude Code** gets it as the `factory` plugin from the `mattwalters`
   marketplace. It is installed once per machine, at user scope; a
-  project repo may declare the marketplace in its tracked
-  `.claude/settings.json` so Claude Code knows where it lives, but
-  never pins the plugin there (see the README's "Installing"). A plugin namespaces its skills, so in Claude Code these
+  project repo declares neither the marketplace nor the plugin in its
+  `.claude/settings.json` (see the README's "Installing"). A plugin namespaces its skills, so in Claude Code these
   five are invoked as `/factory:orchestrate`, `/factory:implement-ticket`,
   `/factory:adversarial-review`, `/factory:merge-queue` and
   `/factory:decision-queue`. Everywhere else in these files they are

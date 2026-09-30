@@ -1,12 +1,12 @@
 ---
 name: new-project
-description: Stand up a new GitHub repo, a Linear team and the factory wiring (an `AGENTS.md` `## Orchestrate` section plus a `.claude/settings.json` declaring the marketplace) in one interactive sitting, through an interview where enter accepts each conservative default, ending with a first PR left open for the human to merge. Refuses if the repo or the Linear team already exists. Interactive only, at a terminal with a human answering — never for cron or unattended runs — and it does not add the project to cron. Use when asked to start or set up a new project or repo for the factory. Do not use to adopt an existing repo.
+description: Stand up a new GitHub repo, a Linear team and the factory wiring (an `AGENTS.md` `## Orchestrate` section; the new repo declares no plugins and no marketplaces, and relies on the user-scope install) in one interactive sitting, through an interview where enter accepts each conservative default, ending with a first PR left open for the human to merge. Refuses if the repo or the Linear team already exists. Interactive only, at a terminal with a human answering — never for cron or unattended runs — and it does not add the project to cron. Use when asked to start or set up a new project or repo for the factory. Do not use to adopt an existing repo.
 ---
 
 # New project
 
 Starting a project by hand means the same setup every time: a GitHub
-repo, a Linear team, a working copy, a `.claude/settings.json`, and an
+repo, a Linear team, a working copy, and an
 `AGENTS.md` with a `## Orchestrate` section the other factory skills
 read. Miss the last and `orchestrate` refuses to run. This skill does
 all of it in one sitting. It is not a pipeline stage: nothing in
@@ -91,7 +91,7 @@ now and follow it, including its check that the declared time zone
 exists; do not evaluate the window from memory, and do not copy the
 procedure here. With `none` it passes trivially. If the window is
 closed, stop before creating anything remote, say when it next opens, and print the drafted
-`AGENTS.md` and `.claude/settings.json` so nothing typed is lost. There
+`AGENTS.md` so nothing typed is lost. There
 is no override.
 
 The window is checked again before each later gated write, commits
@@ -126,29 +126,18 @@ statuses come with the team; there is nothing more to create.
    independent `gh repo clone`s, not worktrees of one another.
 4. Seed commit: a one-line `README.md` only, pushed straight to the base
    branch. A brand-new repo has no base branch to open a PR against.
-5. Branch `new-project/wiring`. Write:
-   - `.claude/settings.json` holding only the marketplace declaration,
-     and **no** `enabledPlugins`:
+5. Branch `new-project/wiring`. Write `AGENTS.md`: a short project
+   stub, then a `## Orchestrate` section carrying every field
+   orchestrate's "Repo configuration" lists, under exactly those names:
+   **Linear team key**, **Check command**, **Base branch**,
+   **Worktrees**, **Review invariants**, **Stop-list**, **Write
+   window**. The heading is `## Orchestrate`. Write no mode field:
+   modes are chosen per invocation.
 
-     ```json
-     {
-       "extraKnownMarketplaces": {
-         "mattwalters": {
-           "source": {
-             "source": "github",
-             "repo": "mattwalters/skills"
-           }
-         }
-       }
-     }
-     ```
-
-   - `AGENTS.md`: a short project stub, then a `## Orchestrate` section
-     carrying every field orchestrate's "Repo configuration" lists,
-     under exactly those names: **Linear team key**, **Check command**,
-     **Base branch**, **Worktrees**, **Review invariants**,
-     **Stop-list**, **Write window**. The heading is `## Orchestrate`.
-     Write no mode field: modes are chosen per invocation.
+   Write no `.claude/settings.json`, and nothing in any other settings
+   file, that declares a marketplace or pins a plugin: no
+   `extraKnownMarketplaces`, no `enabledPlugins`. The new project
+   inherits the user-scope install and declares nothing.
 6. Commit, push, `gh pr create`. **Leave the PR open for the human to
    merge.** Never merge it. That runs the normal motion once as a smoke
    test.
@@ -163,8 +152,8 @@ do not try to undo it. Deleting a repo is not this skill's to do.
 
 ## Not done
 
-This skill does not install or enable the plugin at project scope, and
-installs nothing: it is running from the `factory` plugin, so factory is
+This skill does not install or enable the plugin at project scope,
+declares no plugin or marketplace in the new repo, and installs nothing: it is running from the `factory` plugin, so factory is
 already installed on this machine, at user scope. It does not add the
 project to cron; that stays a deliberate, human-only step. It does not
 merge the PR. It does not create the `.agents/skills/` symlinks Codex
