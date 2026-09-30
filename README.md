@@ -83,7 +83,7 @@ running against a `## Dispatch` section it no longer reads.
 
 | Plugin | What it is |
 |---|---|
-| `factory` | Software factory skills. `orchestrate` takes Linear tickets through `implement-ticket`, `adversarial-review` and `merge-queue` to a merged PR; `decision-queue` turns whatever stopped into decisions to answer; `new-project` stands up a new repo, Linear team and the factory wiring in one interactive sitting. Each repo that uses them declares its settings in an `AGENTS.md` `## Orchestrate` section. |
+| `factory` | Software factory skills. `orchestrate` takes Linear tickets through `implement-ticket`, `adversarial-review` and `merge-queue` to a merged PR; `decision-queue` turns whatever stopped into decisions to answer; `new-project` stands up a new repo, Linear team and the factory wiring in one interactive sitting; `/factory:preamble` loads the operating manual into a Claude Code session. Each repo that uses them declares its settings in an `AGENTS.md` `## Orchestrate` section. |
 
 ## Layout
 
@@ -92,11 +92,13 @@ running against a `## Dispatch` section it no longer reads.
 plugins/<plugin>/
   .claude-plugin/plugin.json      name, description, version
   skills/<skill>/SKILL.md         one directory per skill
+  commands/<command>.md           optional: slash commands (factory: preamble)
   OPERATING.md                    optional: read-aloud orientation (factory)
 ```
 
 To get oriented on how the factory works, start with
-[`plugins/factory/OPERATING.md`](plugins/factory/OPERATING.md).
+[`plugins/factory/OPERATING.md`](plugins/factory/OPERATING.md), or run
+`/factory:preamble` in a Claude Code session to load it.
 
 This repo is meant to hold many plugins. Skills that aren't related go in
 separate plugins, so each plugin can be versioned and enabled on its own. To
