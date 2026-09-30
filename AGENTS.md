@@ -17,8 +17,9 @@ The `factory` pipeline — `orchestrate`, `implement-ticket`,
 section for its repo-specific configuration.
 
 - **Linear team key**: `SKL` (ticket ids are `SKL-<n>`).
-- **Check command**: `bin/validate`. It needs `claude` and `jq` on
-  PATH. CI runs the same script on every PR.
+- **Check command**: `./scripts/check.sh`, which runs `bin/validate`.
+  It needs `claude` and `jq` on PATH. CI runs `bin/validate` on every
+  PR.
 - **Base branch**: `main`.
 - **Worktrees**: `$HOME/ops/worktrees/mattwalters/skills/`, one
   detached worktree per ticket, named for the ticket — outside the
