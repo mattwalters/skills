@@ -1,6 +1,6 @@
 ---
 name: new-project
-description: Stand up a new GitHub repo, a Linear team and the factory wiring (an `AGENTS.md` `## Orchestrate` section; the new repo declares no plugins and no marketplaces, and relies on the user-scope install) in one interactive sitting, through an interview where enter accepts each conservative default, ending with a first PR left open for the human to merge. Refuses if the repo or the Linear team already exists. Interactive only, at a terminal with a human answering — never for cron or unattended runs — and it does not add the project to cron. Use when asked to start or set up a new project or repo for the factory. Do not use to adopt an existing repo.
+description: Stand up a new GitHub repo, a Linear team and the factory wiring (an `AGENTS.md` `## Orchestrate` section and an executable `scripts/check.sh`; the new repo declares no plugins and no marketplaces, and relies on the user-scope install) in one interactive sitting, through an interview where enter accepts each conservative default, ending with a first PR left open for the human to merge. Refuses if the repo or the Linear team already exists. Interactive only, at a terminal with a human answering — never for cron or unattended runs — and it does not add the project to cron. Use when asked to start or set up a new project or repo for the factory. Do not use to adopt an existing repo.
 ---
 
 # New project
@@ -36,8 +36,11 @@ for someone to fill in later.
 3. **Visibility** — default **private**.
 4. **Linear team name and key** — suggest the key from the name.
 5. **Base branch** — default `main`.
-6. **Check command** — ask what it is. From the stated language and
-   stack, propose one; never write a placeholder.
+6. **Checks** — ask what the repo's checks are. From the stated
+   language and stack, propose a command; never write a placeholder.
+   The agreed command goes in `scripts/check.sh`, not in `AGENTS.md`:
+   the **Check command** field is always `./scripts/check.sh` (see
+   orchestrate's "Repo configuration").
 7. **Human checkout path** — default `~/src/<owner>/<repo>`, mirroring
    GitHub's owner/name layout. Confirm rather than assume.
 8. **Cron-driven?** — default no. If yes, also create a clone dedicated
@@ -132,7 +135,13 @@ statuses come with the team; there is nothing more to create.
    **Linear team key**, **Check command**, **Base branch**,
    **Worktrees**, **Review invariants**, **Stop-list**, **Write
    window**. The heading is `## Orchestrate`. Write no mode field:
-   modes are chosen per invocation.
+   modes are chosen per invocation. The **Check command** field reads
+   `./scripts/check.sh`.
+
+   Write `scripts/check.sh` on the same branch, executable (mode
+   `755` in the commit): `#!/usr/bin/env bash`, then
+   `set -euo pipefail`, then `cd "$(dirname "$0")/.."`, then the
+   command agreed in the interview.
 
    Write no `.claude/settings.json`, and nothing in any other settings
    file, that declares a marketplace or pins a plugin: no

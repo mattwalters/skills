@@ -37,8 +37,14 @@ declares at minimum:
 
 - **Linear team key** — the team whose queue this repo draws from
   (`WRIT`, `WRTN`, …). Ticket ids are `<KEY>-<n>`.
-- **Check command** — the local command an implementer or fixer must
-  run and pass before pushing.
+- **Check command** — always `./scripts/check.sh`, the local command
+  an implementer or fixer must run and pass before pushing. This is a
+  fixed convention, not a per-repo choice: the repo commits an
+  executable `scripts/check.sh` that runs whatever its checks actually
+  are, so an unattended runner needs just one allowlist entry to cover
+  every repo's checks. What the check does lives in the script, never
+  in this section. A section that declares any other check command
+  counts as a field not yet filled in (see below).
 - **Base branch** — what worktrees branch from and what PRs merge
   into.
 - **Worktrees** — the directory isolated per-ticket worktrees go in

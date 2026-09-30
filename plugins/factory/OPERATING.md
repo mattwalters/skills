@@ -118,7 +118,9 @@ A repo opts in with a `## Orchestrate` section in its own `AGENTS.md`. The
 section declares seven things: the Linear team key, the check command, the
 base branch, the worktrees directory, the review invariants, the stop-list,
 and the write window. The write window is required, and `none` means there
-is none. Reviewers bring no invariants of their own, so the review
+is none. The check command is fixed: it is always `./scripts/check.sh`, a
+script the repo commits that runs whatever its checks actually are, and a
+section that declares anything else counts as not filled in. Reviewers bring no invariants of their own, so the review
 invariants are what a review is adversarial about in that repo.
 
 If the section is missing, every skill except `new-project`, which creates
