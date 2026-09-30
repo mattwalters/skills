@@ -76,10 +76,17 @@ even in autonomous mode.
 An escalation is a different thing. It is reactive: a ticket came back
 blocked, failed or capped because something stalled. A capped review never
 merges, and a blocked or failed ticket is never cleared under a released
-gate. Every stop lands on the Linear ticket, or on the pull request if no
-ticket resolves, as a `factory: escalation` or `factory: stop-list hold`
-comment, a label, or both. None of it lives only in a session's context. See
-"The stop-list" and "Escalation comments" in
+gate. Every blocked, failed or capped stop, and every stop-list hold, lands on
+the Linear ticket, or on the pull request if no ticket resolves, as a
+`factory: escalation` or `factory: stop-list hold` comment, a label, or both.
+
+A closed write window is the quiet exception, and it is not an escalation.
+The stage stops dead and reports deferred. On a ticket it leaves one
+`factory: deferred` comment, no label, and the status unchanged, so a ticket
+can sit in `In Review` overnight looking untouched. On a pull request with no
+ticket it posts nothing, and the stage's own report is the only record. A
+human restarts a deferred stage by hand. See "The stop-list", "Escalation
+comments" and "The write window" in
 [orchestrate](skills/orchestrate/SKILL.md).
 
 ## Statuses and labels
