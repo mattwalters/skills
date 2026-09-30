@@ -34,8 +34,10 @@ The other factory skills read the same section.
 The section declares:
 
 - **Linear team key**: the team whose `Todo` queue the project draws from.
-- **Check command**: what an implementer or fixer must run, and pass, before
-  pushing.
+- **Check command**: always `./scripts/check.sh`, what an implementer or fixer
+  must run, and pass, before pushing. The repo commits that script, and it
+  runs whatever the repo's checks are; the section never names them. See
+  "Repo configuration" in [orchestrate](plugins/factory/skills/orchestrate/SKILL.md).
 - **Base branch**: what worktrees branch from and PRs merge into.
 - **Worktrees**: the directory per-ticket worktrees go in. An absolute path
   outside the repo is recommended, so no ancestor `AGENTS.md`/`CLAUDE.md` can
