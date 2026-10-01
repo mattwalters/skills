@@ -68,7 +68,10 @@ comparison is yours to make, so keep the ledger yourself.
 
 One row per finding: the round that raised it, its severity, its file,
 its one-line failure scenario, and what the fixer did with it (fixed,
-rebutted, or still open). Read it before every new round. A finding
+rebutted, or still open). For a fixed finding, also record which fix
+attempt fixed it (a "fixed in" column) — the fixer spawned on round
+`n`'s findings is attempt `n`, and the trivial-minors pass after a
+clean round `n` is attempt `n` too. Read it before every new round. A finding
 whose file and failure scenario match a row already there is a
 re-raise, whether or not the wording matches.
 
@@ -219,12 +222,15 @@ against.
    concrete reason and flags it in its report as disputed. It gets CI
    green again under the implementer's same three-attempt rule.
 
-   Record what it did with each finding in the ledger — fixed,
-   rebutted, still open. If **Telemetry** is set, post a `fix` row for
-   attempt `n` with the fixer's word (`green`, `blocked`, `failed` or
-   `deferred`), taking `started_at` at its spawn, and then send the
-   ledger's findings (see the `orchestrate` skill's "Telemetry"). Then
-   run the next round with another fresh
+   Whatever the fixer reports — `green`, `blocked`, `failed` or
+   `deferred` — if **Telemetry** is set, post a `fix` row for attempt
+   `n` with its word, taking `started_at` at its spawn, before acting
+   on the report, and then send the ledger's findings (see the
+   `orchestrate` skill's "Telemetry").
+
+   If it reports green, record what it did with each finding in the
+   ledger — fixed (with this attempt as "fixed in"), rebutted, still
+   open. Then run the next round with another fresh
    reviewer, and apply the progress rule to what that round comes back
    with.
 
@@ -280,8 +286,10 @@ worktree" rule above first if step 5 never ran this cycle — a cycle
 that reaches ready at round 1, or one restarted after a deferred
 fixer, has never had this pass reset a worktree that may be stale or
 missing. Then spawn the fixer in trivial-minors mode, let it push, and
-confirm CI is green. If **Telemetry** is set, post a `fix` row for
-that pass the same way step 5 does. Skip this pass entirely while the write window is
+confirm CI is green. Record each minor it fixed in the ledger as
+fixed, with this pass's attempt number as "fixed in". If **Telemetry**
+is set, post a `fix` row for that pass the same way step 5 does,
+whatever it reports, and then send the ledger's findings. Skip this pass entirely while the write window is
 closed — a fixer spawned into a closed window would just come back
 `deferred` having pushed nothing.
 

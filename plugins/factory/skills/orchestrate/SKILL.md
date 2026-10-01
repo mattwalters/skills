@@ -777,7 +777,9 @@ safe. Each body carries:
 - `severity`: `major`, `medium` or `minor`.
 - `fixed`: true only for ledger status "fixed"; rebutted and open
   findings are false.
-- `fixed_in`: the fix attempt, sent only when `fixed` is true.
+- `fixed_in`: the fix attempt that fixed it, read from the ledger's
+  "fixed in" column (see `adversarial-review`'s "The ledger"); sent
+  only when `fixed` is true.
 
 Never send finding text, file names or failure scenarios. The server
 rejects a finding whose review attempt, or whose `fixed_in` fix
@@ -799,7 +801,8 @@ returns non-zero, or is denied by the harness is ignored. A failed post
 is never retried in a loop or waited on, never reported as `blocked` or
 `failed`, never labelled or commented on a ticket, and never allowed to
 change any `RESULT`, gate, label, escalation, stop-list hold or merge.
-At most, say once in the end-of-run status that telemetry posts failed.
+Nothing reports a failed post either: the recipe discards its output,
+so there is nothing to say about one.
 
 ## Context rules (non-negotiable)
 
@@ -1248,9 +1251,7 @@ After each merge, and whenever the human asks: one table from what you
 hold — ticket, title, where it is (implementing / review round N /
 fixing / ready for merge / queued to merge / merged / needs attention
 / deferred (window closed)), PR link.
-Nothing else; the details live on the PRs. The one exception is a
-single line saying telemetry posts failed, when any did (see
-"Telemetry").
+Nothing else; the details live on the PRs.
 
 At the end of a run, list any deferred tickets separately, one line
 each: which stage stopped, the worktree path, and how to pick it back
