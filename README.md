@@ -55,6 +55,11 @@ The section declares:
 - **Write window**: the weekday hours, if any, during which the pipeline
   won't commit, push, or merge, so a public timestamp is never evidence of
   when someone worked. Required; `none` means no window.
+- **Telemetry** (optional): the absolute path of a poster command that records
+  each stage attempt's outcome and each review finding's severity. Absent
+  means off, and a missing one never stops a run. A failing poster never
+  stops or fails a run either. See "Telemetry" in
+  [orchestrate](plugins/factory/skills/orchestrate/SKILL.md).
 
 This repo's own [`AGENTS.md`](AGENTS.md) is a worked example.
 

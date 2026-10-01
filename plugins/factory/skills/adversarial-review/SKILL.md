@@ -1,6 +1,6 @@
 ---
 name: adversarial-review
-description: Run adversarial review rounds on one or more open pull requests — a fresh reviewer subagent each round, a fixer subagent addressing findings, capped at six rounds by default and stopped early when rounds stop making progress — and report which are ready to merge, meaning no major or medium findings left; a ready PR is marked ready for review (un-drafted) in the same step. Reviews against the host repo's own invariants, declared in its `AGENTS.md` `## Orchestrate` section, which also declares a write window that stops the fixer's commits and pushes, and this skill's own un-draft, short while it's closed. Labels and records a capped, blocked, or failed outcome, and a stop-list hold, on the linked ticket (or on the PR itself when none resolves). Use when asked to adversarially review a PR, run a review cycle, or review every open PR. Called by the orchestrate skill right after implement-ticket reports a ticket green; equally fine invoked standalone against any open PR, ticket-linked or not.
+description: Run adversarial review rounds on one or more open pull requests — a fresh reviewer subagent each round, a fixer subagent addressing findings, capped at six rounds by default and stopped early when rounds stop making progress — and report which are ready to merge, meaning no major or medium findings left; a ready PR is marked ready for review (un-drafted) in the same step. Reviews against the host repo's own invariants, declared in its `AGENTS.md` `## Orchestrate` section, which also declares a write window that stops the fixer's commits and pushes, and this skill's own un-draft, short while it's closed. Labels and records a capped, blocked, or failed outcome, and a stop-list hold, on the linked ticket (or on the PR itself when none resolves). Also reads an optional `Telemetry` field; when it is set, posts a row per review round and per fix, plus each finding's severity and fixed state, and a failed post never blocks or changes a cycle. Use when asked to adversarially review a PR, run a review cycle, or review every open PR. Called by the orchestrate skill right after implement-ticket reports a ticket green; equally fine invoked standalone against any open PR, ticket-linked or not.
 ---
 
 # Adversarial review
@@ -68,7 +68,10 @@ comparison is yours to make, so keep the ledger yourself.
 
 One row per finding: the round that raised it, its severity, its file,
 its one-line failure scenario, and what the fixer did with it (fixed,
-rebutted, or still open). Read it before every new round. A finding
+rebutted, or still open). For a fixed finding, also record which fix
+attempt fixed it (a "fixed in" column) — the fixer spawned on round
+`n`'s findings is attempt `n`, and the trivial-minors pass after a
+clean round `n` is attempt `n` too. Read it before every new round. A finding
 whose file and failure scenario match a row already there is a
 re-raise, whether or not the wording matches.
 
@@ -127,6 +130,12 @@ starting. Four fields matter most here:
   ready` on a ready result (see "When a target is ready" below). See
   the `orchestrate` skill's "The write window".
 
+The section may also carry an optional **Telemetry** field, and the
+caller may hand you a run id; see the `orchestrate` skill's
+"Telemetry", which says how to resolve the run id when none is given.
+A missing **Telemetry** is not a missing field: it means telemetry is
+off, and nothing below is posted.
+
 Also take the base branch and the worktree directory (`<runs-dir>`)
 from that section. No `## Orchestrate` section means the repo has not
 opted in: say so and stop. If the invariants are missing, you can
@@ -176,6 +185,12 @@ against.
    Write every finding it returns into the ledger before you do
    anything else with the round. That is what the next round's
    progress judgment reads.
+
+   If **Telemetry** is set, record `started_at` before spawning it, and
+   once its report arrives post a `review` row for round `n` with the
+   reviewer's `RESULT` word (`reviewed` or `blocked`). Post it before
+   going on, whichever way the round turns out. See the `orchestrate`
+   skill's "Telemetry".
 3. **Reviewer reports blocked** — it found something that isn't a
    diff-level finding (the PR doesn't do what the brief describes, a
    diverged base, a serious pre-existing bug) — stop the cycle for this
@@ -207,8 +222,15 @@ against.
    concrete reason and flags it in its report as disputed. It gets CI
    green again under the implementer's same three-attempt rule.
 
-   Record what it did with each finding in the ledger — fixed,
-   rebutted, still open — then run the next round with another fresh
+   Whatever the fixer reports — `green`, `blocked`, `failed` or
+   `deferred` — if **Telemetry** is set, post a `fix` row for attempt
+   `n` with its word, taking `started_at` at its spawn, before acting
+   on the report, and then send the ledger's findings (see the
+   `orchestrate` skill's "Telemetry").
+
+   If it reports green, record what it did with each finding in the
+   ledger — fixed (with this attempt as "fixed in"), rebutted, still
+   open. Then run the next round with another fresh
    reviewer, and apply the progress rule to what that round comes back
    with.
 
@@ -264,7 +286,10 @@ worktree" rule above first if step 5 never ran this cycle — a cycle
 that reaches ready at round 1, or one restarted after a deferred
 fixer, has never had this pass reset a worktree that may be stale or
 missing. Then spawn the fixer in trivial-minors mode, let it push, and
-confirm CI is green. Skip this pass entirely while the write window is
+confirm CI is green. Record each minor it fixed in the ledger as
+fixed, with this pass's attempt number as "fixed in". If **Telemetry**
+is set, post a `fix` row for that pass the same way step 5 does,
+whatever it reports, and then send the ledger's findings. Skip this pass entirely while the write window is
 closed — a fixer spawned into a closed window would just come back
 `deferred` having pushed nothing.
 
@@ -386,6 +411,10 @@ way. There is no resume: a later call restarts this cycle from round 1
 (see "Restarting a deferred cycle").
 
 ## Report, per target
+
+If **Telemetry** is set, send the final ledger's findings once more
+before reporting, whatever the result (see the `orchestrate` skill's
+"Telemetry"). A failed post changes nothing in the report.
 
     TICKET: <id or none>
     PR: <url>

@@ -130,12 +130,14 @@ statuses come with the team; there is nothing more to create.
 4. Seed commit: a one-line `README.md` only, pushed straight to the base
    branch. A brand-new repo has no base branch to open a PR against.
 5. Branch `new-project/wiring`. Write `AGENTS.md`: a short project
-   stub, then a `## Orchestrate` section carrying every field
-   orchestrate's "Repo configuration" lists, under exactly those names:
+   stub, then a `## Orchestrate` section carrying every required
+   field orchestrate's "Repo configuration" lists, under exactly those
+   names:
    **Linear team key**, **Check command**, **Base branch**,
    **Worktrees**, **Review invariants**, **Stop-list**, **Write
    window**. The heading is `## Orchestrate`. Write no mode field:
-   modes are chosen per invocation. The **Check command** field reads
+   modes are chosen per invocation. Write no **Telemetry** field either:
+   absent means off. The **Check command** field reads
    `./scripts/check.sh`.
 
    Write `scripts/check.sh` on the same branch, executable (mode

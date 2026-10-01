@@ -1,6 +1,6 @@
 ---
 name: implement-ticket
-description: Take one or more Linear tickets from Todo/In Progress through a CI-green draft PR, using a fresh implementer subagent per ticket in an isolated git worktree. Reads the host repo's `AGENTS.md` `## Orchestrate` section for its Linear team, check command, base branch, write window, and worktree directory, and stops the implementer short of any commit or push while that window is closed. Use when asked to implement a specific ticket, pick up a ticket, or "just do the implementation" without also running review or merge. Called by the orchestrate skill once per ticket in a wave; equally fine invoked standalone against a single ticket.
+description: Take one or more Linear tickets from Todo/In Progress through a CI-green draft PR, using a fresh implementer subagent per ticket in an isolated git worktree. Reads the host repo's `AGENTS.md` `## Orchestrate` section for its Linear team, check command, base branch, write window, and worktree directory, and stops the implementer short of any commit or push while that window is closed. Also reads an optional `Telemetry` field; when it is set, posts one `implement` row per ticket with the implementer's outcome, and a failed post never blocks or changes the result. Use when asked to implement a specific ticket, pick up a ticket, or "just do the implementation" without also running review or merge. Called by the orchestrate skill once per ticket in a wave; equally fine invoked standalone against a single ticket.
 ---
 
 # Implement ticket
@@ -23,6 +23,12 @@ worktrees are cut from, the **write window** during which a commit or
 push is not allowed to happen (see the `orchestrate` skill's "The write
 window"), and the **worktree directory** (`<runs-dir>` below). Pass
 all five down to the implementer verbatim.
+
+The section may also carry an optional **Telemetry** field, and the
+caller may hand you a run id; see the `orchestrate` skill's
+"Telemetry", which says how to resolve the run id when none is given.
+Neither goes to the implementer, and a missing **Telemetry** is not a
+missing field: it means telemetry is off.
 
 No `## Orchestrate` section means the repo has not opted into this
 pipeline — say so and stop. A field that is missing, or marked as not
@@ -55,7 +61,12 @@ declaration and is not the same as a missing one.
    ticket), BASE (the base branch), CHECK (the check command), and
    WINDOW (the write window) — mid-tier model, high effort (Sonnet on
    Claude Code; see the `orchestrate` skill's Models and effort table for
-   other harnesses).
+   other harnesses). If **Telemetry** is set, record `started_at`
+   first. When the report arrives (`green`, `blocked`, `failed` or
+   `deferred`), post one `implement` row with that word, then carry on
+   with the handling below unchanged. See the `orchestrate` skill's
+   "Telemetry", including its rule that a failed post never changes
+   anything.
 
 The implementer's contract, enforced by the prompt: implement the
 ticket — its `## Plan` section if the description has one, otherwise

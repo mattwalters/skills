@@ -1,6 +1,6 @@
 ---
 name: merge-queue
-description: Merge every eligible pull request — approved via GitHub review, or with its linked Linear ticket carrying the `approved-to-merge` label, and CI green — rebasing each onto the repo's base branch in an order chosen to minimize conflicts, resolving mechanical rebase conflicts itself, resolving a short enumerated list of one-step-beyond-mechanical conflicts under a scoped intent review, and surfacing anything needing new logic or a judgment call to the human instead of guessing. Reads the host repo's `AGENTS.md` `## Orchestrate` section for its Linear team, base branch, write window, and worktree directory, and stops short of any rebase, `gh pr ready`, or `gh pr merge` while that window is closed. Use when asked to run the merge queue, merge everything that's approved, or merge eligible PRs. Called by the orchestrate skill for its own batch's approved tickets; equally fine invoked standalone against any repo's open PRs.
+description: Merge every eligible pull request — approved via GitHub review, or with its linked Linear ticket carrying the `approved-to-merge` label, and CI green — rebasing each onto the repo's base branch in an order chosen to minimize conflicts, resolving mechanical rebase conflicts itself, resolving a short enumerated list of one-step-beyond-mechanical conflicts under a scoped intent review, and surfacing anything needing new logic or a judgment call to the human instead of guessing. Reads the host repo's `AGENTS.md` `## Orchestrate` section for its Linear team, base branch, write window, and worktree directory, and stops short of any rebase, `gh pr ready`, or `gh pr merge` while that window is closed. Also reads an optional `Telemetry` field; when it is set, posts one `merge` row per PR with its outcome, and a failed post never blocks or changes a merge. Use when asked to run the merge queue, merge everything that's approved, or merge eligible PRs. Called by the orchestrate skill for its own batch's approved tickets; equally fine invoked standalone against any repo's open PRs.
 ---
 
 # Merge queue
@@ -29,6 +29,16 @@ weekday hours, if any, during which a rebase, `gh pr ready`, or
 "The write window"). No `## Orchestrate` section means the repo has not
 opted into this pipeline — say so and stop; do not assume a base
 branch.
+
+The section may also carry an optional **Telemetry** field, and the
+caller may hand you a run id; see the `orchestrate` skill's
+"Telemetry", which says how to resolve the run id when none is given.
+A missing **Telemetry** is not a missing field: it means telemetry is
+off. If it is set, post one `merge` row per PR once that PR's `RESULT`
+(`merged`, `blocked`, `failed` or `deferred`) is final, with
+`started_at` taken at that PR's step 1. The intent review's
+`intact` or `dropped` is not a stage and is not posted. A failed post
+changes nothing.
 
 ## Eligibility
 

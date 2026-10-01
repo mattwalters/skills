@@ -1,6 +1,6 @@
 ---
 name: orchestrate
-description: Batch-run the next tickets from Linear for the repo you are in. Picks 5–10 unblocked tickets from `Todo` by priority, stops for human approval on the selection, has each one planned into its ticket description, plans parallel vs serial execution, stops for approval again on the plans, then runs each ticket through the implement-ticket, adversarial-review, and merge-queue skills to a merged pull request. Its three gates — selection, plan, merge — are set by naming a mode at invocation: supervised, semi, or autonomous. A ticket carrying a `hold-plan` or `hold-merge` label has that gate held for it alone, whatever the mode. Reads the host repo's `AGENTS.md` `## Orchestrate` section for its Linear team, check command, base branch, write window, and worktree locations, and stops a stage short of any commit, push, or merge while that window is closed. Every stop any stage hits is recorded as a comment or label on its Linear ticket (or its PR, if none resolved), so nothing a run stops on depends on this session's own context surviving. Use when asked to run the queue, work the next tickets, orchestrate a batch, or process Linear tickets in parallel. Do not use for a single ticket a human is already driving — use implement-ticket, adversarial-review, or merge-queue directly for that.
+description: Batch-run the next tickets from Linear for the repo you are in. Picks 5–10 unblocked tickets from `Todo` by priority, stops for human approval on the selection, has each one planned into its ticket description, plans parallel vs serial execution, stops for approval again on the plans, then runs each ticket through the implement-ticket, adversarial-review, and merge-queue skills to a merged pull request. Its three gates — selection, plan, merge — are set by naming a mode at invocation: supervised, semi, or autonomous. A ticket carrying a `hold-plan` or `hold-merge` label has that gate held for it alone, whatever the mode. Reads the host repo's `AGENTS.md` `## Orchestrate` section for its Linear team, check command, base branch, write window, and worktree locations, and stops a stage short of any commit, push, or merge while that window is closed. Also reads an optional `Telemetry` field; when it is set, posts each stage attempt's outcome and each review finding's severity through the poster command it names, and a failed post never blocks, fails or changes a run. Every stop any stage hits is recorded as a comment or label on its Linear ticket (or its PR, if none resolved), so nothing a run stops on depends on this session's own context surviving. Use when asked to run the queue, work the next tickets, orchestrate a batch, or process Linear tickets in parallel. Do not use for a single ticket a human is already driving — use implement-ticket, adversarial-review, or merge-queue directly for that.
 ---
 
 # Orchestrate
@@ -58,6 +58,11 @@ declares at minimum:
   commit, push, or merge is not allowed to happen. Required; a repo
   with none declares `none`. See "The write window".
 
+One more field is **optional**: **Telemetry**, the absolute path of a
+poster command. Absent or `none` means telemetry is off, and that is
+not a missing field under the stop-and-say-so rule below. See
+"Telemetry".
+
 This pipeline keeps no run manifest — see "Context rules" and
 "Escalation comments" below for where that state actually lives. A
 repo whose `## Orchestrate` section still declares a **Run manifest**
@@ -70,14 +75,16 @@ section but no `## Orchestrate` one, the repo was set up for `factory`
 and stop. Otherwise, if it has no `## Orchestrate` section, this repo
 has not opted in: say so and stop, rather than guessing a team key, a
 check command, or a place to put worktrees. If the section exists but
-a field is missing or marked as not yet filled in, say which field
+a required field is missing or marked as not yet filled in (never
+**Telemetry**, which is optional), say which field
 and stop before the point where you would need it — never substitute
 a guess.
 
 Pass the relevant fields down to every skill and subagent you invoke.
 They read the same section, but stating the values keeps a subagent
 from having to go looking, and keeps one repo's config from leaking
-into a run against another.
+into a run against another. Also pass the run id and, when it is set,
+the **Telemetry** value (see "Telemetry").
 
 ## Gates
 
@@ -705,6 +712,98 @@ way "Models and effort" is for models — `implement-ticket`,
 `adversarial-review`, and `merge-queue` point back here rather than
 each carrying their own copy of the templates.
 
+## Telemetry
+
+A repo can opt in to a stage-level record of every run: one row when a
+stage attempt ends, and one row per review finding. This section is the
+canonical reference; `implement-ticket`, `adversarial-review` and
+`merge-queue` point back here, the way they do for "Escalation
+comments". It carries no token spend (that flows through Claude Code's
+own export) and no finding text.
+
+**Opt-in field.** **Telemetry** in the `## Orchestrate` section holds
+the absolute path of a poster command. Absent or `none` means telemetry
+is off: post nothing and say nothing. The field is optional, so a
+missing **Telemetry** is not a missing field under "Repo
+configuration"'s stop-and-say-so rule.
+
+**Poster contract.** Run `<command> stage-attempts` or `<command>
+findings`, with one JSON body on stdin. The command owns the endpoint
+and the credential, exits 0 only on a 2xx, and bounds its own time.
+Never read, ask for, print or write a token or a URL, and never name a
+real command path in a skill; the repo's field supplies it.
+
+**run_id.** Use `$OPS_RUN_ID` when it is set and non-empty. Otherwise
+`orchestrate` mints `orchestrate-<UTC yyyymmdd-HHMMSS>-<4 random hex>`
+at run start and tells every stage skill it invokes. A stage skill
+invoked standalone uses `$OPS_RUN_ID`, or else mints its own id with
+its own name as the prefix.
+
+**Row shape.** Each `stage-attempts` row carries:
+
+- `run_id`.
+- `ticket_id`: `PR#<n>` for a PR with no linked ticket.
+- `team_key`: the Linear team key.
+- `stage`: one of `plan`, `implement`, `review`, `fix`, `merge`.
+- `attempt`: a positive integer, see below.
+- `outcome`: the stage's own `RESULT` word, verbatim, never
+  translated. A planner's is `planned`, `unplannable` or `blocked`; a
+  review round's is `reviewed` or `blocked`.
+- `started_at`, `ended_at`: UTC ISO-8601 from `date -u
+  +%Y-%m-%dT%H:%M:%SZ`, read when the subagent or stage starts and when
+  its report arrives.
+
+Omit `agent_id`.
+
+**Attempt numbering.**
+
+- `plan`, `implement` and `merge` are attempt `1` per ticket per run. A
+  second invocation of the same stage for the same ticket in the same
+  run increments it.
+- Review attempt `n` is review round `n`.
+- Fix attempt `n` is the fixer spawned on round `n`'s findings. That
+  includes the trivial-minors pass after a clean round `n`, which had
+  no fixer, so the number is free.
+
+**Findings.** After each fix attempt, and once more when a review cycle
+ends, send the whole ledger to `findings`, one call per ledger row. The
+server upserts on (raising attempt, `finding_key`), so re-sending is
+safe. Each body carries:
+
+- `run_id` and `ticket_id`.
+- `raised_in`: the review round that raised it.
+- `finding_key`: `r<round>-<n>`, the finding's position in that
+  round's list.
+- `severity`: `major`, `medium` or `minor`.
+- `fixed`: true only for ledger status "fixed"; rebutted and open
+  findings are false.
+- `fixed_in`: the fix attempt that fixed it, read from the ledger's
+  "fixed in" column (see `adversarial-review`'s "The ledger"); sent
+  only when `fixed` is true.
+
+Never send finding text, file names or failure scenarios. The server
+rejects a finding whose review attempt, or whose `fixed_in` fix
+attempt, has no row, so always post a stage row before any finding that
+refers to it.
+
+**Post recipe.** One call per row, each ending in `>/dev/null 2>&1 ||
+true`:
+
+    <command> stage-attempts <<'JSON' >/dev/null 2>&1 || true
+    { ...one row... }
+    JSON
+
+A post is not a gated write under "The write window" and is never
+deferred.
+
+**Never fail a run on telemetry.** A post that errors, times out,
+returns non-zero, or is denied by the harness is ignored. A failed post
+is never retried in a loop or waited on, never reported as `blocked` or
+`failed`, never labelled or commented on a ticket, and never allowed to
+change any `RESULT`, gate, label, escalation, stop-list hold or merge.
+Nothing reports a failed post either: the recipe discards its output,
+so there is nothing to say about one.
+
 ## Context rules (non-negotiable)
 
 - Never read a diff, a test log, or a CI log into your own context.
@@ -715,7 +814,7 @@ each carrying their own copy of the templates.
   summary.
 - Per-run state — worktree paths, branches, PR URLs, CI attempt counts,
   review round counts, plan-time stop-list hits, how each gate was
-  passed, the run's mode and gate configuration — lives in your own
+  passed, the run's mode and gate configuration, the run id — lives in your own
   context for the life of the run, which is the only span it is needed
   for. Nothing here is written to a file. Whatever must outlive the run
   is already written where it belongs: PR link and status on the
@@ -812,7 +911,9 @@ straight to Phase 3.
 For each pick, spawn a planner subagent with `prompts/planner.md` —
 strongest reasoning model available (see Models and effort below):
 planning is scope judgment. Planners are read-only, so run them all in
-parallel.
+parallel. Record `started_at` at each planner's spawn (see
+"Telemetry"); after each planner's report, post a `plan` row with its
+`planned`, `unplannable` or `blocked`.
 
 Each planner writes its plan into the ticket's own description under a
 `## Plan` heading — replacing an existing `## Plan` section, touching
@@ -908,7 +1009,8 @@ plan, until the human approves it in chat or removes the label.
 Invoke the `implement-ticket` skill once for the current wave's ticket
 ids together — its own instructions cover the worktree, the subagent,
 the three-attempt CI rule, and running the wave concurrently, so
-nothing here duplicates them.
+nothing here duplicates them. Tell it the run id; it posts its own
+`implement` rows (see "Telemetry"), and you post none for this phase.
 
 For each report it returns, note its worktree path, branch, and PR URL
 in your own context. On `RESULT: blocked` or `failed`, `implement-ticket`
@@ -939,6 +1041,8 @@ window".
 For each ticket `implement-ticket` reported green, invoke the
 `adversarial-review` skill for that ticket's PR (its own instructions
 cover the reviewer/fixer cycle and moving the ticket to `In Review`).
+Tell it the run id; it posts its own `review` and `fix` rows and the
+findings (see "Telemetry"), and you post none for this phase.
 
 **Tell it its round budget**, which follows the mode:
 
@@ -1055,7 +1159,9 @@ Clearing a ticket makes it eligible; it does not set the order. Five
 may come clear at once — invoke the `merge-queue` skill with all of
 them together and let it work out sequencing and conflicts; its own
 instructions cover ordering, rebasing, mechanical conflict resolution,
-and the squash merge, so nothing here duplicates them.
+and the squash merge, so nothing here duplicates them. Tell it the run
+id; it posts its own `merge` rows (see "Telemetry"), and you post none
+for this phase.
 
 On `RESULT: merged`, per PR: kick off the next wave's tickets whose
 prerequisites just landed, and post a status update — note in it if

@@ -124,8 +124,10 @@ section that declares anything else counts as not filled in. Reviewers bring no 
 invariants are what a review is adversarial about in that repo.
 
 If the section is missing, every skill except `new-project`, which creates
-it, stops and says so rather than guessing. If a single field is missing, the run stops before the point where
-it is needed. The worked example is the `AGENTS.md` of whichever repo the
+it, stops and says so rather than guessing. If a single required field is missing, the run stops before the point where
+it is needed. One more field is optional: `Telemetry`, the path of a poster
+command that records each stage attempt's outcome and each review finding's
+severity. Absent means off, and a failing poster never stops or fails a run. The worked example is the `AGENTS.md` of whichever repo the
 session is in. Nothing project-specific lives in the skills. See "Repo
 configuration" and "The write window" in
 [orchestrate](skills/orchestrate/SKILL.md).

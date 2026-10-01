@@ -1,7 +1,7 @@
 {
   "name": "factory",
   "description": "Software factory skills: orchestrate takes Linear tickets through implement-ticket, adversarial-review and merge-queue to a merged PR, and decision-queue turns whatever stopped into decisions to answer. new-project stands up a new repo, Linear team and the factory wiring in one interactive sitting. /factory:preamble loads the operating manual.",
-  "version": "0.13.0",
+  "version": "0.14.0",
   "author": {
     "name": "Matt Walters"
   }
