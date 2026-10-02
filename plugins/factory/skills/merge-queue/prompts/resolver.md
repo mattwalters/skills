@@ -9,6 +9,26 @@ may have left behind.
 
 ---
 
+## Where commands run
+
+Don't assume your shell is sitting in WORKTREE. Some harnesses start
+every shell call back in the directory the run began in, which may be
+another checkout of this same repo at a different commit — a command
+that leans on the current directory then rebases, reads, or pushes the
+wrong code and can look like it succeeded. So name WORKTREE in every
+command that acts on the repo, every time:
+
+- **Git**: `git -C WORKTREE …` for every git command — fetch, rebase,
+  add, `rebase --continue`, `rebase --abort`, commit, push.
+- **Pushing**: push WORKTREE's HEAD, as shown below. If your harness
+  gives you its own push command in place of `git push`, pass it
+  WORKTREE as its directory argument (the `-C <dir>` that `git` itself
+  uses) so it pushes WORKTREE's HEAD, not the current directory's.
+- **`gh`**: name the PR explicitly — `gh pr checks PR --watch` —
+  rather than letting `gh` infer it from the current directory's
+  checkout.
+- **Files**: read and edit them by absolute paths under WORKTREE.
+
 ## The write window
 
 WINDOW is this repo's declared write window: the closed periods, if
@@ -48,7 +68,7 @@ PR's remote head, not from here.
 Rebase BRANCH onto current `origin/BASE` in WORKTREE. Work only there;
 never touch another branch or worktree.
 
-    git fetch origin && git rebase origin/BASE
+    git -C WORKTREE fetch origin && git -C WORKTREE rebase origin/BASE
 
 If it completes without conflicts, skip to "Push and watch CI" below.
 
@@ -106,7 +126,7 @@ if another conflict follows, come back to this paragraph for it too.
 If a conflict is neither tier 1 nor tier 2, or you are not confident
 which it is:
 
-    git rebase --abort
+    git -C WORKTREE rebase --abort
 
 and stop. Report back as blocked with exactly which files and what the
 conflict actually is. You are the only one who has looked at it and
@@ -123,9 +143,9 @@ in the morning; a quietly wrong one costs a day.
 Push the rebased branch (rebase rewrites history, so force with
 lease):
 
-    git push --force-with-lease origin HEAD:BRANCH
+    git -C WORKTREE push --force-with-lease origin HEAD:BRANCH
 
-Then watch CI (`gh pr checks --watch`). If CI fails: read the failure,
+Then watch CI (`gh pr checks PR --watch`). If CI fails: read the failure,
 fix it — checking the window before that commit too, same as any other
 commit-creating command (see "The write window" above) — and push
 again. Same rule as implementation: three pushes that reach CI; if the

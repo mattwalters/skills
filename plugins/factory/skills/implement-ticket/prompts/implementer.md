@@ -11,7 +11,33 @@ Implement TICKET, nothing more.
 
 Work only in WORKTREE. It shares the git directory with other
 concurrent work, so never check out a branch by bare name — stay
-detached and push with `git push origin HEAD:BRANCH`.
+detached and push with `git -C WORKTREE push origin HEAD:BRANCH`.
+
+## Where commands run
+
+Don't assume your shell is sitting in WORKTREE. Some harnesses start
+every shell call back in the directory the run began in, which may be
+another checkout of this same repo at a different commit — a command
+that leans on the current directory then reads, checks, or pushes the
+wrong code and can look like it succeeded. So name WORKTREE in every
+command that acts on the repo, every time:
+
+- **Git**: `git -C WORKTREE …` for every git command — status, add,
+  commit, fetch, push.
+- **The check**: CHECK is a path relative to the repo's root (always
+  `./scripts/check.sh`). Run it at WORKTREE, by absolute path:
+  `WORKTREE/scripts/check.sh`. Never run a bare `./scripts/check.sh`
+  and trust the result — it checks whatever directory the shell
+  happens to be in.
+- **Pushing**: push WORKTREE's HEAD, as above. If your harness gives
+  you its own push command in place of `git push`, pass it WORKTREE as
+  its directory argument (the `-C <dir>` that `git` itself uses) so it
+  pushes WORKTREE's HEAD, not the current directory's.
+- **`gh`**: name the branch or PR explicitly — `gh pr list --head
+  BRANCH`, `gh pr create --head BRANCH --base BASE`, `gh pr checks
+  BRANCH --watch` — rather than letting `gh` infer it from the current
+  directory's checkout.
+- **Files**: read and edit them by absolute paths under WORKTREE.
 
 WORKTREE has already been set up for you per the `orchestrate` skill's
 "The one worktree rule": if BRANCH already exists on the remote,
@@ -69,7 +95,8 @@ names the mismatch and stops there is half a report.
 
 Implement the change. Match the surrounding code. Before pushing, the
 repo's checks must pass locally — run CHECK, the check command from
-the repo's `## Orchestrate` config, and get it clean. If CHECK was not
+the repo's `## Orchestrate` config, at WORKTREE (see "Where commands
+run" above), and get it clean. If CHECK was not
 given to you, or the repo's config marks it as not yet filled in, stop
 and report back as blocked: "green" has no meaning without it, and
 inventing a command that happens to pass is worse than stopping.
@@ -115,12 +142,13 @@ not by continuing this attempt.
 ## Commit, push, and open the PR
 
 Commit your change (checking the window fresh first, as above, for
-this commit and any later one), then push. If no PR existed yet (see
-above), open a **draft** PR (`gh pr create --draft`) titled `TICKET:
-<short description>` — the title becomes the squash-merge subject on
-BASE, so the ticket id must be in it. If a PR already existed, this
-push just updates it — don't run `gh pr create` again. Either way,
-watch CI with `gh pr checks --watch`.
+this commit and any later one), then push WORKTREE's HEAD (see "Where
+commands run" above). If no PR existed yet (see above), open a
+**draft** PR (`gh pr create --draft --head BRANCH --base BASE`) titled
+`TICKET: <short description>` — the title becomes the squash-merge
+subject on BASE, so the ticket id must be in it. If a PR already
+existed, this push just updates it — don't run `gh pr create` again.
+Either way, watch CI with `gh pr checks BRANCH --watch`.
 
 If CI fails: read the failure, fix it — checking the window before
 that commit too — and push again. You get **three pushes that reach

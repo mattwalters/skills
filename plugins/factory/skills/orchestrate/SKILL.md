@@ -42,9 +42,14 @@ declares at minimum:
   fixed convention, not a per-repo choice: the repo commits an
   executable `scripts/check.sh` that runs whatever its checks actually
   are, so an unattended runner needs just one allowlist entry to cover
-  every repo's checks. What the check does lives in the script, never
-  in this section. A section that declares any other check command
-  counts as a field not yet filled in (see below).
+  every repo's checks. Subagents run it at their ticket's worktree by
+  absolute path (`<worktree>/scripts/check.sh`), never relying on the
+  shell's current directory, so the script must `cd` to its own repo
+  root before anything else (`cd "$(dirname "$0")/.."`), and that
+  allowlist entry has to cover the absolute form under `<runs-dir>`.
+  What the check does lives in the script, never in this section. A
+  section that declares any other check command counts as a field not
+  yet filled in (see below).
 - **Base branch** — what worktrees branch from and what PRs merge
   into.
 - **Worktrees** — the directory isolated per-ticket worktrees go in
