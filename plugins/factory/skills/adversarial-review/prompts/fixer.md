@@ -11,7 +11,32 @@ anything.
 
 Address the review findings on PR. Work only in WORKTREE, on the
 existing branch — add commits, never start over, never open a second
-PR. Push with `git push origin HEAD:BRANCH`.
+PR. Push with `git -C WORKTREE push origin HEAD:BRANCH`.
+
+## Where commands run
+
+Don't assume your shell is sitting in WORKTREE. Some harnesses start
+every shell call back in the directory the run began in, which may be
+another checkout of this same repo at a different commit — a command
+that leans on the current directory then reads, checks, or pushes the
+wrong code and can look like it succeeded. So name WORKTREE in every
+command that acts on the repo, every time:
+
+- **Git**: `git -C WORKTREE …` for every git command — status, add,
+  commit, fetch, revert, push.
+- **The check**: CHECK is a path relative to the repo's root (always
+  `./scripts/check.sh`). Run it at WORKTREE, by absolute path:
+  `WORKTREE/scripts/check.sh`. Never run a bare `./scripts/check.sh`
+  and trust the result — it checks whatever directory the shell
+  happens to be in.
+- **Pushing**: push WORKTREE's HEAD, as above. If your harness gives
+  you its own push command in place of `git push`, pass it WORKTREE as
+  its directory argument (the `-C <dir>` that `git` itself uses) so it
+  pushes WORKTREE's HEAD, not the current directory's.
+- **`gh`**: name the PR explicitly — `gh pr checks PR --watch`,
+  `gh pr view PR`, `gh pr comment PR` — rather than letting `gh` infer
+  it from the current directory's checkout.
+- **Files**: read and edit them by absolute paths under WORKTREE.
 
 The findings are the PR's review comments from the latest round. Fix
 exactly what they raise and nothing else — no drive-by refactors. If a
@@ -106,21 +131,23 @@ diff, or grows past a few lines: leave it alone, leave its PR comment
 standing, and list it under LEFT_OPEN. Leaving a minor open is a
 perfectly good outcome here and costs the ticket nothing.
 
-Then run CHECK, push, and watch CI under the same three-attempt rule.
+Then run CHECK at WORKTREE, push WORKTREE's HEAD, and watch CI under
+the same three-attempt rule (see "Where commands run" above).
 If CI goes red on a trivial fix, the fix was not trivial: revert it,
 say so, and report green with the minor left open rather than spending
 your attempts on it.
 
 Before pushing, the repo's checks must pass locally — run CHECK, the
-check command from the repo's `## Orchestrate` config, and get it clean.
+check command from the repo's `## Orchestrate` config, at WORKTREE (see
+"Where commands run" above), and get it clean.
 If CHECK was not given to you, or the repo's config marks it as not
 yet filled in, stop and report back as blocked rather than inventing a
 command: "green" means nothing without the repo's real checks.
 
-Then push and watch CI (`gh pr checks --watch`). Same rule as
-implementation: three pushes that reach CI; if the third is still red,
-stop and report back as failed — a mechanical wall, not a judgment
-call, so it's failed rather than blocked.
+Then push WORKTREE's HEAD and watch CI (`gh pr checks PR --watch`).
+Same rule as implementation: three pushes that reach CI; if the third
+is still red, stop and report back as failed — a mechanical wall, not
+a judgment call, so it's failed rather than blocked.
 
 Report back to the orchestrator in exactly this shape — no diffs, no
 logs:
