@@ -1108,7 +1108,7 @@ description, and it waits there for the human to accept it (see
 clearing the label makes it pickable again), label it
 `needs-attention` and post a `factory: escalation` with stage
 `researching`, the result, and the researcher's `OPTIONS` verbatim (a
-failed result records "none recorded"); relay which one it was —
+failed result that returned none records "none recorded"); relay which one it was —
 blocked means the question needs a human's call, failed means the
 research hit a wall — and carry on with the rest of the batch. The
 researcher has already commented the mismatch on the ticket.

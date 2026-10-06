@@ -20,8 +20,12 @@ or has no `## Orchestrate` section, stop and say so — this repo has not
 opted into the pipeline.
 
 This is read-only work: no worktree, no branch, no commits, no pushes, no
-pull request, and no edits to any file in the repo. Read the code, use
-the MCP tools you have, and search the web where the question needs it.
+pull request, and no edits to any file in the repo. Read the code as it
+is on the base branch's remote ref, not in whatever checkout you were
+started in (it may be on a feature branch or stale): `git show
+origin/<base>:<path>` and `git grep <pattern> origin/<base>`. Cite
+file and line against that ref. Use the MCP tools you have, and search
+the web where the question needs it.
 Answer what the ticket asks, not a neighbouring question you find more
 interesting; something you notice outside it goes in the report's open
 questions, not into the investigation.
