@@ -15,7 +15,9 @@ line per finding.
 If invoked with no target, **ask** which PR(s) or ticket(s) to review
 — never default to scanning the repo. "All open PRs" is a valid
 explicit target if the caller says it: expand it with
-`gh pr list --state open` and run one independent cycle per PR.
+`gh pr list --state open` and run one independent cycle per PR. A
+ticket-id target carrying the `research` label has no PR: say so and
+skip it.
 
 ## Round budget
 

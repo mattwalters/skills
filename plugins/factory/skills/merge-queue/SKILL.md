@@ -82,7 +82,9 @@ fresh CI run regardless of what the pre-rebase head showed.
 For "all eligible PRs": list open PRs (`gh pr list --state open`) and
 keep the ones meeting the rule above. For an explicit ticket or PR
 target from a caller, just confirm it's eligible — don't second-guess
-a target you were already given.
+a target you were already given. The one exception: an explicit ticket
+target carrying the `research` label has no PR to merge — say so and
+skip it.
 
 ## Ordering
 

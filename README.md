@@ -88,7 +88,7 @@ running against a `## Dispatch` section it no longer reads.
 
 | Plugin | What it is |
 |---|---|
-| `factory` | Software factory skills. `orchestrate` takes Linear tickets through `implement-ticket`, `adversarial-review` and `merge-queue` to a merged PR; `decision-queue` turns whatever stopped into decisions to answer; `new-project` stands up a new repo, Linear team and the factory wiring in one interactive sitting; `/factory:preamble` loads the operating manual into a Claude Code session. Each repo that uses them declares its settings in an `AGENTS.md` `## Orchestrate` section. |
+| `factory` | Software factory skills. `orchestrate` takes Linear tickets through `implement-ticket`, `adversarial-review` and `merge-queue` to a merged PR (a `research`-labelled ticket instead ends in a report written to the Linear ticket, with no PR); `decision-queue` turns whatever stopped into decisions to answer; `new-project` stands up a new repo, Linear team and the factory wiring in one interactive sitting; `/factory:preamble` loads the operating manual into a Claude Code session. Each repo that uses them declares its settings in an `AGENTS.md` `## Orchestrate` section. |
 
 ## Layout
 
