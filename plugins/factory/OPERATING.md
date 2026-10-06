@@ -74,10 +74,11 @@ a single researcher subagent answers it and writes a `## Report` section into
 the ticket's description. There is no review and no merge, and the ticket
 rests in `In Review` until the human accepts the report by moving it to
 `Done`. No mode does that for them. The human owns the label, and
-`hold-merge` and `approved-to-merge` do nothing for such a ticket. A researcher
-that cannot finish moves the ticket back to `Todo`, labels it
-`needs-attention` and posts an escalation with stage `researching`;
-clearing the label makes it pickable again. See "Research tickets" in
+`hold-merge` and `approved-to-merge` do nothing for such a ticket. When a
+researcher reports `blocked` or `failed`, orchestrate (not the researcher)
+moves the ticket back to `Todo`, labels it `needs-attention` and posts an
+escalation with stage `researching`; clearing the label makes it pickable
+again. See "Research tickets" in
 [orchestrate](skills/orchestrate/SKILL.md).
 
 ## The stop-list and escalations

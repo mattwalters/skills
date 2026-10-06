@@ -912,8 +912,8 @@ in `Todo` if it holds fewer. A short batch is a normal outcome, not a
 reason to reach further.
 
 Note which picks carry `hold-plan` or `hold-merge` (see "Per-ticket
-holds"), in your own context. A hold label is not a reason to skip a
-ticket.
+holds"), and which carry `research` (see "Research tickets"), in your
+own context. A hold label is not a reason to skip a ticket.
 
 A ticket sitting `In Progress` or `In Review` with a deferral comment
 (see "The write window") is not picked up here — Phase 1 only draws
@@ -981,9 +981,15 @@ straight to Phase 3.
 
 ## Phase 3 — Plan each ticket
 
-For each pick, spawn a planner subagent with `prompts/planner.md` —
-strongest reasoning model available (see Models and effort below):
-planning is scope judgment. Planners are read-only, so run them all in
+For each pick, re-read its labels immediately before spawning (a human
+may have added one since Phase 1), then spawn a planner subagent with
+`prompts/planner.md` — strongest reasoning model available (see Models
+and effort below): planning is scope judgment. For a pick carrying
+`research`, fill in the planner brief's optional RESEARCH line
+(`prompts/planner.md`) at spawn so the planner knows its plan is a
+research plan: the questions to answer and where to look, with
+`FILES: none` and `STOPLIST: none`. It is not unplannable for lacking a
+change to make. For any other pick, leave RESEARCH out. Planners are read-only, so run them all in
 parallel. Record `started_at` at each planner's spawn (see
 "Telemetry"); after each planner's report, post a `plan` row with its
 `planned`, `unplannable` or `blocked`.
@@ -998,13 +1004,12 @@ plan in a comment, where it sinks under later traffic.
 Each planner also checks the files it expects to touch against the
 repo's stop-list and reports what they hit. Hold it for the plan gate;
 that's what you present there. At that same point, re-read each
-ticket's labels (a human may have added one since Phase 1) and record
-which carry `hold-plan` or `hold-merge`, and which carry `research`. For a
-`research` ticket, fill in the planner brief's optional RESEARCH line
-(`prompts/planner.md`) so the planner knows its plan is a research plan:
-the questions to answer and where to look, with `FILES: none` and
-`STOPLIST: none`. It is not unplannable for lacking a change to make.
-For any other ticket, leave RESEARCH out.
+ticket's labels (a human may have added one since the spawn) and record
+which carry `hold-plan` or `hold-merge`. If a ticket's `research` label
+differs from what its planner was spawned with (added or removed since),
+its plan is the wrong kind and must not reach Phase 6: drop it from the
+batch, leave it in `Todo` without `needs-attention`, and say at the plan
+gate that the next run will re-plan it with the label as it now stands.
 
 A planner that finds a ticket too vague, or big enough to be several
 tickets, reports it unplannable instead of guessing. A planner that
