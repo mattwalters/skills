@@ -247,12 +247,13 @@ the label has no research tickets.
 - **Stops.** The researcher reports `reported`, `blocked` or `failed`.
   `blocked` means the premise doesn't hold or the question needs a
   human's call; `failed` means it could not complete, for instance
-  because a source it needs is unreachable. Both label the ticket
-  `needs-attention` and post a `factory: escalation` with stage
-  `researching` (see "Escalation comments"). Like a planning stop, the
-  human answers it by editing the ticket and clearing the label, never
-  with a `factory: decision`: none of the three `Next` invocations
-  applies.
+  because a source it needs is unreachable. Both move the ticket back
+  to `Todo`, label it `needs-attention` and post a `factory: escalation`
+  with stage `researching` (see "Escalation comments"). Like a dropped
+  planning ticket, it is then in `Todo` with the label, so the human
+  answers it by editing the ticket and clearing the label, and the next
+  run picks it again; never with a `factory: decision`: none of the
+  three `Next` invocations applies.
 
 ## The stop-list
 
@@ -574,7 +575,10 @@ Only Linear's stock statuses are used, plus five workspace labels:
   in-progress or in-review work it actually is instead of being
   teleported somewhere else. A ticket the planner drops is the one
   exception worth naming: it stays in `Todo` with the label, since it
-  never left `Todo` in the first place. Either way, the label only says
+  never left `Todo` in the first place. A `research` ticket whose
+  researcher stops `blocked` or `failed` is the other: it is moved back
+  to `Todo` and labelled, so clearing the label makes it pickable
+  again. Either way, the label only says
   *that* something needs a human — the durable record of *why* is the
   `factory: escalation` comment on the same ticket (see "Escalation
   comments").
@@ -751,8 +755,9 @@ stop is the one that records it, so the two can never drift apart:
 - Planner unplannable or blocked (a dropped ticket): `orchestrate`, in
   Phase 3.
 - Research `blocked` or `failed`: `orchestrate`, in Phase 6 (there is no
-  separate stage skill for it). Answered the planning way, by editing
-  the ticket and clearing `needs-attention`, never by a `factory:
+  separate stage skill for it), which also moves the ticket back to
+  `Todo`. Answered the planning way, by editing the ticket and clearing
+  `needs-attention` so the next run picks it again, never by a `factory:
   decision`.
 - Implement `blocked` or `failed`: `implement-ticket`.
 - Review `blocked`, `failed`, or `capped`, and every stop-list hold:
@@ -894,7 +899,10 @@ in `Todo`, sorted by priority.
 Within `Todo`, skip anything blocked by an open ticket, anything
 carrying the `needs-attention` label (a human is meant to look at that
 first), anything too vague to implement without a human, anything
-whose scope is plainly a project rather than a change, and a ticket
+whose scope is plainly a project rather than a change (for a ticket
+carrying `research`, read "implement" as "answer" and "a change" as "a
+question": skip it only if it is too vague to answer or plainly a
+project, never for lacking a change to make), and a ticket
 whose newest marker is a pending `factory: decision` (see "Escalation
 comments") — its next step belongs to whatever resumes it, and picking
 it here too would run it twice. Use judgment: a
@@ -927,7 +935,8 @@ What you may do, at the selection gate and only there, is *propose*
 promotions. If `Todo` yields **five or more** eligible tickets, don't
 read `Backlog` at all — there is enough to run. If it yields fewer,
 read `Backlog` and look for tickets that are plainly runnable now:
-concrete enough to implement, unblocked, scoped as a change rather
+concrete enough to implement (or, for a `research` ticket, to answer),
+unblocked, scoped as a change (or, for `research`, as a question) rather
 than a project, and not obviously the human's own to decide — nothing
 that reads as an open question, a direction call, or a ticket they
 assigned themselves. When a ticket is borderline, leave it out; the
@@ -990,11 +999,12 @@ Each planner also checks the files it expects to touch against the
 repo's stop-list and reports what they hit. Hold it for the plan gate;
 that's what you present there. At that same point, re-read each
 ticket's labels (a human may have added one since Phase 1) and record
-which carry `hold-plan` or `hold-merge`, and which carry `research`. The
-planner prompt is unchanged; it knows nothing of the labels. A
-`research` ticket gets the same planner: its plan simply describes the
-questions to answer and where to look, with `FILES: none` or the files
-to read.
+which carry `hold-plan` or `hold-merge`, and which carry `research`. For a
+`research` ticket, fill in the planner brief's optional RESEARCH line
+(`prompts/planner.md`) so the planner knows its plan is a research plan:
+the questions to answer and where to look, with `FILES: none` and
+`STOPLIST: none`. It is not unplannable for lacking a change to make.
+For any other ticket, leave RESEARCH out.
 
 A planner that finds a ticket too vague, or big enough to be several
 tickets, reports it unplannable instead of guessing. A planner that
@@ -1089,7 +1099,8 @@ wave's implementers. When the report arrives, post a `research` row with
 its `reported`, `blocked` or `failed` (see "Telemetry"). On `reported`,
 move the ticket to `In Review`; its report is already in the
 description, and it waits there for the human to accept it (see
-"Research tickets"). On `blocked` or `failed`, label the ticket
+"Research tickets"). On `blocked` or `failed`, move the ticket back to `Todo` (so that
+clearing the label makes it pickable again), label it
 `needs-attention` and post a `factory: escalation` with stage
 `researching`, the result, and the researcher's `OPTIONS` verbatim (a
 failed result records "none recorded"); relay which one it was —
@@ -1101,7 +1112,9 @@ Invoke the `implement-ticket` skill once for the current wave's ticket
 ids (research tickets excluded) together — its own instructions cover the worktree, the subagent,
 the three-attempt CI rule, and running the wave concurrently, so
 nothing here duplicates them. Tell it the run id; it posts its own
-`implement` rows (see "Telemetry"), and you post none for this phase.
+`implement` rows (see "Telemetry"), and you post no `implement` rows
+yourself (your `research` rows, above, are the only ones you post in
+this phase).
 
 For each report it returns, note its worktree path, branch, and PR URL
 in your own context. On `RESULT: blocked` or `failed`, `implement-ticket`
