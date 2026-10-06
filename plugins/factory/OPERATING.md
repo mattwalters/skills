@@ -66,6 +66,21 @@ They are the human's labels: the pipeline never adds or removes them. A
 `approved-to-merge`. Other tickets in the batch are unaffected. See
 "Per-ticket holds" in [orchestrate](skills/orchestrate/SKILL.md).
 
+## Research tickets
+
+A ticket carrying the `research` label has a report, not a pull request, as
+its deliverable. It is picked and planned like any other. After the plan gate
+a single researcher subagent answers it and writes a `## Report` section into
+the ticket's description. There is no review and no merge, and the ticket
+rests in `In Review` until the human accepts the report by moving it to
+`Done`. No mode does that for them. The human owns the label, and
+`hold-merge` and `approved-to-merge` do nothing for such a ticket. When a
+researcher reports `blocked` or `failed`, orchestrate (not the researcher)
+moves the ticket back to `Todo`, labels it `needs-attention` and posts an
+escalation with stage `researching`; clearing the label makes it pickable
+again. See "Research tickets" in
+[orchestrate](skills/orchestrate/SKILL.md).
+
 ## The stop-list and escalations
 
 Each adopting repo declares a stop-list: the paths and subjects whose merge
@@ -97,9 +112,10 @@ comments" and "The write window" in
 ## Statuses and labels
 
 Status is readiness. `Todo` is the only queue orchestrate draws new picks
-from. `In Progress` means a ticket is being implemented. `In Review` means a
-pull request exists and is waiting on review or on its merge gate. `Done`
-means merged.
+from. `In Progress` means a ticket is being implemented, or researched. `In Review` means a
+pull request exists and is waiting on review or on its merge gate; for a
+research ticket it means the report is written and awaiting acceptance. `Done`
+means merged, or for a research ticket, accepted by the human.
 
 `Backlog` is the human's parking lot. Orchestrate never picks from it and
 never promotes out of it, though at a held selection gate it may propose

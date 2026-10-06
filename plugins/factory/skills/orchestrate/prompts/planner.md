@@ -3,11 +3,21 @@
 Fill in before spawning: TICKET (Linear id), and the repo's
 `## Orchestrate` config (team key, base branch, check command, review
 invariants, stop-list) so the planner doesn't have to go looking for
-it.
+it. Optionally, RESEARCH: set only when TICKET carries the `research`
+label.
 
 ---
 
 You are planning TICKET, nothing more. Do not write code.
+
+If RESEARCH is set, TICKET's deliverable is a written report, not a
+change, so plan it as research: the `## Plan` describes the questions to
+answer, where to look (code, docs, other sources) and what a good answer
+contains, instead of what to change. Report `FILES: none` and
+`STOPLIST: none` — nothing will be committed — and do not report it
+unplannable for having no change to make; it is unplannable only if the
+questions are too vague to answer. Where the rest of this brief says
+"change", read "question".
 
 Read TICKET in Linear. Read the repo's `AGENTS.md` — including its
 `## Orchestrate` section, which names the check command the

@@ -65,7 +65,7 @@ unlinked PRs, only to open ones.
 | 1 | Has an open **`needs-attention`** label | Queue item — if the current record (the newest-marker rule above, which skips a stale decision) is a `factory: escalation` comment, escalation-shaped, built from it as usual; if it's a hold or a deferral instead, the question is "`needs-attention` is still on, but the latest record is a <hold\|deferral>: clear the label?"; if there is no marker at all — including when the only marker on the ticket is a stale decision — list it anyway with one line saying no escalation was recorded |
 | 2 | The current record (the newest-marker rule above, which skips a stale decision) is a `factory: stop-list hold` naming at least one entry (`Entries` not `none`), the ticket is `In Review` with an open PR, and it carries no **`approved-to-merge`** | Queue item, hold-shaped (fixed shape — see "Item shape") |
 | 3 | Newest marker is a `factory: deferred` comment, and the ticket's status and PR head haven't changed since it was posted | FYI — Deferred, with a restart invocation derived from its `Stage` line (see "FYI, below the queue") |
-| 4 | `In Review`, or `In Progress` with an open PR — everything else lands here: a hold naming no entries, an escalation whose ticket has already lost the label, no marker at all (including when the only marker on the ticket is a stale decision), or `approved-to-merge` sitting on a green PR waiting for `merge-queue` | FYI — implemented and awaiting review, still in review, awaiting merge approval, or queued to merge |
+| 4 | `In Review`, or `In Progress` with an open PR — everything else lands here: a hold naming no entries, an escalation whose ticket has already lost the label, no marker at all (including when the only marker on the ticket is a stale decision), or `approved-to-merge` sitting on a green PR waiting for `merge-queue` | FYI — implemented and awaiting review, still in review, awaiting merge approval, queued to merge, or (a `research` ticket in `In Review`, which has no PR) research report awaiting acceptance |
 | 5 | Anything else | Not listed |
 
 Row 0 sits above row 1 on purpose: a pending decision means the
@@ -157,7 +157,7 @@ One per item, in this shape, and nothing longer:
     ### <TICKET> — <the question, as a question>
 
     **Unblocks:** <n tickets: ids> · **PR:** <url> · **Stopped at:**
-    <planning | implementing | review round n | merge>
+    <planning | researching | implementing | review round n | merge>
 
     <One or two sentences on what was found. Not a narrative of the
     run.>
@@ -283,7 +283,12 @@ decision either:
   ticket falls through to row 4 or row 5 instead of sitting here
   forever.
 - **Implemented and awaiting review, still in review, awaiting merge
-  approval, or queued to merge.** Row 4: a ticket that's `In Review`,
+  approval, queued to merge, or research report awaiting acceptance.**
+  A `research` ticket in `In Review` has no PR: its report is on the
+  ticket and the human accepts it by moving it to `Done` (see the
+  `orchestrate` skill's "Research tickets"), so it lands here as
+  "research report awaiting acceptance", not as a queue item. Its
+  escalations are row 1 items like any other. Row 4: a ticket that's `In Review`,
   or `In Progress` with an open PR, and didn't match row 0, 1, 2, or 3
   — whatever's left once those are ruled out: no marker at all
   (including when the only marker on the ticket is a stale decision), a

@@ -1,6 +1,6 @@
 ---
 name: orchestrate
-description: Batch-run the next tickets from Linear for the repo you are in. Picks 5–10 unblocked tickets from `Todo` by priority, stops for human approval on the selection, has each one planned into its ticket description, plans parallel vs serial execution, stops for approval again on the plans, then runs each ticket through the implement-ticket, adversarial-review, and merge-queue skills to a merged pull request. Its three gates — selection, plan, merge — are set by naming a mode at invocation: supervised, semi, or autonomous. A ticket carrying a `hold-plan` or `hold-merge` label has that gate held for it alone, whatever the mode. Reads the host repo's `AGENTS.md` `## Orchestrate` section for its Linear team, check command, base branch, write window, and worktree locations, and stops a stage short of any commit, push, or merge while that window is closed. Also reads an optional `Telemetry` field; when it is set, posts each stage attempt's outcome and each review finding's severity through the poster command it names, and a failed post never blocks, fails or changes a run. Every stop any stage hits is recorded as a comment or label on its Linear ticket (or its PR, if none resolved), so nothing a run stops on depends on this session's own context surviving. Use when asked to run the queue, work the next tickets, orchestrate a batch, or process Linear tickets in parallel. Do not use for a single ticket a human is already driving — use implement-ticket, adversarial-review, or merge-queue directly for that.
+description: Batch-run the next tickets from Linear for the repo you are in. Picks 5–10 unblocked tickets from `Todo` by priority, stops for human approval on the selection, has each one planned into its ticket description, plans parallel vs serial execution, stops for approval again on the plans, then runs each ticket through the implement-ticket, adversarial-review, and merge-queue skills to a merged pull request. Its three gates — selection, plan, merge — are set by naming a mode at invocation: supervised, semi, or autonomous. A ticket carrying a `hold-plan` or `hold-merge` label has that gate held for it alone, whatever the mode. A ticket carrying the `research` label is planned like any other, then researched by a single subagent whose report lands on the ticket, and waits there for the human to accept it — no PR, no review, no merge. Reads the host repo's `AGENTS.md` `## Orchestrate` section for its Linear team, check command, base branch, write window, and worktree locations, and stops a stage short of any commit, push, or merge while that window is closed. Also reads an optional `Telemetry` field; when it is set, posts each stage attempt's outcome and each review finding's severity through the poster command it names, and a failed post never blocks, fails or changes a run. Every stop any stage hits is recorded as a comment or label on its Linear ticket (or its PR, if none resolved), so nothing a run stops on depends on this session's own context surviving. Use when asked to run the queue, work the next tickets, orchestrate a batch, or process Linear tickets in parallel. Do not use for a single ticket a human is already driving — use implement-ticket, adversarial-review, or merge-queue directly for that.
 ---
 
 # Orchestrate
@@ -12,6 +12,11 @@ each ticket through the `implement-ticket`, `adversarial-review`, and
 yourself — every one of those burns orchestrator context that the
 whole batch depends on. Subagents do the work; you route, count
 rounds, and move Linear tickets.
+
+One kind of ticket takes a different road after planning: a ticket
+labelled `research` is not implemented, reviewed or merged. A single
+researcher subagent answers it and writes the report onto the ticket
+(see "Research tickets").
 
 This skill is the orchestration policy — picking, waving, modes,
 gates, tracking. What happens to one ticket once it's picked lives in
@@ -208,6 +213,47 @@ Name the hold wherever a gate names its stop-list hits: "SKL-n is held
 at plan by label", "SKL-n is held at merge by label". When any picked
 ticket carries one, the one-line configuration echo before the first
 gate says so and names both labels.
+
+### Research tickets
+
+A ticket carrying the `research` label has a written report, not a
+diff, as its deliverable. Like the hold labels it is human-owned: the
+human (or voice, on their behalf) puts it on when the ticket is
+created, and the pipeline never adds or removes it. A workspace without
+the label has no research tickets.
+
+- **The fork.** A research ticket is picked, planned, and shown at the
+  plan gate exactly like any other. After the plan gate it does not go
+  to `implement-ticket`; Phase 6 spawns one researcher subagent with
+  `prompts/researcher.md` instead. There is no adversarial review and no
+  merge for it, and it never reaches `merge-queue`.
+- **The report.** The researcher writes it into the ticket's
+  description under a `## Report` heading after `## Plan`, replacing an
+  existing `## Report` and nothing else. It goes in the description
+  rather than a comment for the reason the plan does: a comment sinks
+  under later traffic, and the description is what the human, or voice
+  reading Linear for them, opens first.
+- **Done is acceptance.** On `reported` the ticket moves to `In Review`
+  and rests there. Only the human moves it to `Done`, when they accept
+  the report. No mode and no released gate does it, and nothing in the
+  pipeline moves a research ticket to `Done`.
+- **No merge gate.** A research ticket has no merge gate, so
+  `hold-merge` and `approved-to-merge` do nothing for it. `hold-plan`
+  works as usual.
+- **Not a gated write.** Research makes no commit, push or PR, so
+  nothing it does is a gated write under "The write window", whatever
+  the window says. Editing a Linear description or posting a comment
+  never was one.
+- **Stops.** The researcher reports `reported`, `blocked` or `failed`.
+  `blocked` means the premise doesn't hold or the question needs a
+  human's call; `failed` means it could not complete, for instance
+  because a source it needs is unreachable. Both move the ticket back
+  to `Todo`, label it `needs-attention` and post a `factory: escalation`
+  with stage `researching` (see "Escalation comments"). Like a dropped
+  planning ticket, it is then in `Todo` with the label, so the human
+  answers it by editing the ticket and clearing the label, and the next
+  run picks it again; never with a `factory: decision`: none of the
+  three `Next` invocations applies.
 
 ## The stop-list
 
@@ -507,26 +553,32 @@ to it.
 
 ## Statuses and labels
 
-Only Linear's stock statuses are used, plus four workspace labels:
+Only Linear's stock statuses are used, plus five workspace labels:
 
 - `Todo` — the queue this skill draws new picks from, and the only
   one for that. A ticket sitting `In Progress` or `In Review` with a
   deferral comment is never picked up from here — see Phase 1 — and
   orchestrate never re-picks it itself either way.
-- `In Progress` — being implemented.
+- `In Progress` — being implemented, or, for a `research` ticket, being
+  researched.
 - `In Review` — a PR exists and is under review. This is a reading
-  gate: a ticket rests here until its merge gate is passed.
+  gate: a ticket rests here until its merge gate is passed. For a
+  `research` ticket it means the report is written and awaiting the
+  human's acceptance; no PR exists.
 - `In Review` plus the **`approved-to-merge`** label — cleared to
   merge and sitting in the merge queue. Clearing it adds a label; it
   does not change the status.
-- `Done` — merged.
+- `Done` — merged; for a `research` ticket, accepted by the human.
 - The **`needs-attention`** label — anything that needs a human. It is
   a label, not a status: a ticket that stalls **keeps whatever status
   it was in** and gains the label, so it stays visible as the
   in-progress or in-review work it actually is instead of being
   teleported somewhere else. A ticket the planner drops is the one
   exception worth naming: it stays in `Todo` with the label, since it
-  never left `Todo` in the first place. Either way, the label only says
+  never left `Todo` in the first place. A `research` ticket whose
+  researcher stops `blocked` or `failed` is the other: it is moved back
+  to `Todo` and labelled, so clearing the label makes it pickable
+  again. Either way, the label only says
   *that* something needs a human — the durable record of *why* is the
   `factory: escalation` comment on the same ticket (see "Escalation
   comments").
@@ -535,11 +587,14 @@ Only Linear's stock statuses are used, plus four workspace labels:
   human puts one on a ticket to hold that ticket's plan or merge gate
   whatever the run's mode (see "Per-ticket holds"). `orchestrate` reads
   them and never adds or removes either.
+- The **`research`** label — human-owned. It marks a ticket whose
+  deliverable is a report, not a PR (see "Research tickets").
+  `orchestrate` reads it and never adds or removes it.
 
-All four are workspace labels. `needs-attention` and `approved-to-merge`
-exist on every team automatically; the hold labels are created by the
-human when first wanted, and a workspace without them simply has no
-held tickets. Move tickets and add labels yourself as they advance,
+All five are workspace labels. `needs-attention` and `approved-to-merge`
+exist on every team automatically; the hold labels and `research` are
+created by the human when first wanted, and a workspace without them
+simply has no held or research tickets. Move tickets and add labels yourself as they advance,
 except the hold labels; a GitHub automation may race you to `Done` on
 merge, which is harmless.
 
@@ -547,8 +602,8 @@ Take a label off when it stops being true: `needs-attention` comes off
 when the ticket is picked back up, or when a `factory: decision` is
 posted for it, and `approved-to-merge` comes off when the ticket
 reaches `Done`. A stale label on a finished ticket is noise in
-everyone's views. The hold labels are exempt: they stay until the human
-removes them, `Done` included.
+everyone's views. The hold labels and `research` are exempt: they stay
+until the human removes them, `Done` included.
 
 **You never pick from `Backlog`** — see Phase 1.
 
@@ -588,13 +643,13 @@ home (see "The write window"), and a fourth for a human's recorded
 answer:
 
     **factory: escalation**
-    Stage: planning | implementing | review round <n> of <budget> | merge
+    Stage: planning | researching | implementing | review round <n> of <budget> | merge
     Result: unplannable | blocked | failed | capped | dropped
     PR: <url or none>
     Question: <the decision, as one question>
     Found: <1-2 sentences, from the report's NOTES>
-    Options (verbatim from the <planner | implementer | reviewer | fixer
-             | adversarial-review | resolver | intent review> report, or
+    Options (verbatim from the <planner | researcher | implementer | reviewer
+             | fixer | adversarial-review | resolver | intent review> report, or
              written by the skill itself when there's no subagent report
              to draw one from):
     <the OPTIONS block verbatim, pick included; "none recorded" only for
@@ -634,7 +689,8 @@ pipeline raised — it never comes from a stage or a subagent. `Next` is
 exactly one of the three invocations the template names; a decision
 that hands nothing back to a machine — drop the ticket, rescope it,
 replan it — is never recorded with this marker, and that includes every
-planning-stage stop, since none of the three invocations replans: the
+planning-stage stop and every researching stop, since none of the three
+invocations replans or re-researches: the
 human cancels the ticket, or edits it and clears `needs-attention`
 directly, the same way that's done today with no decision marker
 involved.
@@ -698,6 +754,11 @@ stop is the one that records it, so the two can never drift apart:
 
 - Planner unplannable or blocked (a dropped ticket): `orchestrate`, in
   Phase 3.
+- Research `blocked` or `failed`: `orchestrate`, in Phase 6 (there is no
+  separate stage skill for it), which also moves the ticket back to
+  `Todo`. Answered the planning way, by editing the ticket and clearing
+  `needs-attention` so the next run picks it again, never by a `factory:
+  decision`.
 - Implement `blocked` or `failed`: `implement-ticket`.
 - Review `blocked`, `failed`, or `capped`, and every stop-list hold:
   `adversarial-review`.
@@ -749,11 +810,14 @@ its own name as the prefix.
 - `run_id`.
 - `ticket_id`: `PR#<n>` for a PR with no linked ticket.
 - `team_key`: the Linear team key.
-- `stage`: one of `plan`, `implement`, `review`, `fix`, `merge`.
+- `stage`: one of `plan`, `research`, `implement`, `review`, `fix`,
+  `merge`. The ops-side server may not yet know `research` and reject
+  it; that is harmless, since a failed post is ignored.
 - `attempt`: a positive integer, see below.
 - `outcome`: the stage's own `RESULT` word, verbatim, never
   translated. A planner's is `planned`, `unplannable` or `blocked`; a
-  review round's is `reviewed` or `blocked`.
+  researcher's is `reported`, `blocked` or `failed`; a review round's is
+  `reviewed` or `blocked`.
 - `started_at`, `ended_at`: UTC ISO-8601 from `date -u
   +%Y-%m-%dT%H:%M:%SZ`, read when the subagent or stage starts and when
   its report arrives.
@@ -762,7 +826,7 @@ Omit `agent_id`.
 
 **Attempt numbering.**
 
-- `plan`, `implement` and `merge` are attempt `1` per ticket per run. A
+- `plan`, `research`, `implement` and `merge` are attempt `1` per ticket per run. A
   second invocation of the same stage for the same ticket in the same
   run increments it.
 - Review attempt `n` is review round `n`.
@@ -835,7 +899,10 @@ in `Todo`, sorted by priority.
 Within `Todo`, skip anything blocked by an open ticket, anything
 carrying the `needs-attention` label (a human is meant to look at that
 first), anything too vague to implement without a human, anything
-whose scope is plainly a project rather than a change, and a ticket
+whose scope is plainly a project rather than a change (for a ticket
+carrying `research`, read "implement" as "answer" and "a change" as "a
+question": skip it only if it is too vague to answer or plainly a
+project, never for lacking a change to make), and a ticket
 whose newest marker is a pending `factory: decision` (see "Escalation
 comments") — its next step belongs to whatever resumes it, and picking
 it here too would run it twice. Use judgment: a
@@ -845,8 +912,8 @@ in `Todo` if it holds fewer. A short batch is a normal outcome, not a
 reason to reach further.
 
 Note which picks carry `hold-plan` or `hold-merge` (see "Per-ticket
-holds"), in your own context. A hold label is not a reason to skip a
-ticket.
+holds"), and which carry `research` (see "Research tickets"), in your
+own context. A hold label is not a reason to skip a ticket.
 
 A ticket sitting `In Progress` or `In Review` with a deferral comment
 (see "The write window") is not picked up here — Phase 1 only draws
@@ -868,7 +935,8 @@ What you may do, at the selection gate and only there, is *propose*
 promotions. If `Todo` yields **five or more** eligible tickets, don't
 read `Backlog` at all — there is enough to run. If it yields fewer,
 read `Backlog` and look for tickets that are plainly runnable now:
-concrete enough to implement, unblocked, scoped as a change rather
+concrete enough to implement (or, for a `research` ticket, to answer),
+unblocked, scoped as a change (or, for `research`, as a question) rather
 than a project, and not obviously the human's own to decide — nothing
 that reads as an open question, a direction call, or a ticket they
 assigned themselves. When a ticket is borderline, leave it out; the
@@ -913,9 +981,15 @@ straight to Phase 3.
 
 ## Phase 3 — Plan each ticket
 
-For each pick, spawn a planner subagent with `prompts/planner.md` —
-strongest reasoning model available (see Models and effort below):
-planning is scope judgment. Planners are read-only, so run them all in
+For each pick, re-read its labels immediately before spawning (a human
+may have added one since Phase 1), then spawn a planner subagent with
+`prompts/planner.md` — strongest reasoning model available (see Models
+and effort below): planning is scope judgment. For a pick carrying
+`research`, fill in the planner brief's optional RESEARCH line
+(`prompts/planner.md`) at spawn so the planner knows its plan is a
+research plan: the questions to answer and where to look, with
+`FILES: none` and `STOPLIST: none`. It is not unplannable for lacking a
+change to make. For any other pick, leave RESEARCH out. Planners are read-only, so run them all in
 parallel. Record `started_at` at each planner's spawn (see
 "Telemetry"); after each planner's report, post a `plan` row with its
 `planned`, `unplannable` or `blocked`.
@@ -930,9 +1004,12 @@ plan in a comment, where it sinks under later traffic.
 Each planner also checks the files it expects to touch against the
 repo's stop-list and reports what they hit. Hold it for the plan gate;
 that's what you present there. At that same point, re-read each
-ticket's labels (a human may have added one since Phase 1) and record
-which carry `hold-plan` or `hold-merge`. The planner prompt is
-unchanged; it knows nothing of the labels.
+ticket's labels (a human may have added one since the spawn) and record
+which carry `hold-plan` or `hold-merge`. If a ticket's `research` label
+differs from what its planner was spawned with (added or removed since),
+its plan is the wrong kind and must not reach Phase 6: drop it from the
+batch, leave it in `Todo` without `needs-attention`, and say at the plan
+gate that the next run will re-plan it with the label as it now stands.
 
 A planner that finds a ticket too vague, or big enough to be several
 tickets, reports it unplannable instead of guessing. A planner that
@@ -969,6 +1046,10 @@ Group:
 The output is waves: wave 1 runs in parallel, wave 2 starts as its
 prerequisites merge, and so on.
 
+A `research` ticket touches no files, so it joins no wave's file-overlap
+math. It runs alongside wave 1, or behind a prerequisite it depends on
+in Linear.
+
 A `hold-plan` ticket joins a wave only once its plan is approved (see
 Phase 5), and a ticket that depends on it is serialized behind it.
 
@@ -978,7 +1059,9 @@ Present the plans and stop: a table of ticket, wave, and the plan's
 one-line summary, plus a note on anything serialized and why, which
 tickets the planners flagged as stop-list hits and which entry each
 one hit, which tickets are held at plan by label and which at merge by
-label (see "Per-ticket holds"), and any tickets the planners dropped as
+label (see "Per-ticket holds"), which tickets are research tickets (they
+never reach a merge gate; see "Research tickets"), and any tickets the
+planners dropped as
 unplannable or blocked (say which, and for blocked, what the planner
 found and the options it gave). Approving here approves the
 plans — the full plans are on the tickets for anyone who wants the
@@ -1011,11 +1094,32 @@ plan, until the human approves it in chat or removes the label.
 
 ## Phase 6 — Implement
 
+**Research tickets** don't go to `implement-ticket`. For each one, move
+it to `In Progress` (unless it already is), record `started_at`, and
+spawn a researcher subagent with `prompts/researcher.md`, filling in
+TICKET and the repo's team key and base branch — strongest reasoning
+model available, high effort (see Models and effort below). Researchers
+are read-only, so run them in parallel with each other and with the
+wave's implementers. When the report arrives, post a `research` row with
+its `reported`, `blocked` or `failed` (see "Telemetry"). On `reported`,
+move the ticket to `In Review`; its report is already in the
+description, and it waits there for the human to accept it (see
+"Research tickets"). On `blocked` or `failed`, move the ticket back to `Todo` (so that
+clearing the label makes it pickable again), label it
+`needs-attention` and post a `factory: escalation` with stage
+`researching`, the result, and the researcher's `OPTIONS` verbatim (a
+failed result that returned none records "none recorded"); relay which one it was —
+blocked means the question needs a human's call, failed means the
+research hit a wall — and carry on with the rest of the batch. The
+researcher has already commented the mismatch on the ticket.
+
 Invoke the `implement-ticket` skill once for the current wave's ticket
-ids together — its own instructions cover the worktree, the subagent,
+ids (research tickets excluded) together — its own instructions cover the worktree, the subagent,
 the three-attempt CI rule, and running the wave concurrently, so
 nothing here duplicates them. Tell it the run id; it posts its own
-`implement` rows (see "Telemetry"), and you post none for this phase.
+`implement` rows (see "Telemetry"), and you post no `implement` rows
+yourself (your `research` rows, above, are the only ones you post in
+this phase).
 
 For each report it returns, note its worktree path, branch, and PR URL
 in your own context. On `RESULT: blocked` or `failed`, `implement-ticket`
@@ -1046,6 +1150,7 @@ window".
 For each ticket `implement-ticket` reported green, invoke the
 `adversarial-review` skill for that ticket's PR (its own instructions
 cover the reviewer/fixer cycle and moving the ticket to `In Review`).
+Research tickets skip this phase: they have no PR and no review.
 Tell it the run id; it posts its own `review` and `fix` rows and the
 findings (see "Telemetry"), and you post none for this phase.
 
@@ -1116,6 +1221,9 @@ of the batch — a restart is a fresh `adversarial-review` call starting
 at round 1, not something this run resumes. See "The write window".
 
 ## Phase 8 — Merge gate and merge queue
+
+Research tickets skip this phase: they have no merge gate and never go
+to `merge-queue`.
 
 A branch is ready when its latest review round returned no major and
 no medium findings and CI is green. Report it: ticket, PR link, rounds
@@ -1226,8 +1334,8 @@ something you or any subagent does on your own judgment.
 
 ## Models and effort
 
-Phases name capability tiers, not vendor models: planning and every
-review round want the strongest reasoning model available, because
+Phases name capability tiers, not vendor models: planning, research and
+every review round want the strongest reasoning model available, because
 both are judgment; implementing to a written plan, fixing findings,
 and resolving a mechanical rebase conflict are all mid-tier work.
 The intent review a tier-2 rebase triggers is judgment too — it asks
@@ -1241,6 +1349,7 @@ all point back to it:
 | Phase                     | Claude Code  | Antigravity            | Codex                     |
 | ------------------------- | ------------ | ---------------------- | ------------------------- |
 | Plan                      | Opus, high   | gemini-3.7-flash, high | strongest available, high |
+| Research                  | Opus, high   | gemini-3.7-flash, high | strongest available, high |
 | Implement / fix / rebase  | Sonnet, high | gemini-3.7-flash, high | mid-tier, high            |
 | Review (all rounds)       | Opus, high   | gemini-3.7-flash, high | strongest available, high |
 | Intent review (tier 2)    | Opus, high   | gemini-3.7-flash, high | strongest available, high |
@@ -1255,7 +1364,8 @@ the line you echo the mode back with.
 After each merge, and whenever the human asks: one table from what you
 hold — ticket, title, where it is (implementing / review round N /
 fixing / ready for merge / queued to merge / merged / needs attention
-/ deferred (window closed)), PR link.
+/ deferred (window closed) / report awaiting acceptance), PR link (none
+for a research ticket).
 Nothing else; the details live on the PRs.
 
 At the end of a run, list any deferred tickets separately, one line
@@ -1279,6 +1389,10 @@ neither does an approving GitHub review alone: `merge-queue` merges a
 linked ticket only on `approved-to-merge`). Also list any ticket serialized behind a
 `hold-plan` ticket whose plan is still unanswered: planned, not run,
 and waiting on that ticket's plan.
+
+At the end of a run, also list any research ticket whose report is
+waiting on acceptance, one line each: the ticket, and that moving it to
+`Done` accepts it (see "Research tickets").
 
 A run in semi or autonomous mode reports more, not less, because
 nobody is watching it happen: post a status update at the end of each
