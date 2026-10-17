@@ -92,6 +92,10 @@ What each row deliberately does not do:
   `plan-approved` in the same step it fires I or R, so one approval
   starts one stage. A ticket that comes back to `Todo` later, such as a
   research ticket whose researcher stopped, needs approving again.
+  A waiting plan also carries `plan-ready`, which `plan-ticket` adds
+  and the stage I or R starts removes, so a saved Linear view can show
+  it. No row reads `plan-ready`: routing stays on `## Plan` and
+  `plan-approved`.
 - **V** fires on `In Progress`, not `In Review`. A green
   `implement-ticket` leaves the ticket `In Progress` with a draft PR, and
   `adversarial-review` moves it to `In Review` when its cycle starts. So

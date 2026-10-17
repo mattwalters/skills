@@ -1,6 +1,6 @@
 ---
 name: decision-queue
-description: Turn everything an orchestrate run stopped on into a queue of answerable decisions — each blocked, failed, capped or stop-listed item stated as one question with its options and a recommendation, ordered by how much work an answer unblocks. Reads the host repo's `AGENTS.md` `## Orchestrate` section for its Linear team, and reads Linear and the open PRs directly — it keeps no state of its own. Use when asked for a status report, what needs a decision, what is blocked, or what to look at first. Called by the orchestrate skill in place of a plain status table; equally fine invoked standalone against a repo mid-run or the morning after one.
+description: Turn everything an orchestrate run or a dispatcher stopped on into a queue of answerable decisions — each blocked, failed, capped or stop-listed item stated as one question with its options and a recommendation, ordered by how much work an answer unblocks — followed by the approvals waiting on the human: ready PRs awaiting `approved-to-merge`, and planned `Todo` tickets awaiting `plan-approved`. Reads the host repo's `AGENTS.md` `## Orchestrate` section for its Linear team, and reads Linear and the open PRs directly — it keeps no state of its own. Use when asked for a status report, what needs a decision, what is blocked, or what to look at first. Called by the orchestrate skill in place of a plain status table; equally fine invoked standalone against a repo mid-run or the morning after one.
 ---
 
 # Decision queue
@@ -19,6 +19,13 @@ and ordering those comments, not reconstructing anything from scratch.
 If an item's escalation comment recorded no options, say so in one
 line rather than inventing them — a missing recommendation is a fact
 about the run, and a guessed one is worse than the gap.
+
+Two kinds of item are approvals rather than stops: a PR whose review
+came back ready, waiting on `approved-to-merge`, and a planned `Todo`
+ticket waiting on `plan-approved`. Nothing stalled on either, but with
+every gate always held they are the most common thing waiting on a
+human, so they are queue items too, after every real stop (see
+"Ordering").
 
 ## Repo configuration
 
@@ -65,8 +72,10 @@ unlinked PRs, only to open ones.
 | 1 | Has an open **`needs-attention`** label | Queue item — if the current record (the newest-marker rule above, which skips a stale decision) is a `factory: escalation` comment, escalation-shaped, built from it as usual; if it's a hold or a deferral instead, the question is "`needs-attention` is still on, but the latest record is a <hold\|deferral>: clear the label?"; if there is no marker at all — including when the only marker on the ticket is a stale decision — list it anyway with one line saying no escalation was recorded |
 | 2 | The current record (the newest-marker rule above, which skips a stale decision) is a `factory: stop-list hold` naming at least one entry (`Entries` not `none`), the ticket is `In Review` with an open PR, and it carries no **`approved-to-merge`** | Queue item, hold-shaped (fixed shape — see "Item shape") |
 | 3 | Newest marker is a `factory: deferred` comment, and the ticket's status and PR head haven't changed since it was posted | FYI — Deferred, with a restart invocation derived from its `Stage` line (see "FYI, below the queue") |
-| 4 | `In Review`, or `In Progress` with an open PR — everything else lands here: a hold naming no entries, an escalation whose ticket has already lost the label, no marker at all (including when the only marker on the ticket is a stale decision), or `approved-to-merge` sitting on a green PR waiting for `merge-queue` | FYI — implemented and awaiting review, still in review, awaiting merge approval, queued to merge, or (a `research` ticket in `In Review`, which has no PR) research report awaiting acceptance |
-| 5 | Anything else | Not listed |
+| 4 | The current record is a `factory: stop-list hold` naming no entries (`Entries: none`), the ticket is `In Review` with an open PR, and it carries no **`approved-to-merge`** | Queue item, merge-approval-shaped (fixed shape — see "Item shape") |
+| 5 | `In Review`, or `In Progress` with an open PR — everything else lands here: a hold naming no entries on a ticket that already carries `approved-to-merge`, an escalation whose ticket has already lost the label, no marker at all (including when the only marker on the ticket is a stale decision), or `approved-to-merge` sitting on a green PR waiting for `merge-queue` | FYI — implemented and awaiting review, still in review, awaiting merge approval, queued to merge, or (a `research` ticket in `In Review`, which has no PR) research report awaiting acceptance |
+| 6 | `Todo`, its description has a `## Plan` section, it carries neither **`plan-approved`** nor `human-only`, and every ticket blocking it is `Done` | Queue item, plan-approval-shaped (fixed shape — see "Item shape") |
+| 7 | Anything else | Not listed |
 
 Row 0 sits above row 1 on purpose: a pending decision means the
 question row 1 would otherwise ask has already been answered, and
@@ -80,7 +89,7 @@ while it's on.
 
 The label coming off row 1 is the human's own signal that they've
 looked, even before any new marker is posted — an escalation whose
-ticket has already lost the label falls through to row 4, not a queue
+ticket has already lost the label falls through to row 5, not a queue
 item. This is why a stuck `merge-queue` deferral — which posts only the
 escalation, never a separate deferral note (see the `orchestrate` skill's
 "Escalation comments") — is always row 1 for as long as
@@ -102,7 +111,7 @@ so — the row above or below it will already have matched first.
 
 For an unlinked open PR, found the same way `adversarial-review` and
 `merge-queue` post them — on the PR itself, since there's no ticket to
-hold it — read the same table with three rows adjusted, since there's
+hold it — read the same table with its rows adjusted, since there's
 no ticket label to read. Row 0's "pending" test already reads the PR's
 head alone when there's no linked ticket (see the `orchestrate` skill's
 "Escalation comments"). Its exception clause has no `needs-attention` to
@@ -122,7 +131,9 @@ approving review satisfies the guard.
   approving the PR is newer than it" in place of "carries no
   `approved-to-merge`" — an approving review clears an unlinked PR's
   hold the same way `approved-to-merge` clears a ticketed one.
-- **Row 4** becomes "any other open unlinked PR carrying a marker."
+- **Row 5** becomes "any other open unlinked PR carrying a marker."
+- **Rows 4 and 6** don't apply: both read a ticket's status and labels,
+  and an unlinked PR has neither.
 
 None of this turns on the PR's commit history: a plain push with no
 marker, escalation, deferral, or approval of its own changes nothing
@@ -140,6 +151,11 @@ never diff content — the same lightweight overlap check `orchestrate`'s
 wave planning and `merge-queue`'s ordering use). Ten tickets waiting on
 one ruling belongs at the top even if it stopped an hour ago; a leaf
 that stopped first thing belongs at the bottom.
+
+Approval items — rows 4 and 6 — come after every other queue item,
+whatever their counts: nothing stalled on them, and each moves one
+ticket on. Merge approvals come before plan approvals, since their work
+is already done. Within each, order by the same count.
 
 Break ties by the cost of being wrong: at equal impact, a stop-list
 item outranks an ordinary one — that includes a row 1 item whose
@@ -219,6 +235,30 @@ invent a `Stage` or extra options for this kind of item either; the
 decision comment's `Decision` and `Recorded` lines are context for the
 one or two sentences above the options, not a source of more of them.
 
+A merge approval item — row 4 — is fixed-shaped too, from the same
+hold comment: **Stopped at** is `ready, waiting on merge approval`; the
+heading question is `Merge PR <n>?`; the one sentence above the options
+says the review came back ready after the hold's `Round` rounds and
+touches nothing on the stop-list. The options are always **A.** merge
+— adding `approved-to-merge` lets `merge-queue` pick it up, and **B.**
+don't merge yet — leaves it queued here. **Recommended: A.** The review
+found nothing major or medium left.
+
+A plan approval item — row 6 — is fixed-shaped from the ticket itself.
+It usually carries `plan-ready` (see `plan-ticket`'s "On a planned
+report"), but read the description, not the label, to decide the row.
+**Stopped at** is `planned, waiting on plan approval`; the heading
+question is `Approve the plan for <TICKET>?`; the sentences above the
+options are the plan's opening summary, which the planner writes for
+exactly this, plus "Its merge will wait for you: <entries>" when the
+plan names stop-list entries, plus "It ends in a report, not a PR" for
+a `research` ticket. The options are always **A.** approve — add
+`plan-approved` (in an `orchestrate` run, approve at its plan gate
+instead), **B.** edit and replan — edit the ticket, then run
+`plan-ticket` on it again, and **C.** cancel the ticket. Write no
+**Recommended** line: the plan is the recommendation, and only the
+human can judge it.
+
 Two or three options. If the honest answer is that there are two and
 one of them is "drop the ticket", say that — a queue that dresses
 every decision up as interesting is a queue that stops being read.
@@ -269,8 +309,9 @@ decision either:
   ever pushed a commit: a review that comes back ready without pushing
   still posts a fresh hold (`Entries: none` included — see
   `adversarial-review`'s "Recording the stop-list hold"), and that hold
-  is what row 2 or row 4 next reads, moving the ticket to a queue item
-  or the "awaiting merge approval" line below instead. A stopped restart
+  is what row 2, 4 or 5 next reads, moving the ticket to a queue item,
+  or to the "queued to merge" line below if it already carries
+  `approved-to-merge`. A stopped restart
   posts a newer marker of its own, which is read the same way. A human
   recording a `factory: decision` after a deferral is read the same
   way too, in one clause: the decision is now the newest marker, so the
@@ -280,7 +321,7 @@ decision either:
   leaves a marker behind — is what row 3's status-and-PR-head test is
   for: the deferral comment is still the newest marker, but the
   ticket's status or its PR's head has moved since it posted, so the
-  ticket falls through to row 4 or row 5 instead of sitting here
+  ticket falls through to the rows below instead of sitting here
   forever.
 - **Implemented and awaiting review, still in review, awaiting merge
   approval, queued to merge, or research report awaiting acceptance.**
@@ -288,17 +329,18 @@ decision either:
   ticket and the human accepts it by moving it to `Done` (see the
   `orchestrate` skill's "Research tickets"), so it lands here as
   "research report awaiting acceptance", not as a queue item. Its
-  escalations are row 1 items like any other. Row 4: a ticket that's `In Review`,
-  or `In Progress` with an open PR, and didn't match row 0, 1, 2, or 3
+  escalations are row 1 items like any other. Row 5: a ticket that's `In Review`,
+  or `In Progress` with an open PR, and didn't match rows 0 to 4
   — whatever's left once those are ruled out: no marker at all
   (including when the only marker on the ticket is a stale decision), a
-  stop-list hold naming no entries, an escalation whose ticket has
+  stop-list hold naming no entries on a ticket already carrying
+  `approved-to-merge`, an escalation whose ticket has
   already lost `needs-attention`, or `approved-to-merge` sitting on a
   green PR still waiting for `merge-queue` to pick it up. The
   `In Progress`-with-an-open-PR form is what a resumed `implement-ticket
   <TICKET>` decision leaves behind on a clean run — that stage never
   moves the ticket to `In Review` itself, so without this form it would
-  fall through to row 5 and disappear. This is not a decision for the
+  fall through to row 7 and disappear. This is not a decision for the
   human either; it's here so the report accounts for every ticket a run
   touched, not only the ones stuck.
 

@@ -464,7 +464,7 @@ to it.
 
 ## Statuses and labels
 
-Only Linear's stock statuses are used, plus four workspace labels:
+Only Linear's stock statuses are used, plus five workspace labels:
 
 - `Todo` — the queue this skill takes tickets from when none are
   named, and the only status it takes a ticket from at all. A ticket
@@ -505,11 +505,18 @@ Only Linear's stock statuses are used, plus four workspace labels:
   one, whatever its status. Review and merge run on it only when the
   human invokes those stages themselves. `orchestrate` reads it and
   never adds or removes it.
+- The **`plan-ready`** label — machine-owned. `plan-ticket` adds it to
+  a ticket whose plan is written and waiting for approval, and
+  `implement-ticket` or `research-ticket` removes it when it starts on
+  that plan, so a saved Linear view can show the waiting plans.
+  Nothing routes on it, and `orchestrate` neither adds nor removes it
+  itself.
 
-All four are workspace labels. `needs-attention` and `approved-to-merge`
+All five are workspace labels. `needs-attention` and `approved-to-merge`
 exist on every team automatically; `research` and `human-only` are
 created by the human when first wanted, and a workspace without them
-simply has no research or human-only tickets. Move tickets and add
+simply has no research or human-only tickets. `plan-ready` is created
+once, like `needs-attention`, and the stages add and remove it. Move tickets and add
 labels yourself as they advance, except `research` and `human-only`; a
 GitHub automation may race you to `Done` on merge, which is harmless.
 

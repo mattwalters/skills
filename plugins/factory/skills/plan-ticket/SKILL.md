@@ -1,6 +1,6 @@
 ---
 name: plan-ticket
-description: Plan one or more Linear tickets into their own descriptions, using a fresh read-only planner subagent per ticket that writes a `## Plan` section and reports planned, unplannable or blocked, with the files the change will touch, the stop-list entries they hit, and whether it wrote a research plan. Skips a ticket that is not in `Todo` or `Backlog`, or that carries `human-only`, reporting it skipped. Removes `needs-attention` from a ticket it picks back up. Records an unplannable or blocked ticket itself, with the `needs-attention` label and a `factory: escalation` comment carrying the planner's options. Removes a stale `plan-approved` label before replanning. Reads the host repo's `AGENTS.md` `## Orchestrate` section for its Linear team, base branch, check command, review invariants and stop-list. Also reads an optional `Telemetry` field; when it is set, posts one `plan` row per ticket, and a failed post never blocks or changes the result. Use when asked to plan a ticket, write a plan, or replan one. Called by the orchestrate skill for every ticket in a batch, and by a dispatcher for a `Todo` ticket with no plan; equally fine invoked standalone against a single ticket.
+description: Plan one or more Linear tickets into their own descriptions, using a fresh read-only planner subagent per ticket that writes a `## Plan` section and reports planned, unplannable or blocked, with the files the change will touch, the stop-list entries they hit, and whether it wrote a research plan. Skips a ticket that is not in `Todo` or `Backlog`, or that carries `human-only`, reporting it skipped. Removes `needs-attention` from a ticket it picks back up. Records an unplannable or blocked ticket itself, with the `needs-attention` label and a `factory: escalation` comment carrying the planner's options. Removes a stale `plan-approved` label before replanning. Adds `plan-ready` to a planned ticket, so a plan waiting for approval shows up in a label view, and removes it from one that comes back unplannable or blocked. Reads the host repo's `AGENTS.md` `## Orchestrate` section for its Linear team, base branch, check command, review invariants and stop-list. Also reads an optional `Telemetry` field; when it is set, posts one `plan` row per ticket, and a failed post never blocks or changes the result. Use when asked to plan a ticket, write a plan, or replan one. Called by the orchestrate skill for every ticket in a batch, and by a dispatcher for a `Todo` ticket with no plan; equally fine invoked standalone against a single ticket.
 ---
 
 # Plan ticket
@@ -84,10 +84,16 @@ because the description is the brief every later subagent reads.
 
 ## On a planned report
 
-Leave the ticket's status and labels as they are. The plan is on the
-ticket, and approving it is not this skill's job: `orchestrate` does
-that at its plan gate, and under a dispatcher the human does it by
-adding `plan-approved`.
+Add the **`plan-ready`** label, or keep it if a replan finds it already
+there, and leave the ticket's status and every other label as they
+are. `plan-ready` says a plan is written and waiting for a human to
+approve it. It is the one thing a saved Linear view can filter on,
+since a view cannot see a `## Plan` in a description. Nothing routes on
+it. The plan is on the ticket, and approving it is not this skill's
+job: `orchestrate` does that at its plan gate, and under a dispatcher
+the human does it by adding `plan-approved`. The stage that starts on
+the approved plan takes `plan-ready` off (see `implement-ticket` and
+`research-ticket`).
 
 ## On an unplannable or blocked report
 
@@ -103,6 +109,9 @@ options it saw and the one it would pick. In the same step, label the
 ticket `needs-attention` and post a `factory: escalation` comment (see
 the `orchestrate` skill's "Escalation comments") with stage `planning`,
 result `unplannable` or `blocked`, and the planner's `OPTIONS` verbatim.
+If the ticket carries `plan-ready` from an earlier plan, remove it: no
+plan is waiting for approval now, and `needs-attention` is what the
+human should see.
 That comment is what turns "unplannable" into a question somebody can
 answer in one line, and the planner that wrote it is gone. Leave the
 ticket's status where it is: it never left `Todo` or `Backlog`.

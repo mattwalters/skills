@@ -116,7 +116,10 @@ whatever status it had, and the why is in its escalation comment. The
 `approved-to-merge` label clears a ticket for the merge queue, without
 changing its status. The `human-only` label marks a ticket as the human's
 own: the plan, research and implement stages skip it, and neither orchestrate
-nor a dispatcher takes or fires one. The two hold labels are described
+nor a dispatcher takes or fires one. The `plan-ready` label marks a written
+plan waiting for approval: the plan stage adds it, and the stage that starts on
+the approved plan removes it, so a saved Linear view can list the waiting
+plans. The two hold labels are described
 above. See "Statuses and labels" and Phase 1 in
 [orchestrate](skills/orchestrate/SKILL.md).
 
