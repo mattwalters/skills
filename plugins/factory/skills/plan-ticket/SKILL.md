@@ -1,6 +1,6 @@
 ---
 name: plan-ticket
-description: Plan one or more Linear tickets into their own descriptions, using a fresh read-only planner subagent per ticket that writes a `## Plan` section and reports planned, unplannable or blocked, with the files the change will touch, the stop-list entries they hit, and whether it wrote a research plan. Skips a ticket that is not in `Todo` or `Backlog`, reporting it skipped. Removes `needs-attention` from a ticket it picks back up. Records an unplannable or blocked ticket itself, with the `needs-attention` label and a `factory: escalation` comment carrying the planner's options. Removes a stale `plan-approved` label before replanning. Reads the host repo's `AGENTS.md` `## Orchestrate` section for its Linear team, base branch, check command, review invariants and stop-list. Also reads an optional `Telemetry` field; when it is set, posts one `plan` row per ticket, and a failed post never blocks or changes the result. Use when asked to plan a ticket, write a plan, or replan one. Called by the orchestrate skill for every ticket in a batch, and by a dispatcher for a `Todo` ticket with no plan; equally fine invoked standalone against a single ticket.
+description: Plan one or more Linear tickets into their own descriptions, using a fresh read-only planner subagent per ticket that writes a `## Plan` section and reports planned, unplannable or blocked, with the files the change will touch, the stop-list entries they hit, and whether it wrote a research plan. Skips a ticket that is not in `Todo` or `Backlog`, or that carries `human-only`, reporting it skipped. Removes `needs-attention` from a ticket it picks back up. Records an unplannable or blocked ticket itself, with the `needs-attention` label and a `factory: escalation` comment carrying the planner's options. Removes a stale `plan-approved` label before replanning. Reads the host repo's `AGENTS.md` `## Orchestrate` section for its Linear team, base branch, check command, review invariants and stop-list. Also reads an optional `Telemetry` field; when it is set, posts one `plan` row per ticket, and a failed post never blocks or changes the result. Use when asked to plan a ticket, write a plan, or replan one. Called by the orchestrate skill for every ticket in a batch, and by a dispatcher for a `Todo` ticket with no plan; equally fine invoked standalone against a single ticket.
 ---
 
 # Plan ticket
@@ -47,10 +47,17 @@ brief out from under whatever is working on it. Skip it with no label,
 no comment and no telemetry row, and report `RESULT: skipped` with the
 reason in NOTES, so whoever invoked you can account for it.
 
+Skip a ticket carrying `human-only` the same way, whatever its status.
+It is the human's own to scope or decide (see the `orchestrate` skill's
+"Statuses and labels"), and a plan on it would be work nobody asked the
+pipeline for.
+
 ## Per ticket
 
 1. Read the ticket's labels immediately before spawning; a human may
-   have changed one since whoever invoked you last looked. If it carries
+   have changed one since whoever invoked you last looked. If it now
+   carries `human-only`, skip it as "Which tickets" says, before
+   touching any other label. If it carries
    `needs-attention`, remove it: someone is on it again. If it carries
    `plan-approved`, remove that too. That label approved the plan this
    run is about to replace, and an approval of a plan nobody has read
