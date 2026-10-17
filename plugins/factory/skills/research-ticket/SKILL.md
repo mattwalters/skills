@@ -1,6 +1,6 @@
 ---
 name: research-ticket
-description: Answer one or more planned `research`-labelled Linear tickets, using a fresh read-only researcher subagent per ticket that writes a `## Report` section into the ticket's description and reports reported, blocked or failed. Moves the ticket to `In Progress` while it works and to `In Review` on a report, where it waits for the human to accept it by moving it to `Done`; on blocked or failed, moves it back to `Todo` with the `needs-attention` label and a `factory: escalation` comment carrying the researcher's options. No worktree, commit, PR, review or merge. Reads the host repo's `AGENTS.md` `## Orchestrate` section for its Linear team and base branch. Also reads an optional `Telemetry` field; when it is set, posts one `research` row per ticket, and a failed post never blocks or changes the result. Skips, reporting it skipped, a ticket without the `research` label, without a `## Plan`, or not in `Todo` or `In Progress`. Use when asked to research a ticket or answer a research ticket. Called by the orchestrate skill after its plan gate, and by a dispatcher for an approved research plan; equally fine invoked standalone against a single ticket.
+description: Answer one or more planned `research`-labelled Linear tickets, using a fresh read-only researcher subagent per ticket that writes a `## Report` section into the ticket's description and reports reported, blocked or failed. Moves the ticket to `In Progress` while it works and to `In Review` on a report, where it waits for the human to accept it by moving it to `Done`; on blocked or failed, moves it back to `Todo` with the `needs-attention` label and a `factory: escalation` comment carrying the researcher's options. No worktree, commit, PR, review or merge. Reads the host repo's `AGENTS.md` `## Orchestrate` section for its Linear team and base branch. Also reads an optional `Telemetry` field; when it is set, posts one `research` row per ticket, and a failed post never blocks or changes the result. Skips, reporting it skipped, a ticket without the `research` label, without a `## Plan`, not in `Todo` or `In Progress`, or carrying `human-only`. Use when asked to research a ticket or answer a research ticket. Called by the orchestrate skill after its plan gate, and by a dispatcher for an approved research plan; equally fine invoked standalone against a single ticket.
 ---
 
 # Research ticket
@@ -44,7 +44,7 @@ write window").
 
 ## Which tickets
 
-Research a ticket only if all three hold:
+Research a ticket only if all four hold:
 
 - it carries the `research` label. Without it, its deliverable is a PR;
   point at `implement-ticket`.
@@ -54,6 +54,8 @@ Research a ticket only if all three hold:
   already written and waiting on the human, and `Done` means they
   accepted it; researching again would overwrite that report. A human
   who wants it redone moves it back to `Todo` first.
+- it does not carry `human-only`. That ticket is the human's own (see
+  the `orchestrate` skill's "Statuses and labels").
 
 Otherwise skip it with no status move, no label, no comment and no
 telemetry row, and report `RESULT: skipped` with the reason in NOTES, so

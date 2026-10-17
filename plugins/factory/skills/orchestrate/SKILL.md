@@ -557,7 +557,7 @@ to it.
 
 ## Statuses and labels
 
-Only Linear's stock statuses are used, plus five workspace labels:
+Only Linear's stock statuses are used, plus six workspace labels:
 
 - `Todo` — the queue this skill draws new picks from, and the only
   one for that. A ticket sitting `In Progress` or `In Review` with a
@@ -594,20 +594,29 @@ Only Linear's stock statuses are used, plus five workspace labels:
 - The **`research`** label — human-owned. It marks a ticket whose
   deliverable is a report, not a PR (see "Research tickets").
   `orchestrate` reads it and never adds or removes it.
+- The **`human-only`** label — human-owned. It marks a ticket that is
+  the human's own: a decision, a judgement call, a hands-on step, or
+  scoping. In `Todo` it means ready for the human, not for the
+  pipeline. `plan-ticket`, `research-ticket` and `implement-ticket`
+  skip it, and neither `orchestrate` nor a dispatcher picks or fires
+  one, whatever its status. Review and merge run on it only when the
+  human invokes those stages themselves. `orchestrate` reads it and
+  never adds or removes it.
 
-All five are workspace labels. `needs-attention` and `approved-to-merge`
-exist on every team automatically; the hold labels and `research` are
-created by the human when first wanted, and a workspace without them
-simply has no held or research tickets. Move tickets and add labels yourself as they advance,
-except the hold labels; a GitHub automation may race you to `Done` on
-merge, which is harmless.
+All six are workspace labels. `needs-attention` and `approved-to-merge`
+exist on every team automatically; the hold labels, `research` and
+`human-only` are created by the human when first wanted, and a
+workspace without them simply has no held, research or human-only
+tickets. Move tickets and add labels yourself as they advance,
+except the hold labels, `research` and `human-only`; a GitHub
+automation may race you to `Done` on merge, which is harmless.
 
 Take a label off when it stops being true: `needs-attention` comes off
 when the ticket is picked back up, or when a `factory: decision` is
 posted for it, and `approved-to-merge` comes off when the ticket
 reaches `Done`. A stale label on a finished ticket is noise in
-everyone's views. The hold labels and `research` are exempt: they stay
-until the human removes them, `Done` included.
+everyone's views. The hold labels, `research` and `human-only` are
+exempt: they stay until the human removes them, `Done` included.
 
 **You never pick from `Backlog`** — see Phase 1.
 
@@ -903,8 +912,9 @@ in `Todo`, sorted by priority.
 
 Within `Todo`, skip anything blocked by an open ticket, anything
 carrying the `needs-attention` label (a human is meant to look at that
-first), anything too vague to implement without a human, anything
-whose scope is plainly a project rather than a change (for a ticket
+first), anything carrying `human-only` (it is the human's own; see
+"Statuses and labels"), anything too vague to implement without a
+human, anything whose scope is plainly a project rather than a change (for a ticket
 carrying `research`, read "implement" as "answer" and "a change" as "a
 question": skip it only if it is too vague to answer or plainly a
 project, never for lacking a change to make), and a ticket

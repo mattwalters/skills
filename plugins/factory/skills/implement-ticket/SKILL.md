@@ -1,6 +1,6 @@
 ---
 name: implement-ticket
-description: Take one or more Linear tickets from Todo/In Progress through a CI-green draft PR, using a fresh implementer subagent per ticket in an isolated git worktree. Reads the host repo's `AGENTS.md` `## Orchestrate` section for its Linear team, check command, base branch, write window, and worktree directory, and stops the implementer short of any commit or push while that window is closed. Also reads an optional `Telemetry` field; when it is set, posts one `implement` row per ticket with the implementer's outcome, and a failed post never blocks or changes the result. Never implements a `research`-labelled ticket, whose deliverable is a report, not a PR. Use when asked to implement a specific ticket, pick up a ticket, or "just do the implementation" without also running review or merge. Called by the orchestrate skill once per ticket in a wave; equally fine invoked standalone against a single ticket.
+description: Take one or more Linear tickets from Todo/In Progress through a CI-green draft PR, using a fresh implementer subagent per ticket in an isolated git worktree. Reads the host repo's `AGENTS.md` `## Orchestrate` section for its Linear team, check command, base branch, write window, and worktree directory, and stops the implementer short of any commit or push while that window is closed. Also reads an optional `Telemetry` field; when it is set, posts one `implement` row per ticket with the implementer's outcome, and a failed post never blocks or changes the result. Never implements a `research`-labelled ticket, whose deliverable is a report, not a PR, or a `human-only` ticket, which is the human's own. Use when asked to implement a specific ticket, pick up a ticket, or "just do the implementation" without also running review or merge. Called by the orchestrate skill once per ticket in a wave; equally fine invoked standalone against a single ticket.
 ---
 
 # Implement ticket
@@ -42,6 +42,10 @@ A ticket carrying the `research` label is not implemented: its
 deliverable is a report on the ticket, not a PR (see the `orchestrate`
 skill's "Research tickets"). Say so and skip it — no status move, no
 label, no report row.
+
+A ticket carrying the `human-only` label is not implemented either: it
+is the human's own (see the `orchestrate` skill's "Statuses and
+labels"). Skip it the same way.
 
 ## Per ticket
 

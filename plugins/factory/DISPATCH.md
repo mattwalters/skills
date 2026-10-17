@@ -51,7 +51,12 @@ of them fires nothing:
 2. It carries `needs-attention`. A human is meant to look first, and
    that label comes off only when they answer, either by posting a
    `factory: decision` or by editing the ticket and clearing the label.
-3. An action is already in flight for it (see "In-flight").
+3. It carries `human-only`. The ticket is the human's own, whatever
+   its status: a `human-only` ticket in `Todo` is ready for the human,
+   not for a planner, and one with a PR is reviewed and merged only
+   when the human invokes those stages themselves.
+   The human removes the label once the ticket is machine work.
+4. An action is already in flight for it (see "In-flight").
 
 A pending `factory: decision` overrides nothing in this list. A human
 who posts one clears `needs-attention` in the same step.

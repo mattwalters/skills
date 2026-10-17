@@ -127,7 +127,9 @@ promotions. Only a human moves a ticket from `Backlog` to `Todo`.
 The `needs-attention` label means a human is needed. The ticket keeps
 whatever status it had, and the why is in its escalation comment. The
 `approved-to-merge` label clears a ticket for the merge queue, without
-changing its status. The two hold labels are described above. See "Statuses
+changing its status. The `human-only` label marks a ticket as the human's
+own: the plan, research and implement stages skip it, and neither orchestrate
+nor a dispatcher picks or fires one. The two hold labels are described above. See "Statuses
 and labels" in [orchestrate](skills/orchestrate/SKILL.md), and the
 "`Backlog`" part of its Phase 1.
 
