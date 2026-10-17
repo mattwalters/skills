@@ -77,7 +77,7 @@ anyway and accept this — with the consequence of each, and which you
 would pick. Put them in the comment on TICKET as well as in your
 report.
 
-Report back to the orchestrator in exactly this shape — the plan lives
+Report back in exactly this shape — the plan lives
 on the ticket, not in your report:
 
     TICKET: <id>

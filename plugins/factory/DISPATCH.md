@@ -65,9 +65,9 @@ ticket.
 | # | When | Fires |
 | - | ---- | ----- |
 | D | The current record is a pending `factory: decision` | its `Next` line, verbatim |
-| P | `Todo`, unblocked, no `## Plan` | plan (see "Plan") |
+| P | `Todo`, unblocked, no `## Plan` | `plan-ticket <TICKET>` |
 | I | `Todo`, unblocked, has `## Plan`, carries `plan-approved`, no `research` | `implement-ticket <TICKET>` |
-| R | `Todo`, unblocked, has `## Plan`, carries `plan-approved`, carries `research` | research (see "Research") |
+| R | `Todo`, unblocked, has `## Plan`, carries `plan-approved`, carries `research` | `research-ticket <TICKET>` |
 | V | `In Progress`, no `research`, an open **draft** linked PR with CI green on its head, current record not `factory: deferred` | `adversarial-review <PR>` |
 | M | `In Review`, no `research`, an open linked PR with CI green on its head, carries `approved-to-merge` | `merge-queue <PR>` |
 | — | anything else | nothing |
@@ -80,7 +80,7 @@ matters only for reading.
 What each row deliberately does not do:
 
 - **P** ignores `plan-approved`. If a ticket with no plan carries it,
-  the dispatcher removes it before spawning the planner. An approval
+  `plan-ticket` removes it before spawning the planner. An approval
   of a plan that does not exist yet approves nothing.
 - **I** and **R** are the plan gate. A written plan waits in `Todo` until
   the human reads it and adds `plan-approved`. The dispatcher removes
@@ -109,7 +109,7 @@ gate:
 - **Selection** is the human moving a ticket to `Todo`. There is no
   batch, no cap and no pre-filter: the planner is the only judge of
   whether a ticket can be planned, and it reports one that cannot as
-  `unplannable` (see "Plan").
+  `unplannable` (see "Plan and research").
 - **Plan** is always held, per ticket, and released only by the human
   adding `plan-approved`. `hold-plan` adds nothing on top of that.
   `plan-approved` is the human approving that ticket's plan in person,
@@ -124,34 +124,21 @@ enforce them, not the dispatcher. A capped review never merges, a
 blocked or failed ticket is never cleared, and a stop-list hit waits
 for the human.
 
-## Plan
+## Plan and research
 
-`orchestrate` holds the planner, and its handling, in its Phase 3 rather
-than in a stage skill. Until a stage skill exists, firing row P means
-doing what Phase 3 does for a single ticket:
+Rows P and R invoke a stage skill, like every other row: P invokes
+`plan-ticket <TICKET>`, and R invokes `research-ticket <TICKET>`. Each
+skill owns its subagent, its status moves, its escalations and its
+telemetry rows, so the dispatcher adds nothing around them, with one
+exception. On a `planned` result, the ticket stays in `Todo` and waits
+for `plan-approved`. Surface the report's `STOPLIST` line wherever the
+dispatcher notifies the human, so they know at approval time which
+merges will wait for them.
 
-- Spawn one planner with `orchestrate`'s `prompts/planner.md`, setting
-  its RESEARCH line if and only if the ticket carries `research`.
-- On `planned`, leave the ticket in `Todo`. The plan is on the ticket,
-  and it waits for `plan-approved`. Surface the report's `STOPLIST` line
-  wherever the dispatcher notifies the human, so they know at approval
-  time which merges will wait for them.
-- On `unplannable` or `blocked`, label the ticket `needs-attention` and
-  post a `factory: escalation` with stage `planning`, as Phase 3
-  describes.
-
-## Research
-
-`orchestrate` holds the researcher in its Phase 6, and the same applies.
-Firing row R means doing what Phase 6 does for one research ticket:
-
-- Move the ticket to `In Progress` and spawn one researcher with
-  `orchestrate`'s `prompts/researcher.md`.
-- On `reported`, move the ticket to `In Review`, where it waits for the
-  human to accept it by moving it to `Done`.
-- On `blocked` or `failed`, move it back to `Todo`, label it
-  `needs-attention`, and post a `factory: escalation` with stage
-  `researching`.
+Either skill can report `skipped`, when the ticket changed between the
+dispatcher's read and the stage's own check. Nothing was written, so the
+dispatcher releases its claim and evaluates the ticket again on its next
+read.
 
 A research ticket never matches V or M, and a `factory: decision` is
 never posted for one (see "Escalation comments"), so D cannot route it

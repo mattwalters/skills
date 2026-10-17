@@ -12,8 +12,9 @@ why that is safe and what it means for testing a change.
 
 ## Orchestrate
 
-The `factory` pipeline — `orchestrate`, `implement-ticket`,
-`adversarial-review`, `merge-queue`, `decision-queue` — reads this
+The `factory` pipeline — `orchestrate`, `plan-ticket`,
+`research-ticket`, `implement-ticket`, `adversarial-review`,
+`merge-queue`, `decision-queue` — reads this
 section for its repo-specific configuration.
 
 - **Linear team key**: `SKL` (ticket ids are `SKL-<n>`).
