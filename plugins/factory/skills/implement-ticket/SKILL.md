@@ -52,7 +52,9 @@ labels"). Skip it the same way.
 1. Move the ticket to `In Progress` in Linear, unless it's already
    there (a caller may have moved it during its own planning/approval
    step). If it carries the `needs-attention` label from an earlier
-   run, remove it — someone is on it again.
+   run, remove it — someone is on it again. If it carries
+   `plan-ready`, remove that too: its plan is no longer waiting for
+   approval (see `plan-ticket`'s "On a planned report").
 2. Set up an isolated worktree at `<runs-dir>/<TICKET>` per the
    `orchestrate` skill's "The one worktree rule": `git fetch origin`, then
    if `origin/<BRANCH>` exists, (re)set the worktree to it — reset

@@ -69,7 +69,9 @@ dispatcher on `plan-approved`, or a human asking for it directly.
 
 1. Move the ticket to `In Progress`, unless it's already there. If it
    carries the `needs-attention` label from an earlier attempt, remove
-   it: someone is on it again.
+   it: someone is on it again. If it carries `plan-ready`, remove that
+   too: its plan is no longer waiting for approval (see `plan-ticket`'s
+   "On a planned report").
 2. Spawn a researcher subagent with `prompts/researcher.md`, filling in
    TICKET, the team key and the base branch. Use the strongest
    reasoning model available at high effort (see the `orchestrate`
