@@ -128,6 +128,16 @@ changing its status. The two hold labels are described above. See "Statuses
 and labels" in [orchestrate](skills/orchestrate/SKILL.md), and the
 "`Backlog`" part of its Phase 1.
 
+## Dispatch
+
+A dispatcher is the alternative to a standing `orchestrate` run. It is
+built outside this plugin. It reads each ticket's state and fires the
+one stage that state calls for, with no batch and no selection, and
+nothing at all when no row matches. Its plan gate is the human adding
+the `plan-approved` label to a planned ticket. Its merge gate is
+`approved-to-merge`, as before. No mode releases either. See
+[DISPATCH.md](DISPATCH.md).
+
 ## Adopting the factory
 
 A repo opts in with a `## Orchestrate` section in its own `AGENTS.md`. The

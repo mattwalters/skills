@@ -99,6 +99,7 @@ plugins/<plugin>/
   skills/<skill>/SKILL.md         one directory per skill
   commands/<command>.md           optional: slash commands (factory: preamble)
   OPERATING.md                    optional: read-aloud orientation (factory)
+  DISPATCH.md                     optional: the dispatcher's routing spec (factory)
 ```
 
 To get oriented on how the factory works, start with
