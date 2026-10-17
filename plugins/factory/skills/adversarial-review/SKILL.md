@@ -26,9 +26,8 @@ hard cap: at six rounds with major or medium findings still open,
 stop and report capped. Never run a seventh on your own judgment — a
 human decides whether another cycle is warranted.
 
-A caller running unattended can hand you a **discretionary budget**
-instead — "up to ten rounds, your judgment", which is what the
-`orchestrate` skill passes in semi and autonomous modes. Under a
+A caller can hand you a **discretionary budget** instead — "up to ten
+rounds, your judgment" — when a human names one. Under a
 discretionary budget the number is a ceiling, not a target.
 
 Either way, the rule that ends a cycle early is the same one, and it
@@ -260,7 +259,7 @@ grant more rounds, or rescope, with your pick. If no ticket resolves,
 post that comment on the PR instead. Either way, report it to whoever is
 waiting: the findings summary, what each round fixed, and the ledger
 rows behind your read. `capped` is never a merge signal — a capped
-target waits for a human whatever mode the caller is in.
+target waits for a human whatever the caller says.
 
 A clean round is a good round. Zero findings is an acceptable and
 expected result for a small, correct change, not a sign the review was
@@ -447,8 +446,7 @@ queue) still approves that separately, and for a ticketed PR, approval
 is what puts the `approved-to-merge` label on the ticket. Never add
 that label yourself.
 
-A non-empty `STOPLIST` line means the caller holds this ticket's merge
-gate for a human however the run is configured — including a run whose
-merge gate was released at invocation. Report it whatever the result
-was, including on a clean first round: it is the diff that decides
-this, not the review.
+A non-empty `STOPLIST` line means this ticket's merge waits for a
+human to clear that PR specifically, whatever the caller says. Report
+it whatever the result was, including on a clean first round: it is
+the diff that decides this, not the review.

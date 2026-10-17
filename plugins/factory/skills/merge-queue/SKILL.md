@@ -49,29 +49,28 @@ Never merge anything without one of these:
 - **A linked ticket** (from the title's `<TICKET>: ...` convention or
   the branch name): that ticket carries the **`approved-to-merge`** label
   — added there directly by a human, or by you once you've confirmed
-  the human cleared it. Three things count as cleared: they said so in
-  chat, they pre-authorized that ticket at an `orchestrate` plan gate, or
-  the caller tells you `orchestrate` is running this batch with its
-  **merge gate released** — the human authorized the batch's merges at
-  invocation. Take that last one only from the calling skill, stating
-  it plainly, and only for tickets whose review came back ready. Never
-  infer it from a ticket's state, and never assume it because a run
-  looks unattended.
+  the human cleared it, which means they said so in chat. Nothing else
+  counts as cleared: never infer it from a ticket's state, never take
+  it from a caller's say-so, and never assume it because a run looks
+  unattended.
 
 The label is the approval signal, not the status: an approved ticket
 stays in `In Review` until it merges. A ticket sitting in `In Review`
 without the label is **not** approved — that status is a reading gate,
 and treating it as consent would merge things nobody agreed to. A
 ticket carrying `needs-attention` is never eligible, whatever else is
-true of it: something stopped, and a human has not looked yet.
+true of it: something stopped, and a human has not looked yet. That
+is what keeps a capped review, or a blocked or failed ticket, from
+merging: each carries the label from the moment it stops, and an
+`approved-to-merge` it already had does not override it.
 
 A PR that hits the repo's **stop-list** needs the human's clearance
 for that PR specifically — said in chat, or the label added by them.
-A released merge gate does not clear it, and neither does a plan-gate
-pre-authorization given before anyone knew what the diff would touch:
-the point of the list is that these merges are decided after somebody
-has seen the change. If the caller tells you a ticket is a stop-list
-hit, that direct clearance is the only route left to eligible.
+No approval given before anyone knew what the diff would touch, such
+as approving the ticket's plan, clears it: the point of the list is
+that these merges are decided after somebody has seen the change. If
+the caller tells you a ticket is a stop-list hit, that direct
+clearance is the only route left to eligible.
 
 Either way, CI must show green on the PR's current head before you
 queue it. That's a sanity check, not the real gate — rebasing needs a

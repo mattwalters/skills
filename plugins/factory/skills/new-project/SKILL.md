@@ -64,7 +64,8 @@ secrets and credential handling, CI config (`.github/workflows/`),
 deploy scripts and infra, schema and migrations if any, and the
 `## Orchestrate` section of `AGENTS.md` itself. Say the asymmetry
 plainly: a too-cautious default costs a question, a too-permissive one
-costs an unsupervised merge into something load-bearing.
+costs a merge into something load-bearing that nobody flagged for a
+closer look.
 
 Expand `~` and `$HOME` to absolute paths before any file operation or
 prompt placeholder; Read, Edit and Write don't expand them. Write the
@@ -135,9 +136,8 @@ statuses come with the team; there is nothing more to create.
    names:
    **Linear team key**, **Check command**, **Base branch**,
    **Worktrees**, **Review invariants**, **Stop-list**, **Write
-   window**. The heading is `## Orchestrate`. Write no mode field:
-   modes are chosen per invocation. Write no **Telemetry** field either:
-   absent means off. The **Check command** field reads
+   window**. The heading is `## Orchestrate`. Write no **Telemetry**
+   field: absent means off. The **Check command** field reads
    `./scripts/check.sh`.
 
    Write `scripts/check.sh` on the same branch, executable (mode
@@ -154,7 +154,7 @@ statuses come with the team; there is nothing more to create.
    test.
 7. If the human accepted it, create the seed ticket in the new team in
    `Backlog`, not `Todo`, titled along the lines of "Refine AGENTS.md
-   review invariants and stop-list". Orchestrate never picks a `Backlog`
+   review invariants and stop-list". Orchestrate never takes a `Backlog`
    ticket, so no unattended run edits the new project's own stop-list;
    the human promotes it when ready.
 
@@ -181,4 +181,4 @@ the seed ticket if any. Then the next steps:
   mattwalters/skills`, then `claude plugin install factory@mattwalters
   --scope user`.
 - Refine the invariants and stop-list.
-- Run the first orchestrate supervised.
+- Run the first orchestrate (or dispatcher tick) and watch it.

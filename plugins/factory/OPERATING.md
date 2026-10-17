@@ -11,9 +11,9 @@ is installed.
 
 ## The skills
 
-`orchestrate` is the policy layer. It picks tickets from Linear, plans them,
-orders them into waves, holds or releases the gates, and tracks the batch to
-merged pull requests. See
+`orchestrate` is the policy layer. It takes tickets from Linear, plans them,
+orders them into waves, holds the plan and merge gates, and tracks the batch
+to merged pull requests. See
 [orchestrate](skills/orchestrate/SKILL.md).
 
 Five skills are the per-ticket stages, and each is also usable on its own.
@@ -39,48 +39,34 @@ human at a terminal.
 In Claude Code the skills are invoked namespaced, as in
 `/factory:orchestrate`.
 
-## Gates and modes
+## Gates
 
-A run stops for a human at up to three gates. The selection gate decides
-which tickets make up the batch. The plan gate covers the plans and the wave
-order, before any code is written. The merge gate is per ticket, before it
-merges. All three are held by default, and only a human releases one. The
-ordinary way is to name a mode when invoking the run.
-
-Supervised holds all three gates, and it is the default when no mode is
-named. Semi releases selection and holds plan and merge, so the run picks the
-batch and says what it picked, the human approves the plans, review and
-fixing run unattended, and each merge waits. Autonomous releases all three.
-A human can also spell out a combination of gates that no mode names, and an
-adjustment spoken with a mode, such as autonomous but hold merge, wins over
-the mode. A word at invocation that is neither a mode nor a gate spelled out
-is not a mode, and the run goes supervised and says so.
-
-A released gate is not a skipped decision. The run makes the call itself and
-states it in a line. The full treatment is in the "Gates" and "Modes"
-sections of [orchestrate](skills/orchestrate/SKILL.md).
+A run stops for a human at two gates. The plan gate covers the plans and the
+wave order, before any code is written. The merge gate is per ticket, before
+it merges. Both are always held, and only the human clears one. There are no
+modes: nothing said at invocation releases either gate, and a word that tries
+to is not honoured. A run takes the tickets the human names, or else every
+eligible `Todo` ticket, with no cap and no selection step. The full treatment
+is in the "Gates" section and Phase 1 of
+[orchestrate](skills/orchestrate/SKILL.md).
 
 ## Per-ticket holds
 
-A ticket can carry the `hold-plan` or `hold-merge` label. Each holds that one
-gate for that one ticket, whatever the mode, including a run with no gates.
-They are the human's labels: the pipeline never adds or removes them. A
-`hold-merge` ticket is cleared to merge when the human adds
-`approved-to-merge`. Other tickets in the batch are unaffected. See
-"Per-ticket holds" in [orchestrate](skills/orchestrate/SKILL.md).
+The older `hold-plan` and `hold-merge` labels add nothing now, since both
+gates are always held, and the pipeline still never adds or removes them.
 
 ## Research tickets
 
 A ticket carrying the `research` label has a report, not a pull request, as
-its deliverable. It is picked and planned like any other. After the plan gate
+its deliverable. It is taken and planned like any other. After the plan gate
 `research-ticket` has a single researcher subagent answer it and write a `## Report` section into
 the ticket's description. There is no review and no merge, and the ticket
 rests in `In Review` until the human accepts the report by moving it to
-`Done`. No mode does that for them. The human owns the label, and
-`hold-merge` and `approved-to-merge` do nothing for such a ticket. When a
+`Done`. The human owns the label, and `approved-to-merge` does nothing
+for such a ticket. When a
 researcher reports `blocked` or `failed`, `research-ticket` (not the
 researcher) moves the ticket back to `Todo`, labels it `needs-attention` and posts an
-escalation with stage `researching`; clearing the label makes it pickable
+escalation with stage `researching`; clearing the label makes it eligible
 again. See "Research tickets" in
 [orchestrate](skills/orchestrate/SKILL.md).
 
@@ -88,15 +74,16 @@ again. See "Research tickets" in
 
 Each adopting repo declares a stop-list: the paths and subjects whose merge
 always waits for a human. A ticket on it is not blocked. It is planned,
-implemented and reviewed like any other, and only its merge gate stays held,
-even in autonomous mode.
+implemented and reviewed like any other, and only its merge is different: it
+waits for the human to clear that pull request specifically, after seeing what
+the diff touched.
 
 An escalation is a different thing. It is reactive: a ticket came back
 blocked, failed or capped because something stalled. A capped review never
-merges, and a blocked or failed ticket is never cleared under a released
-gate. Every blocked, failed or capped stop, and every stop-list hold, lands on
-the Linear ticket, or on the pull request if no ticket resolves, as a
-`factory: escalation` or `factory: stop-list hold` comment, a label, or both.
+merges, and a blocked or failed ticket is never cleared. Every blocked,
+failed or capped stop, and every stop-list hold, lands on the Linear ticket,
+or on the pull request if no ticket resolves, as a `factory: escalation` or
+`factory: stop-list hold` comment, a label, or both.
 
 A closed write window is the quiet exception, and ordinarily not an escalation.
 The stage stops dead and reports deferred. On a ticket it leaves one
@@ -114,24 +101,24 @@ comments" and "The write window" in
 
 ## Statuses and labels
 
-Status is readiness. `Todo` is the only queue orchestrate draws new picks
+Status is readiness. `Todo` is the only status orchestrate takes tickets
 from. `In Progress` means a ticket is being implemented, or researched. `In Review` means a
 pull request exists and is waiting on review or on its merge gate; for a
 research ticket it means the report is written and awaiting acceptance. `Done`
 means merged, or for a research ticket, accepted by the human.
 
-`Backlog` is the human's parking lot. Orchestrate never picks from it and
-never promotes out of it, though at a held selection gate it may propose
-promotions. Only a human moves a ticket from `Backlog` to `Todo`.
+`Backlog` is the human's parking lot. Orchestrate never takes from it,
+never proposes promotions out of it, and never promotes out of it. Only a
+human moves a ticket from `Backlog` to `Todo`.
 
 The `needs-attention` label means a human is needed. The ticket keeps
 whatever status it had, and the why is in its escalation comment. The
 `approved-to-merge` label clears a ticket for the merge queue, without
 changing its status. The `human-only` label marks a ticket as the human's
 own: the plan, research and implement stages skip it, and neither orchestrate
-nor a dispatcher picks or fires one. The two hold labels are described above. See "Statuses
-and labels" in [orchestrate](skills/orchestrate/SKILL.md), and the
-"`Backlog`" part of its Phase 1.
+nor a dispatcher takes or fires one. The two hold labels are described
+above. See "Statuses and labels" and Phase 1 in
+[orchestrate](skills/orchestrate/SKILL.md).
 
 ## Dispatch
 
@@ -140,7 +127,7 @@ built outside this plugin. It reads each ticket's state and fires the
 one stage that state calls for, with no batch and no selection, and
 nothing at all when no row matches. Its plan gate is the human adding
 the `plan-approved` label to a planned ticket. Its merge gate is
-`approved-to-merge`, as before. No mode releases either. See
+`approved-to-merge`. Both gates are always held, as in orchestrate. See
 [DISPATCH.md](DISPATCH.md).
 
 ## Adopting the factory

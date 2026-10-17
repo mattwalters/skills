@@ -116,13 +116,15 @@ gate:
   whether a ticket can be planned, and it reports one that cannot as
   `unplannable` (see "Plan and research").
 - **Plan** is always held, per ticket, and released only by the human
-  adding `plan-approved`. `hold-plan` adds nothing on top of that.
-  `plan-approved` is the human approving that ticket's plan in person,
-  which is the one thing that clears `hold-plan` today.
+  adding `plan-approved`, which is the human approving that ticket's
+  plan in person.
 - **Merge** is always held, per ticket, and released only by the human
   adding `approved-to-merge` (or, for an unlinked PR, an approving
-  GitHub review, which is outside this table). `hold-merge` adds nothing
-  on top, since the dispatcher never adds `approved-to-merge` itself.
+  GitHub review, which is outside this table). The dispatcher never
+  adds `approved-to-merge` itself.
+
+The `hold-plan` and `hold-merge` labels add nothing here, as in
+`orchestrate`: both gates are always held already.
 
 Every escalation rule still applies unchanged, because the stages
 enforce them, not the dispatcher. A capped review never merges, a
@@ -183,24 +185,20 @@ window opens.
 
 ## Stage parameters
 
-- **Review budget**: `adversarial-review`'s default of six rounds, which
-  is the supervised budget. Without a mode, the dispatcher has no
-  authority to grant ten.
+- **Review budget**: `adversarial-review`'s default of six rounds, the
+  same default `orchestrate` uses.
 - **Telemetry**: each fired row is its own run. Pass a run id per firing
   as `orchestrate`'s "Telemetry" describes.
 - **Models and effort**: as `orchestrate`'s "Models and effort".
 
 ## What is gone
 
-These are deliberate losses compared with `orchestrate`, so nobody goes
-looking for them:
+This is a deliberate loss compared with `orchestrate`, so nobody goes
+looking for it:
 
 - **Waves.** No file-overlap serialization. Ordering comes from
   blocked-by relations only, and `merge-queue` absorbs conflicts at
   rebase time.
-- **Judgment at pick time.** No "too vague", no "plainly a project", no
-  priority reordering, no `Backlog` promotion proposals.
-- **Released gates.** No mode releases plan or merge.
 
 ## Scope
 

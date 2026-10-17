@@ -88,20 +88,17 @@ that breaks one of these as a major finding, not a nit.
 
 ### Stop-list
 
-A change touching any of these waits for a human to merge it, whatever
-mode the run is in. These rules decide when an orchestrate run stops for a
-human. A change that loosens them is exactly the change that should
-not approve itself.
+A change touching any of these waits for a human to merge it. These
+rules decide when an orchestrate run stops for a human. A change that
+loosens them is exactly the change that should not approve itself.
 
-- The gate and mode semantics in `orchestrate`: the three gates, what
-  holds or releases each one, the modes and the invocation table, the
-  default when an invocation is ambiguous, and the rule that only the
-  human releases a gate.
+- The gate semantics in `orchestrate` and `DISPATCH.md`: the plan and
+  merge gates, what clears each one, the rule that nothing at
+  invocation releases a gate and that only the human clears one.
 - The stop-list rules: `orchestrate`'s "The stop-list" section, the
   stop-list checks in `adversarial-review` and `merge-queue`, and this
   stop-list itself.
-- The escalation rules that override a released merge gate: a capped
-  review never merges, and a blocked or failed ticket is never cleared
-  under a released gate. That covers anywhere they are stated or
-  enforced, in `orchestrate`, `adversarial-review` or `merge-queue`.
+- The escalation rules: a capped review never merges, and a blocked or
+  failed ticket is never cleared. That covers anywhere they are stated
+  or enforced, in `orchestrate`, `adversarial-review` or `merge-queue`.
 - Merge eligibility in `merge-queue`: what counts as approval to merge.
