@@ -50,8 +50,8 @@ The section declares:
   line is simply ignored.
 - **Review invariants**: what a reviewer should be adversarial about in this
   project. Reviewers bring no invariants of their own.
-- **Stop-list**: the paths and subjects whose merge always waits for a human,
-  whatever mode a run is in. A project that declares none has none.
+- **Stop-list**: the paths and subjects whose merge always waits for a human
+  to clear that PR specifically. A project that declares none has none.
 - **Write window**: the weekday hours, if any, during which the pipeline
   won't commit, push, or merge, so a public timestamp is never evidence of
   when someone worked. Required; `none` means no window.
@@ -137,4 +137,4 @@ executes the files it is editing:
 
 The catch: a change that breaks a skill won't show up in the run that wrote
 it. It shows up in the first run after the refresh. Treat that run as the real
-test, and run it supervised.
+test, and watch it.

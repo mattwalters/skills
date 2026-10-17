@@ -91,7 +91,7 @@ and line or URL, then the open questions.
 Move the ticket to `In Review`. The report is already in the
 description, and the ticket rests there until the human accepts it by
 moving it to `Done`. Nothing in the pipeline moves a research ticket to
-`Done`, under any mode or gate.
+`Done`, whatever a caller says.
 
 ## On a blocked or failed result
 

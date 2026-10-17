@@ -1,12 +1,12 @@
 ---
 name: orchestrate
-description: Batch-run the next tickets from Linear for the repo you are in. Picks 5–10 unblocked tickets from `Todo` by priority, stops for human approval on the selection, has each one planned into its ticket description through the plan-ticket skill, plans parallel vs serial execution, stops for approval again on the plans, then runs each ticket through the implement-ticket, adversarial-review, and merge-queue skills to a merged pull request. Its three gates — selection, plan, merge — are set by naming a mode at invocation: supervised, semi, or autonomous. A ticket carrying a `hold-plan` or `hold-merge` label has that gate held for it alone, whatever the mode. A ticket carrying the `research` label is planned like any other, then researched through the research-ticket skill, whose report lands on the ticket, and waits there for the human to accept it — no PR, no review, no merge. Reads the host repo's `AGENTS.md` `## Orchestrate` section for its Linear team, check command, base branch, write window, and worktree locations, and stops a stage short of any commit, push, or merge while that window is closed. Also reads an optional `Telemetry` field; when it is set, posts each stage attempt's outcome and each review finding's severity through the poster command it names, and a failed post never blocks, fails or changes a run. Every stop any stage hits is recorded as a comment or label on its Linear ticket (or its PR, if none resolved), so nothing a run stops on depends on this session's own context surviving. Use when asked to run the queue, work the next tickets, orchestrate a batch, or process Linear tickets in parallel. Do not use for a single ticket a human is already driving — use plan-ticket, research-ticket, implement-ticket, adversarial-review, or merge-queue directly for that.
+description: Batch-run tickets from Linear for the repo you are in. Takes the tickets the human names, or else every unblocked `Todo` ticket that carries neither `needs-attention` nor `human-only` and has no pending `factory: decision`, has each one planned into its ticket description through the plan-ticket skill, plans parallel vs serial execution, stops for the human's approval on the plans, then runs each ticket through the implement-ticket, adversarial-review, and merge-queue skills to a merged pull request, stopping again before each merge until the human clears that ticket. Both gates, plan and merge, are always held, and nothing said at invocation releases either. A ticket carrying the `research` label is planned like any other, then researched through the research-ticket skill, whose report lands on the ticket, and waits there for the human to accept it — no PR, no review, no merge. Reads the host repo's `AGENTS.md` `## Orchestrate` section for its Linear team, check command, base branch, write window, and worktree locations, and stops a stage short of any commit, push, or merge while that window is closed. Also reads an optional `Telemetry` field; when it is set, posts each stage attempt's outcome and each review finding's severity through the poster command it names, and a failed post never blocks, fails or changes a run. Every stop any stage hits is recorded as a comment or label on its Linear ticket (or its PR, if none resolved), so nothing a run stops on depends on this session's own context surviving. Use when asked to run the queue, work the next tickets, orchestrate a batch, or process Linear tickets in parallel. Do not use for a single ticket a human is already driving — use plan-ticket, research-ticket, implement-ticket, adversarial-review, or merge-queue directly for that — or for a repo a dispatcher runs (see DISPATCH.md), since running both fires stages twice.
 ---
 
 # Orchestrate
 
-You are the orchestrator. You pick a batch of tickets, get the picks
-approved, have each one planned, get the plans approved, and then run
+You are the orchestrator. You take the tickets in front of you (see
+Phase 1), have each one planned, get the plans approved, and then run
 each ticket through the `implement-ticket`, `adversarial-review`, and
 `merge-queue` skills. You do not write code, read diffs, or debug CI
 yourself — every one of those burns orchestrator context that the
@@ -18,8 +18,8 @@ labelled `research` is not implemented, reviewed or merged. A single
 researcher subagent, run by the `research-ticket` skill, answers it
 and writes the report onto the ticket (see "Research tickets").
 
-This skill is the orchestration policy — picking, waving, modes,
-gates, tracking. What happens to one ticket once it's picked lives in
+This skill is the orchestration policy — waves, gates, tracking. What
+happens to one ticket once it's taken lives in
 the five skills it delegates to, each equally usable on its own:
 `plan-ticket` for "plan TEAM-200", `research-ticket` for "answer this
 research ticket", `implement-ticket` for "just implement TEAM-200",
@@ -64,7 +64,7 @@ declares at minimum:
   adversarial about in this repo. These are the substance of review;
   the reviewer prompt carries no invariants of its own.
 - **Stop-list** — the paths and subjects whose merge always waits for
-  a human, whatever mode the run is in. See "The stop-list".
+  a human. See "The stop-list".
 - **Write window** — the weekday hours, if any, during which a
   commit, push, or merge is not allowed to happen. Required; a repo
   with none declares `none`. See "The write window".
@@ -99,133 +99,43 @@ the **Telemetry** value (see "Telemetry").
 
 ## Gates
 
-Three points in a run stop for a human:
+Two points in a run stop for a human:
 
-- **Selection gate** (Phase 2) — which tickets this batch will be,
-  before any of them is planned.
-- **Plan gate** (Phase 5) — the plans and the wave order, before any
+- **Plan gate** (Phase 4) — the plans and the wave order, before any
   code is written.
-- **Merge gate** (Phase 8) — per ticket, before it merges.
+- **Merge gate** (Phase 7) — per ticket, before it merges.
 
-**By default all three are held.** Only the human can release one, at
-invocation, and the ordinary way they do it is by naming a mode.
+**Both are always held.** Only the human clears one, for the tickets
+in front of them: the plans at the plan gate, and each ticket's merge
+at its merge gate. Nothing said at invocation releases either gate. A
+word at invocation that names an old mode or releases a gate —
+`supervised`, `semi`, `autonomous`, `ends`, `merge only`, `no gates`,
+"skip the plan gate", and the like — is not honoured: run with both
+gates held, and say so in the configuration echo below. A gate held
+unnecessarily costs one message; a gate released by misreading a word
+costs a merge nobody agreed to.
 
-Two of the gates can also be held for one ticket alone, by a label the
-human puts on it: `hold-plan` and `hold-merge`. See "Per-ticket
-holds". There is no `hold-selection` — selection is a batch decision,
-and a ticket that shouldn't be picked stays in `Backlog`.
+The human may still name a review budget at invocation (see Phase 6).
 
-## Modes
-
-Gates are the mechanism; modes are names for the three settings of
-them worth having. Naming one at invocation — "orchestrate in autonomous
-mode" — carries the whole authorization, so nobody has to recite which
-gates are held every time:
-
-| Mode           | Selection | Plan     | Merge    |
-| -------------- | --------- | -------- | -------- |
-| **supervised** | held      | held     | held     |
-| **semi**       | released  | held     | held     |
-| **autonomous** | released  | released | released |
-
-- **supervised** is the default and what you run when no mode is
-  named. Every decision is the human's.
-- **semi** hands them the one decision that is expensive to reverse —
-  the plan — and runs to green without them, stopping before merge.
-  You pick the batch and you say what you picked; they approve the
-  plans; review and fixing run unattended; each merge waits.
-- **autonomous** decides everything including merge, and escalates
-  only as the pipeline's own stop conditions require.
-
-Modes are presets over the gates, not a replacement for them. The
-table below still holds, a mode simply expands into it, and a human
-who wants a combination no mode names can still spell it out:
-
-| Invocation                | Gates held             |
-| ------------------------- | ---------------------- |
-| (default), `supervised`   | selection, plan, merge |
-| `semi`                    | plan, merge            |
-| `ends`                    | selection, merge       |
-| `merge only`              | merge                  |
-| `autonomous`, `no gates`  | none                   |
-
-`ends` and `semi` are not the same thing and the difference matters:
-`ends` holds selection and releases the plan, `semi` does the
-opposite. Both are legitimate — they disagree about which of the two
-is worth a human's attention — so take the one that was actually said
-rather than the one you'd have picked.
-
-If an invocation names a mode *and* adjusts a gate — "autonomous, but
-hold merge" — the adjustment wins. Spelling gates out without a mode
-works as it always did.
-
-If a word at invocation is neither one of the three modes nor a gate
-spelled out, it is not a mode: **run supervised** and say that you
-did. A gate held unnecessarily costs one message; a gate released by
-misreading a word costs a merge nobody agreed to.
-
-Echo the configuration back in one line before the first gate — the
-mode, which gates that holds, and which it releases — so a run that is
-about to merge without asking says so while the human is still
-reading.
-
-A released gate is not a skipped decision. Make the call yourself,
-state it in one line with the reasoning you would have presented, and
-keep going. State how each gate was passed — approved by the human, or
-taken under a released gate — in that one-line call and again in the
-phase's status update; the transcript is the record, not a file.
-
-The human can re-hold a released gate at any point mid-run, and
-release one only by saying so. When in doubt mid-run, the gate is
-held.
-
-### Per-ticket holds
-
-A ticket carrying the `hold-plan` or `hold-merge` label in Linear has
-that one gate held for it, whatever mode the run was invoked in:
-
-- **`hold-plan`** — the ticket is planned as usual, the plan is written
-  into its description, and then its plan gate is held for that ticket
-  even if the run's plan gate is released.
-- **`hold-merge`** — the ticket's merge gate is held even if the run's
-  merge gate is released, with the same effect as a stop-list hit,
-  triggered by the ticket rather than by the paths the diff reached.
-
-A hold label beats the mode, beats a gate spelled out at invocation
-("no gates" does not clear it), and beats a plan-gate
-pre-authorization. Only the human clears it, for that ticket: in chat
-during the run, or — for `hold-merge` — by adding `approved-to-merge`.
-An approving GitHub review alone does not clear it: `merge-queue`
-merges a linked ticket only on `approved-to-merge`. Removing the label
-only stops later runs from holding the ticket; it does not merge
-anything, and a ticket already resting in `In Review` is not re-picked,
-so after a run the human still clears the merge with
-`approved-to-merge`. No released gate anywhere clears it.
-
-Other tickets are unaffected. In autonomous mode a batch with one
-`hold-plan` ticket runs the rest to merge and stops once, on that one
-plan.
-
-The pipeline never adds or removes either label. They are the human's
-standing instruction for that ticket and persist across runs. A
-workspace that doesn't have them simply has no held tickets.
-
-Name the hold wherever a gate names its stop-list hits: "SKL-n is held
-at plan by label", "SKL-n is held at merge by label". When any picked
-ticket carries one, the one-line configuration echo before the first
-gate says so and names both labels.
+Echo the configuration back in one line before the first stop: the
+tickets taken, and the tickets skipped with the reason for each (see
+Phase 1); the write window's line (see "Echoing it" under "The write
+window"); and, if your harness cannot set a subagent's model, that it
+can't (see "Models and effort"). A run that is about to stop early, or
+that skipped something the human expected, says so while the human is
+still reading.
 
 ### Research tickets
 
 A ticket carrying the `research` label has a written report, not a
-diff, as its deliverable. Like the hold labels it is human-owned: the
-human (or voice, on their behalf) puts it on when the ticket is
-created, and the pipeline never adds or removes it. A workspace without
+diff, as its deliverable. It is human-owned: the human (or voice, on
+their behalf) puts it on when the ticket is created, and the pipeline
+never adds or removes it. A workspace without
 the label has no research tickets.
 
-- **The fork.** A research ticket is picked, planned, and shown at the
+- **The fork.** A research ticket is taken, planned, and shown at the
   plan gate exactly like any other. After the plan gate it does not go
-  to `implement-ticket`; Phase 6 invokes `research-ticket` instead,
+  to `implement-ticket`; Phase 5 invokes `research-ticket` instead,
   which spawns one researcher subagent. There is no adversarial review and no
   merge for it, and it never reaches `merge-queue`.
 - **The report.** The researcher writes it into the ticket's
@@ -236,11 +146,10 @@ the label has no research tickets.
   reading Linear for them, opens first.
 - **Done is acceptance.** On `reported` the ticket moves to `In Review`
   and rests there. Only the human moves it to `Done`, when they accept
-  the report. No mode and no released gate does it, and nothing in the
-  pipeline moves a research ticket to `Done`.
+  the report. Nothing in the pipeline moves a research ticket to
+  `Done`.
 - **No merge gate.** A research ticket has no merge gate, so
-  `hold-merge` and `approved-to-merge` do nothing for it. `hold-plan`
-  works as usual.
+  `approved-to-merge` does nothing for it.
 - **Not a gated write.** Research makes no commit, push or PR, so
   nothing it does is a gated write under "The write window", whatever
   the window says. Editing a Linear description or posting a comment
@@ -254,7 +163,7 @@ the label has no research tickets.
   comments"). Like a dropped
   planning ticket, it is then in `Todo` with the label, so the human
   answers it by editing the ticket and clearing the label, and the next
-  run picks it again; never with a `factory: decision`: none of the
+  run takes it again; never with a `factory: decision`: none of the
   three `Next` invocations applies.
 
 ## The stop-list
@@ -267,12 +176,12 @@ are the usual entries, but the list is the repo's to write and never
 yours to infer. A repo that declares none has none.
 
 A ticket on the stop-list is not blocked and is nothing special to
-work on. It is picked, planned, implemented and reviewed exactly like
-any other. The single thing that changes is that **its merge gate is
-held even in autonomous mode**, and no released gate anywhere can
-clear it — only the human, for that ticket, after seeing what the diff
-actually touched. Say so at the plan gate, say so again when it comes
-back ready, and name the entry it hit both times.
+work on. It is taken, planned, implemented and reviewed exactly like
+any other. The single thing that changes is that **its merge waits for
+the human to clear that PR specifically**, after seeing what the diff
+actually touched. Approving its plan does not clear it. Say so at the
+plan gate, say so again when it comes back ready, and name the entry
+it hit both times.
 
 Check it twice, because the two checks catch different things:
 
@@ -303,13 +212,13 @@ on a merge. Don't label it `needs-attention` — nothing needs
 attention; something needs approval.
 
 Escalations are not gates. A `blocked`, `failed`, or `capped` report
-still gets labelled and reported in an autonomous run — you just don't
-wait on it. In particular a **capped review never merges**, whatever
-the merge gate is set to: a released merge gate authorizes merging
-work that came back ready, not work review couldn't finish. The
-**stop-list** is not a gate either, and it overrides a released merge
-gate the same way. So does a `hold-merge` label, triggered by the
-ticket rather than the diff — see "Per-ticket holds".
+still gets labelled and reported, and the rest of the batch carries on
+— you don't wait on it. In particular a **capped review never
+merges**: clearing a merge covers work that came back ready, not work
+review couldn't finish, and no approval of anything else — a plan, a
+different PR — covers a capped, blocked or failed ticket. The
+**stop-list** is not a gate either: no approval but the human's
+clearance of that PR covers it.
 
 ## The write window
 
@@ -422,11 +331,11 @@ un-drafts the PR itself at merge time instead. See `adversarial-review`'s
 "When a target is ready".
 
 Nothing releases the window except the repo's own declaration. It is
-not a gate and not an escalation: no mode, no released gate, and no
-plan-gate pre-authorization opens it, and a deferred ticket gets no
+not a gate and not an escalation: nothing said at invocation opens
+it, and a deferred ticket gets no
 `needs-attention` label and keeps whatever status it already had — with
 one named exception, where `merge-queue` finds the PR actually stuck
-rather than merely waiting on the clock (see Phase 8 and
+rather than merely waiting on the clock (see Phase 7 and
 `merge-queue`'s "On a deferred report").
 
 **The deferral note.** Every stage that defers posts one short comment,
@@ -510,12 +419,10 @@ review budget that had already been partly spent: that is the cost of
 stopping dead instead of promising to pick an attempt back up
 mid-stream, and it is cheap next to a run that finished on time.
 
-**Echoing it.** When you echo the mode back in one line before the
-first gate (see "Modes"), include on the same line the window's
-declaration, whether it is open right now, and when it next opens or
-closes. A run that is about to stop early on this says so while the
-human is still reading, the same way a run about to merge without
-asking does.
+**Echoing it.** In the one-line configuration echo before the first
+stop (see "Gates"), include the window's declaration, whether it is
+open right now, and when it next opens or closes. A run that is about
+to stop early on this says so while the human is still reading.
 
 ## Where this skill lives
 
@@ -557,12 +464,13 @@ to it.
 
 ## Statuses and labels
 
-Only Linear's stock statuses are used, plus six workspace labels:
+Only Linear's stock statuses are used, plus four workspace labels:
 
-- `Todo` — the queue this skill draws new picks from, and the only
-  one for that. A ticket sitting `In Progress` or `In Review` with a
-  deferral comment is never picked up from here — see Phase 1 — and
-  orchestrate never re-picks it itself either way.
+- `Todo` — the queue this skill takes tickets from when none are
+  named, and the only status it takes a ticket from at all. A ticket
+  sitting `In Progress` or `In Review` with a deferral comment is never
+  taken from here — see Phase 1 — and orchestrate never restarts it
+  itself either way.
 - `In Progress` — being implemented, or, for a `research` ticket, being
   researched.
 - `In Review` — a PR exists and is under review. This is a reading
@@ -581,16 +489,11 @@ Only Linear's stock statuses are used, plus six workspace labels:
   exception worth naming: it stays in `Todo` with the label, since it
   never left `Todo` in the first place. A `research` ticket whose
   researcher stops `blocked` or `failed` is the other: it is moved back
-  to `Todo` and labelled, so clearing the label makes it pickable
+  to `Todo` and labelled, so clearing the label makes it eligible
   again. Either way, the label only says
   *that* something needs a human — the durable record of *why* is the
   `factory: escalation` comment on the same ticket (see "Escalation
   comments").
-
-- The **`hold-plan`** and **`hold-merge`** labels — human-owned. The
-  human puts one on a ticket to hold that ticket's plan or merge gate
-  whatever the run's mode (see "Per-ticket holds"). `orchestrate` reads
-  them and never adds or removes either.
 - The **`research`** label — human-owned. It marks a ticket whose
   deliverable is a report, not a PR (see "Research tickets").
   `orchestrate` reads it and never adds or removes it.
@@ -598,27 +501,31 @@ Only Linear's stock statuses are used, plus six workspace labels:
   the human's own: a decision, a judgement call, a hands-on step, or
   scoping. In `Todo` it means ready for the human, not for the
   pipeline. `plan-ticket`, `research-ticket` and `implement-ticket`
-  skip it, and neither `orchestrate` nor a dispatcher picks or fires
+  skip it, and neither `orchestrate` nor a dispatcher takes or fires
   one, whatever its status. Review and merge run on it only when the
   human invokes those stages themselves. `orchestrate` reads it and
   never adds or removes it.
 
-All six are workspace labels. `needs-attention` and `approved-to-merge`
-exist on every team automatically; the hold labels, `research` and
-`human-only` are created by the human when first wanted, and a
-workspace without them simply has no held, research or human-only
-tickets. Move tickets and add labels yourself as they advance,
-except the hold labels, `research` and `human-only`; a GitHub
-automation may race you to `Done` on merge, which is harmless.
+All four are workspace labels. `needs-attention` and `approved-to-merge`
+exist on every team automatically; `research` and `human-only` are
+created by the human when first wanted, and a workspace without them
+simply has no research or human-only tickets. Move tickets and add
+labels yourself as they advance, except `research` and `human-only`; a
+GitHub automation may race you to `Done` on merge, which is harmless.
+
+A workspace may still carry the older **`hold-plan`** and
+**`hold-merge`** labels. They are recognized and add nothing — both
+gates are always held already — and the pipeline still never adds or
+removes either.
 
 Take a label off when it stops being true: `needs-attention` comes off
 when the ticket is picked back up, or when a `factory: decision` is
 posted for it, and `approved-to-merge` comes off when the ticket
 reaches `Done`. A stale label on a finished ticket is noise in
-everyone's views. The hold labels, `research` and `human-only` are
-exempt: they stay until the human removes them, `Done` included.
+everyone's views. `research` and `human-only` are exempt: they stay
+until the human removes them, `Done` included.
 
-**You never pick from `Backlog`** — see Phase 1.
+**You never take a ticket from `Backlog`** — see Phase 1.
 
 ## Escalation comments
 
@@ -682,8 +589,8 @@ answer:
     PR: <url>
     Entries: <each stop-list entry the diff hits, or none>
     Round: <n>
-    This merge waits for a human to clear this PR specifically, whatever
-    mode a run is in, when Entries names any. An `Entries: none` hold
+    This merge waits for a human to clear this PR specifically, however
+    a run is configured, when Entries names any. An `Entries: none` hold
     carries no such wait; it is posted, like every ready cycle's hold,
     only to clear whatever an earlier hold on this same PR recorded.
 
@@ -743,11 +650,11 @@ same pending decision and invoke `Next` again; not re-invoking an
 already running `Next` is on whatever runs it, outside this plugin, not
 a distinction this marker's freshness rule makes.
 
-A decision marker is not merge approval and not a released gate.
+A decision marker is not merge approval and does not clear a gate.
 Posting one clears `needs-attention` (see "Statuses and labels") and
 does nothing else: it never clears a stop-list hit, and it never lets a
-capped, blocked, or failed ticket merge under a released gate — "The
-stop-list" and Phase 8's rules on both stand exactly as written. A
+capped, blocked, or failed ticket merge — "The stop-list" and the
+rules of Phase 7 on both stand exactly as written. A
 `merge-queue <PR>` decision is recorded alongside the approval itself
 (the human adding `approved-to-merge`, or an approving GitHub review on
 an unlinked PR), never in place of it. If the ticket still carries
@@ -769,7 +676,7 @@ stop is the one that records it, so the two can never drift apart:
 - Research `blocked` or `failed`: `research-ticket`, which also moves
   the ticket back to `Todo`. Answered the planning way, by editing the
   ticket and clearing
-  `needs-attention` so the next run picks it again, never by a `factory:
+  `needs-attention` so the next run takes it again, never by a `factory:
   decision`.
 - Implement `blocked` or `failed`: `implement-ticket`.
 - Review `blocked`, `failed`, or `capped`, and every stop-list hold:
@@ -896,124 +803,77 @@ so there is nothing to say about one.
   into Linear or into your context beyond a one-line-per-finding
   summary.
 - Per-run state — worktree paths, branches, PR URLs, CI attempt counts,
-  review round counts, plan-time stop-list hits, how each gate was
-  passed, the run's mode and gate configuration, the run id — lives in your own
-  context for the life of the run, which is the only span it is needed
-  for. Nothing here is written to a file. Whatever must outlive the run
-  is already written where it belongs: PR link and status on the
-  Linear ticket, the `needs-attention`/`approved-to-merge` labels, and
-  the escalation comment a stage posts when it stops (see "Escalation
-  comments").
+  review round counts, plan-time stop-list hits, the run id — lives in
+  your own context for the life of the run, which is the only span it
+  is needed for. Nothing here is written to a file. Whatever must
+  outlive the run is already written where it belongs: PR link and
+  status on the Linear ticket, the
+  `needs-attention`/`approved-to-merge` labels, and the escalation
+  comment a stage posts when it stops (see "Escalation comments").
 
-## Phase 1 — Pick
+## Phase 1 — Take the tickets
 
-Read the queue for the configured Linear team. Candidates are tickets
-in `Todo`, sorted by priority.
+Take the tickets the human named at invocation. With none named, take
+every `Todo` ticket for the configured Linear team.
 
-Within `Todo`, skip anything blocked by an open ticket, anything
+From either source, skip anything blocked by an open ticket, anything
 carrying the `needs-attention` label (a human is meant to look at that
 first), anything carrying `human-only` (it is the human's own; see
-"Statuses and labels"), anything too vague to implement without a
-human, anything whose scope is plainly a project rather than a change (for a ticket
-carrying `research`, read "implement" as "answer" and "a change" as "a
-question": skip it only if it is too vague to answer or plainly a
-project, never for lacking a change to make), and a ticket
-whose newest marker is a pending `factory: decision` (see "Escalation
-comments") — its next step belongs to whatever resumes it, and picking
-it here too would run it twice. Use judgment: a
-slightly lower-priority ticket that unblocks others, or rounds out a
-coherent batch, can jump the line. Pick 5–10 — or everything eligible
-in `Todo` if it holds fewer. A short batch is a normal outcome, not a
-reason to reach further.
+"Statuses and labels"), and a ticket whose newest marker is a pending
+`factory: decision` (see "Escalation comments") — its next step belongs
+to whatever resumes it, and taking it here too would run it twice.
 
-Note which picks carry `hold-plan` or `hold-merge` (see "Per-ticket
-holds"), and which carry `research` (see "Research tickets"), in your
-own context. A hold label is not a reason to skip a ticket.
+A named ticket that is not in `Todo` is not taken either. Report it,
+with its status: a human moves it to `Todo` if they want it run. That
+is also what keeps `Backlog` out. `Backlog` is where the human parks
+work they do not want started — their own tickets, decisions they are
+still thinking through, things deliberately set aside — and promoting
+a ticket to `Todo` is how they hand it to orchestrate. **You never take
+a `Backlog` ticket**, never read `Backlog` looking for work, never
+propose promotions from it, and never promote one yourself.
+
+There is no cap and no reordering: take everything that is eligible.
+Priority order is for presenting the tickets only. Make no judgment
+about whether a ticket is clear enough or small enough to plan: the
+planner is the only judge of that, and it reports a ticket that isn't
+as `unplannable` (see Phase 2). Note which tickets carry `research`
+(see "Research tickets") in your own context.
+
+An empty result means there is nothing to run: say so and stop.
+
+Do not stop for approval here. Say which tickets you took, and which
+you skipped and why, in the configuration echo (see "Gates"), and go
+straight to Phase 2.
 
 A ticket sitting `In Progress` or `In Review` with a deferral comment
-(see "The write window") is not picked up here — Phase 1 only draws
-from `Todo`, and orchestrate never restarts a deferred ticket itself, in
-any mode. Restarting one is a human's deliberate act: they re-invoke
-the stage directly against the ticket or PR, or record their answer as
-a `factory: decision` for something outside this plugin to act on (see
+(see "The write window") is not taken here — Phase 1 only draws from
+`Todo`, and orchestrate never restarts a deferred ticket itself.
+Restarting one is a human's deliberate act: they re-invoke the stage
+directly against the ticket or PR, or record their answer as a
+`factory: decision` for something outside this plugin to act on (see
 "Restarting").
 
-### `Backlog`
+## Phase 2 — Plan each ticket
 
-`Backlog` is where the human parks work they do not want started —
-their own tickets, decisions they are still thinking through, things
-deliberately set aside. Promoting a ticket to `Todo` is how they hand
-it to orchestrate. **You never pick a `Backlog` ticket into a batch**, and
-you never promote one yourself.
-
-What you may do, at the selection gate and only there, is *propose*
-promotions. If `Todo` yields **five or more** eligible tickets, don't
-read `Backlog` at all — there is enough to run. If it yields fewer,
-read `Backlog` and look for tickets that are plainly runnable now:
-concrete enough to implement (or, for a `research` ticket, to answer),
-unblocked, scoped as a change (or, for `research`, as a question) rather
-than a project, and not obviously the human's own to decide — nothing
-that reads as an open question, a direction call, or a ticket they
-assigned themselves. When a ticket is borderline, leave it out; the
-cost of a missed suggestion is nothing and the cost of nagging the
-human about their own parked work is that they stop reading the list.
-
-Propose enough to bring the batch to five or so, ranked, each with one
-line on why it looks runnable. They are proposals, not picks: the
-human promotes them, or tells you to. Only then do they join the
-batch, and a promoted ticket gets a planner pass like any other.
-
-If the selection gate is **released**, there is nobody to propose to:
-leave `Backlog` untouched, and let a thin `Todo` be a short batch. An
-empty `Todo` means there is nothing to run — say so and stop.
-
-## Phase 2 — Selection gate
-
-Present the picks and stop: a table of ticket, title, priority,
-estimate, and one line of why-now drawn from the description, flagging
-any pick that carries a hold label. Nothing
-is planned yet, so there are no plan summaries here and no waves —
-that is the next gate's job. Add, separately:
-
-- **Proposed promotions from `Backlog`**, if you made any, clearly
-  marked as not picked and not promoted, one line each on why they
-  look runnable now.
-- **What you skipped and why**, for anything a human would want to
-  know about: blocked by an open ticket, carrying `needs-attention`,
-  too vague, too big, or carrying a pending `factory: decision` (its
-  resume belongs to whatever runs `Next`).
-
-The human can drop picks, add tickets, promote something you proposed
-(or promote something you didn't), or reorder priorities. Then they
-approve the selection.
-
-Do not spawn a planner, and do not move any ticket, until they do.
-The approval covers this selection only.
-
-If this gate is released, say in one line which tickets you took and
-what you passed over, naming any pick that carries a hold label, and go
-straight to Phase 3.
-
-## Phase 3 — Plan each ticket
-
-Invoke the `plan-ticket` skill once for every pick together. Its own
-instructions cover the planner subagent, re-reading each ticket's labels
-immediately before spawning, setting the planner's RESEARCH line for a
-pick carrying `research`, and running the planners in parallel, so
-nothing here duplicates them. Tell it the run id. It posts its own `plan` rows (see
-"Telemetry"), and you post none for this phase.
+Invoke the `plan-ticket` skill once for every ticket taken, together.
+Its own instructions cover the planner subagent, re-reading each
+ticket's labels immediately before spawning, setting the planner's
+RESEARCH line for a ticket carrying `research`, and running the
+planners in parallel, so nothing here duplicates them. Tell it the run
+id. It posts its own `plan` rows (see "Telemetry"), and you post none
+for this phase.
 
 Each planner writes its plan into the ticket's own description under a
 `## Plan` heading, and `plan-ticket` relays a short report with a
 summary, the files the change will touch, and the stop-list entries
 those files hit. Hold the stop-list hits for the plan gate; that's what
 you present there. At that same point, re-read each ticket's labels (a
-human may have added one since the spawn) and record which carry
-`hold-plan` or `hold-merge`. If a ticket's `research` label differs from
-its report's `RESEARCH` line (added or removed since the planner was
-spawned), its plan is the wrong kind and must not reach Phase 6: drop it from the
-batch, leave it in `Todo` without `needs-attention`, and say at the plan
-gate that the next run will re-plan it with the label as it now stands.
+human may have changed one since the spawn). If a ticket's `research`
+label differs from its report's `RESEARCH` line (added or removed since
+the planner was spawned), its plan is the wrong kind and must not reach
+Phase 5: drop it from the batch, leave it in `Todo` without
+`needs-attention`, and say at the plan gate that the next run will
+re-plan it with the label as it now stands.
 
 On `RESULT: unplannable` (too vague, or big enough to be several
 tickets) or `blocked` (the premise doesn't match the code),
@@ -1024,12 +884,13 @@ differently to the human (unplannable needs more scoping, blocked needs
 someone to look at what the planner found), so don't merge them into
 one line.
 
-On `RESULT: skipped`, the ticket was not in `Todo` or `Backlog` when
-`plan-ticket` reached it, which can only be a ticket added at a gate or
-moved by a human mid-run. Drop it from the batch, leave it as it is, and
-name it at the plan gate with `plan-ticket`'s reason.
+On `RESULT: skipped`, the ticket was not in `Todo` or `Backlog`, or
+carried `human-only`, when `plan-ticket` reached it, which can only be
+a ticket a human moved or labelled mid-run. Drop it from the batch,
+leave it as it is, and name it at the plan gate with `plan-ticket`'s
+reason.
 
-## Phase 4 — Plan the waves
+## Phase 3 — Plan the waves
 
 Build waves from the planners' file lists — real overlap, not guesses.
 Group:
@@ -1050,49 +911,28 @@ A `research` ticket touches no files, so it joins no wave's file-overlap
 math. It runs alongside wave 1, or behind a prerequisite it depends on
 in Linear.
 
-A `hold-plan` ticket joins a wave only once its plan is approved (see
-Phase 5), and a ticket that depends on it is serialized behind it.
+## Phase 4 — Plan gate
 
-## Phase 5 — Plan gate
+This gate is always held. Present the plans and stop: a table of
+ticket, wave, and the plan's one-line summary, plus a note on anything
+serialized and why, which tickets the planners flagged as stop-list
+hits and which entry each one hit, which tickets are research tickets
+(they never reach a merge gate; see "Research tickets"), and any
+tickets the planners dropped as unplannable or blocked (say which, and
+for blocked, what the planner found and the options it gave). Approving
+here approves the plans — the full plans are on the tickets for anyone
+who wants the detail. The human can still drop a ticket, or add one.
+An added ticket is subject to Phase 1's skips, and gets a planner pass
+before it joins a wave.
 
-Present the plans and stop: a table of ticket, wave, and the plan's
-one-line summary, plus a note on anything serialized and why, which
-tickets the planners flagged as stop-list hits and which entry each
-one hit, which tickets are held at plan by label and which at merge by
-label (see "Per-ticket holds"), which tickets are research tickets (they
-never reach a merge gate; see "Research tickets"), and any tickets the
-planners dropped as
-unplannable or blocked (say which, and for blocked, what the planner
-found and the options it gave). Approving here approves the
-plans — the full plans are on the tickets for anyone who wants the
-detail. The human can still drop a ticket, or add one (an added ticket
-gets a planner pass before it joins a wave).
-
-Merges are cleared separately, ticket by ticket, at the merge gate —
-though the human can pre-authorize a particular ticket's merge here if
-they say so. A pre-authorization does **not** cover a stop-list
-ticket, even one flagged right here: the list exists so that those
-merges are decided after somebody has seen the diff, and nothing at
-plan time has seen it yet. Nor does it cover a `hold-merge` ticket, for
-the same reason.
+Approving a plan does not clear a merge. Merges are cleared
+separately, ticket by ticket, at the merge gate (see Phase 7), after
+the change exists.
 
 Do not start any work until the human says yes. The approval covers
 this batch only.
 
-If this gate is released, say in one line what the waves are, any
-stop-list hits, any tickets held at merge by label, and anything the
-planners dropped, and go straight to Phase 6 with every ticket *not*
-carrying `hold-plan`. Present each held plan — ticket, the plan's
-one-line summary, "held at plan by label" — and wait on those alone; a
-ticket whose plan the human approves joins the next wave. If the run
-otherwise finishes with a held plan still unanswered, the run ends
-there: the ticket stays in `Todo` with its plan written, not labelled
-`needs-attention` (it is not stalled), and the end-of-run report names
-it, along with every ticket serialized behind it (planned, never
-run). The next run will pick it again and re-plan it, overwriting that
-plan, until the human approves it in chat or removes the label.
-
-## Phase 6 — Implement
+## Phase 5 — Implement
 
 **Research tickets** don't go to `implement-ticket`. Invoke the
 `research-ticket` skill once for all of this wave's research tickets
@@ -1115,8 +955,8 @@ On `RESULT: skipped`, the ticket changed under the run after its plan
 gate: a human removed its `research` label or moved it. Nothing was
 written. Leave it as it is, without `needs-attention`, and name it in
 the end-of-run report with `research-ticket`'s reason. If it is still in
-`Todo`, the next run picks it again and re-plans it with its labels as
-they now stand, the same as a Phase 3 label change.
+`Todo`, the next run takes it again and re-plans it with its labels as
+they now stand, the same as a Phase 2 label change.
 
 Invoke the `implement-ticket` skill once for the current wave's ticket
 ids (research tickets excluded) together — its own instructions cover the worktree, the subagent,
@@ -1149,7 +989,7 @@ fresh `implement-ticket` invocation with a
 fresh budget, not something this run does mid-batch. See "The write
 window".
 
-## Phase 7 — Adversarial review
+## Phase 6 — Adversarial review
 
 For each ticket `implement-ticket` reported green, invoke the
 `adversarial-review` skill for that ticket's PR (its own instructions
@@ -1158,16 +998,13 @@ Research tickets skip this phase: they have no PR and no review.
 Tell it the run id; it posts its own `review` and `fix` rows and the
 findings (see "Telemetry"), and you post none for this phase.
 
-**Tell it its round budget**, which follows the mode:
+**Tell it its round budget**: a hard cap of **six rounds**, unless the
+human named a different budget at invocation, in which case theirs
+wins. A round past the budget is the human's call, not yours.
 
-- **supervised** → a hard cap of **six rounds**. A seventh is the
-  human's call, not yours.
-- **semi** and **autonomous** → **up to ten rounds at the reviewer's
-  discretion**. Ten is a ceiling, not a target.
-
-Either way `adversarial-review` stops early under its own progress
-rule: two consecutive rounds that close nothing and break no new
-ground, and it reports itself capped. That rule is the real limit and
+Whatever the budget, `adversarial-review` stops early under its own
+progress rule: two consecutive rounds that close nothing and break no
+new ground, and it reports itself capped. That rule is the real limit and
 the round count is only a backstop, so don't second-guess a cycle that
 stopped at three — and don't read a round that turned up something new
 as a cycle going wrong. A later reviewer reaching ground an earlier
@@ -1178,23 +1015,18 @@ observed normal for a change of ordinary size, and a cap that lands
 inside the normal range spends a human on tickets that were about to
 finish.
 
-The human can name a different budget at invocation; theirs wins.
-
-Every report comes back with a `STOPLIST` line. A non-empty one holds
-that ticket's merge gate for the human whatever the mode. At the same
-point, re-read the ticket's labels: a `hold-merge` label holds its
-merge gate for the human whatever the mode, exactly like a non-empty
-`STOPLIST`. Nothing is posted for the label hold — no comment, no
-`needs-attention`; the label is the record. Separately, on
-`RESULT: ready`, `adversarial-review` has already posted the `factory:
-stop-list hold` comment about the `STOPLIST` line — every ready result
-gets one, `Entries: none` included; carry it into Phase 8. On `RESULT: capped`, `blocked`,
+Every report comes back with a `STOPLIST` line. A non-empty one means
+that ticket's merge waits for the human to clear that PR specifically
+(see "The stop-list"). On `RESULT: ready`, `adversarial-review` has
+already posted the `factory: stop-list hold` comment about the
+`STOPLIST` line — every ready result gets one, `Entries: none`
+included; carry it into Phase 7. On `RESULT: capped`, `blocked`,
 or `failed`, it's instead recorded on that result's `factory:
 escalation` comment, in its `Stop-list` line. On `RESULT: deferred`,
 it's recorded on the deferral note's `Stop-list` line instead — see
 "Escalation comments" and "The write window".
 
-On `RESULT: ready`, go to Phase 8. Ready means no major and no medium
+On `RESULT: ready`, go to Phase 7. Ready means no major and no medium
 findings, not zero findings: open minors come back listed in the
 report and are not a reason to hold the ticket. Pass them through to
 the human as part of the ready report and leave them on the PR.
@@ -1203,11 +1035,11 @@ the human as part of the ready report and leave them on the PR.
 window was closed, or `gh pr ready` itself errored — relay whichever
 happened as part of the ready report.
 
-On `RESULT: capped`, the ticket does not proceed to merge under any
-gate configuration — leave it in `In Review`. `adversarial-review` has
-already labelled it `needs-attention` and posted the `factory:
-escalation` comment with the ledger rows and its options; relay those,
-along with what each round fixed. Don't start another round yourself.
+On `RESULT: capped`, the ticket never proceeds to merge — leave it in
+`In Review`. `adversarial-review` has already labelled it
+`needs-attention` and posted the `factory: escalation` comment with
+the ledger rows and its options; relay those, along with what each
+round fixed. Don't start another round yourself.
 
 On `RESULT: blocked` (a reviewer or fixer found something outside the
 diff itself) or `failed` (the fixer exhausted its CI attempts),
@@ -1224,7 +1056,7 @@ and the worktree path, and carry on with the rest
 of the batch — a restart is a fresh `adversarial-review` call starting
 at round 1, not something this run resumes. See "The write window".
 
-## Phase 8 — Merge gate and merge queue
+## Phase 7 — Merge gate and merge queue
 
 Research tickets skip this phase: they have no merge gate and never go
 to `merge-queue`.
@@ -1234,43 +1066,24 @@ no medium findings and CI is green. Report it: ticket, PR link, rounds
 run, what the last round found, any minors left open, and whether it
 hit the stop-list.
 
-**Merge gate held** — the ticket rests in `In Review`, a reading gate,
-until the human clears that ticket's merge: in chat, by adding the
-`approved-to-merge` label in Linear themselves, or by having
-pre-authorized it at the plan gate. Any of the three counts. Never
-send a ticket to `merge-queue` without one of them.
+**The merge gate is always held.** The ticket rests in `In Review`, a
+reading gate, until the human clears that ticket's merge: in chat, or
+by adding the `approved-to-merge` label in Linear themselves. When
+they clear it in chat, add `approved-to-merge` yourself, for exactly
+the tickets they named. Never send a ticket to `merge-queue` without
+that label. Only a ticket that came back **ready** can be cleared: a
+capped, blocked, or failed ticket is never cleared. If the human asks
+for one in chat, say why it can't merge instead: it carries
+`needs-attention`, and its escalation needs answering first.
 
-**Merge gate released** — the human authorized these merges at
-invocation, for this batch only. Say which tickets you are clearing
-and add the `approved-to-merge` label yourself, then proceed. Tell
-`merge-queue` plainly that the merge gate was released for this run,
-so it is not left inferring where the approval came from. This
-authority covers tickets that came back **ready** and nothing else: a
-capped, blocked, or failed ticket is never cleared under it. It never
-covers a `hold-merge` ticket either: don't add `approved-to-merge` to
-one, and don't include it when telling `merge-queue` the merge gate
-was released. Re-check the ticket's labels immediately before adding
-`approved-to-merge` under a released gate.
-
-**Stop-list hit** — the merge waits for the human whatever the mode,
-including a run whose merge gate was released at invocation, and
-including a ticket pre-authorized at the plan gate. Report it as ready
+**Stop-list hit** — the merge waits for the human to clear that PR
+specifically. Approving its plan does not clear it. Report it as ready
 and say which entry it hit; the ticket rests in `In Review` until they
 clear that specific PR. Don't label it `needs-attention`: nothing
 stalled, it is waiting on approval like any other ready ticket, and
 using the stall label here buries the tickets that actually stalled.
 The `factory: stop-list hold` comment naming the entry is already on
 the ticket, from `adversarial-review` (see "Escalation comments").
-
-**Hold-merge label** — the merge waits for the human whatever the
-mode, the same as a stop-list hit, including under a released merge
-gate and for a ticket pre-authorized at the plan gate. Report it as
-ready and say "held at merge by label"; the ticket rests in `In Review`
-until the human clears it (adds `approved-to-merge`, or approves in
-chat). Removing the label does not clear the merge: nothing re-reads it
-after this point, and `merge-queue` still needs `approved-to-merge`. A
-GitHub approval alone does not clear it either. Don't label it
-`needs-attention`, for the same reason as above.
 
 Clearing a ticket makes it eligible; it does not set the order. Five
 may come clear at once — invoke the `merge-queue` skill with all of
@@ -1294,17 +1107,17 @@ relay those options, and carry on with the rest of the queue.
 
 On `RESULT: deferred`, `merge-queue` stopped a PR before a rebase, `gh
 pr ready`, `gh pr merge`, or at its own final check immediately before
-merging, because the write window was closed — a released merge gate
-does not open the window, so this can happen on a batch whose merges
-were already authorized. Nothing merged, but the PR is not necessarily
-untouched: `merge-queue` keys stuck versus ordinary on the state of the
-head when the window closed, not on whether a push happened. If a
-rebased head has been force-pushed and isn't (yet) green — red, or CI
-still running — `merge-queue` treats that as stuck rather than merely
-deferred: such a head fails its own Eligibility check on its own, so no
-later `merge-queue <PR>` call can pick it back up by re-running the
-resolver — and it will already have added `needs-attention` to the
-linked ticket, posted the escalation comment for it (see "Escalation
+merging, because the write window was closed — clearing a merge does
+not open the window, so this can happen to a PR the human already
+cleared. Nothing merged, but the PR is not necessarily untouched:
+`merge-queue` keys stuck versus ordinary on the state of the head when
+the window closed, not on whether a push happened. If a rebased head
+has been force-pushed and isn't (yet) green — red, or CI still running
+— `merge-queue` treats that as stuck rather than merely deferred: such
+a head fails its own Eligibility check on its own, so no later
+`merge-queue <PR>` call can pick it back up by re-running the resolver
+— and it will already have added `needs-attention` to the linked
+ticket, posted the escalation comment for it (see "Escalation
 comments"), and said so in its report. Relay that plainly: a human
 needs to get the pushed head's CI green, or decide what to do with it,
 before this PR can requeue.
@@ -1359,9 +1172,8 @@ reference; `plan-ticket`, `research-ticket`, `implement-ticket`,
 | Intent review (tier 2)    | Opus, high   | gemini-3.7-flash, high | strongest available, high |
 
 If your harness cannot set a subagent's model, run everything at the
-session model and say so at the selection gate — degrade loudly, never
-silently. In a mode where the selection gate is released, say it in
-the line you echo the mode back with.
+session model and say so in the configuration echo before the plan
+gate (see "Gates") — degrade loudly, never silently.
 
 ## Status updates
 
@@ -1379,47 +1191,32 @@ up — since the table's status alone doesn't tell the human that. For
 deferral, that's the exact invocation that restarts it —
 `implement-ticket <TICKET>`, `adversarial-review <PR>`, or
 `merge-queue <PR>`. For the one `merge-queue` case that comes back both
-deferred and stuck (Phase 8) — a rebased, force-pushed head that isn't
+deferred and stuck (Phase 7) — a rebased, force-pushed head that isn't
 green — a bare restart can't fix it: say instead that it needs a human
 to get the rebased head's CI green, then re-run `merge-queue <PR>`.
 Either way, that action is theirs to make (see "Restarting"); this run
 never restarts one itself.
 
-At the end of a run, also list any ticket still held at plan or at
-merge by label, one line each, with what clears it: for a plan hold,
-the human's approval in chat or removing `hold-plan`; for a merge
-hold, `approved-to-merge` (removing `hold-merge` does not clear it, and
-neither does an approving GitHub review alone: `merge-queue` merges a
-linked ticket only on `approved-to-merge`). Also list any ticket serialized behind a
-`hold-plan` ticket whose plan is still unanswered: planned, not run,
-and waiting on that ticket's plan.
-
 At the end of a run, also list any research ticket whose report is
 waiting on acceptance, one line each: the ticket, and that moving it to
 `Done` accepts it (see "Research tickets").
 
-A run in semi or autonomous mode reports more, not less, because
-nobody is watching it happen: post a status update at the end of each
-phase, so the transcript reads as a record of what was decided on the
-human's behalf.
-
 When anything is waiting on the human — at the end of a run, when they
-ask what needs them, or when a run in any mode has accumulated
-escalations — invoke `decision-queue` instead of listing them
-yourself. The table above says where work is; it doesn't say what to
-do about the parts that stopped, and a human reading a status table
-has to reconstruct every decision from the PR. `decision-queue` reads
-Linear and the open PRs, not your context — pass it this batch's wave
-plan so it can count the tickets serialized behind each item. Stops
-reach it only through the escalation comments the stage skills already
-posted (see "Escalation comments"), which is also why posting them
-promptly matters. A ticket that's ready and simply waiting at a *held*
-merge gate, with no stop-list hit, isn't a stop and doesn't belong in
-its queue — it stays in your status table above. A stop-list hit is
-different: `adversarial-review` has already posted the `factory:
-stop-list hold` comment for it (see "The stop-list"), and
-`decision-queue` renders that as a queue item of its own — expect it
-there too, not only in this table.
+ask what needs them, or when a run has accumulated escalations — invoke
+`decision-queue` instead of listing them yourself. The table above says
+where work is; it doesn't say what to do about the parts that stopped,
+and a human reading a status table has to reconstruct every decision
+from the PR. `decision-queue` reads Linear and the open PRs, not your
+context — pass it this batch's wave plan so it can count the tickets
+serialized behind each item. Stops reach it only through the escalation
+comments the stage skills already posted (see "Escalation comments"),
+which is also why posting them promptly matters. A ticket that's ready
+and simply waiting at the merge gate, with no stop-list hit, isn't a
+stop and doesn't belong in its queue — it stays in your status table
+above. A stop-list hit is different: `adversarial-review` has already
+posted the `factory: stop-list hold` comment for it (see "The
+stop-list"), and `decision-queue` renders that as a queue item of its
+own — expect it there too, not only in this table.
 
 ## Escalation
 
@@ -1447,7 +1244,7 @@ all — nothing went wrong, the write window was simply closed. Relay it
 as its own thing: which stage deferred it, what's left undone, and the
 worktree path. It carries no `needs-attention` label and no status
 change, so don't fold it into a count of what stalled — except the one
-`merge-queue` case that comes back both deferred and stuck (Phase 8),
+`merge-queue` case that comes back both deferred and stuck (Phase 7),
 which does get the label and does belong in that count. See "The write
 window" for how an ordinary deferral gets picked back up.
 
