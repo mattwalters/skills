@@ -40,7 +40,7 @@ questions: what you could not settle and what would settle it. Leave
 everything above the heading alone — it is what a human asked for and
 decided. If the description already has a `## Report` section, replace
 that section and nothing else. Do not move the ticket, add or remove a
-label, or post a comment for a finished report; the orchestrator moves
+label, or post a comment for a finished report; `research-ticket` moves
 the ticket, and the human decides when the report is accepted.
 
 If the ticket's premise doesn't hold — the code it asks about doesn't
@@ -59,7 +59,7 @@ would pick. Put them in the comment on TICKET as well as in your report.
 A failed result is a wall with no decision in it, so it may carry no
 options.
 
-Report back to the orchestrator in exactly this shape — the report lives
+Report back in exactly this shape — the report lives
 on the ticket, not in your reply:
 
     TICKET: <id>

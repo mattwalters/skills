@@ -1,6 +1,6 @@
 ---
 name: orchestrate
-description: Batch-run the next tickets from Linear for the repo you are in. Picks 5–10 unblocked tickets from `Todo` by priority, stops for human approval on the selection, has each one planned into its ticket description, plans parallel vs serial execution, stops for approval again on the plans, then runs each ticket through the implement-ticket, adversarial-review, and merge-queue skills to a merged pull request. Its three gates — selection, plan, merge — are set by naming a mode at invocation: supervised, semi, or autonomous. A ticket carrying a `hold-plan` or `hold-merge` label has that gate held for it alone, whatever the mode. A ticket carrying the `research` label is planned like any other, then researched by a single subagent whose report lands on the ticket, and waits there for the human to accept it — no PR, no review, no merge. Reads the host repo's `AGENTS.md` `## Orchestrate` section for its Linear team, check command, base branch, write window, and worktree locations, and stops a stage short of any commit, push, or merge while that window is closed. Also reads an optional `Telemetry` field; when it is set, posts each stage attempt's outcome and each review finding's severity through the poster command it names, and a failed post never blocks, fails or changes a run. Every stop any stage hits is recorded as a comment or label on its Linear ticket (or its PR, if none resolved), so nothing a run stops on depends on this session's own context surviving. Use when asked to run the queue, work the next tickets, orchestrate a batch, or process Linear tickets in parallel. Do not use for a single ticket a human is already driving — use implement-ticket, adversarial-review, or merge-queue directly for that.
+description: Batch-run the next tickets from Linear for the repo you are in. Picks 5–10 unblocked tickets from `Todo` by priority, stops for human approval on the selection, has each one planned into its ticket description through the plan-ticket skill, plans parallel vs serial execution, stops for approval again on the plans, then runs each ticket through the implement-ticket, adversarial-review, and merge-queue skills to a merged pull request. Its three gates — selection, plan, merge — are set by naming a mode at invocation: supervised, semi, or autonomous. A ticket carrying a `hold-plan` or `hold-merge` label has that gate held for it alone, whatever the mode. A ticket carrying the `research` label is planned like any other, then researched through the research-ticket skill, whose report lands on the ticket, and waits there for the human to accept it — no PR, no review, no merge. Reads the host repo's `AGENTS.md` `## Orchestrate` section for its Linear team, check command, base branch, write window, and worktree locations, and stops a stage short of any commit, push, or merge while that window is closed. Also reads an optional `Telemetry` field; when it is set, posts each stage attempt's outcome and each review finding's severity through the poster command it names, and a failed post never blocks, fails or changes a run. Every stop any stage hits is recorded as a comment or label on its Linear ticket (or its PR, if none resolved), so nothing a run stops on depends on this session's own context surviving. Use when asked to run the queue, work the next tickets, orchestrate a batch, or process Linear tickets in parallel. Do not use for a single ticket a human is already driving — use plan-ticket, research-ticket, implement-ticket, adversarial-review, or merge-queue directly for that.
 ---
 
 # Orchestrate
@@ -15,20 +15,21 @@ rounds, and move Linear tickets.
 
 One kind of ticket takes a different road after planning: a ticket
 labelled `research` is not implemented, reviewed or merged. A single
-researcher subagent answers it and writes the report onto the ticket
-(see "Research tickets").
+researcher subagent, run by the `research-ticket` skill, answers it
+and writes the report onto the ticket (see "Research tickets").
 
 This skill is the orchestration policy — picking, waving, modes,
 gates, tracking. What happens to one ticket once it's picked lives in
-the three skills it delegates to, each equally usable on its own:
-`implement-ticket` for "just implement TEAM-200",
+the five skills it delegates to, each equally usable on its own:
+`plan-ticket` for "plan TEAM-200", `research-ticket` for "answer this
+research ticket", `implement-ticket` for "just implement TEAM-200",
 `adversarial-review` for "review every open PR", `merge-queue` for
-"merge everything that's approved". A fifth, `decision-queue`, renders
+"merge everything that's approved". A sixth, `decision-queue`, renders
 whatever a run stopped on as decisions to answer; it reads state
 rather than producing it, so it can be run mid-run, afterwards, or
 against a repo no orchestrate run is touching. Read their SKILL.md files
 before changing what a stage does; change this file for how runs are
-queued. These files call all five by their bare names throughout; in
+queued. These files call all six by their bare names throughout; in
 Claude Code they arrive as the `factory` plugin, so invoke them
 namespaced — `/factory:implement-ticket` and so on. See "Where this
 skill lives".
@@ -224,8 +225,8 @@ the label has no research tickets.
 
 - **The fork.** A research ticket is picked, planned, and shown at the
   plan gate exactly like any other. After the plan gate it does not go
-  to `implement-ticket`; Phase 6 spawns one researcher subagent with
-  `prompts/researcher.md` instead. There is no adversarial review and no
+  to `implement-ticket`; Phase 6 invokes `research-ticket` instead,
+  which spawns one researcher subagent. There is no adversarial review and no
   merge for it, and it never reaches `merge-queue`.
 - **The report.** The researcher writes it into the ticket's
   description under a `## Report` heading after `## Plan`, replacing an
@@ -247,9 +248,10 @@ the label has no research tickets.
 - **Stops.** The researcher reports `reported`, `blocked` or `failed`.
   `blocked` means the premise doesn't hold or the question needs a
   human's call; `failed` means it could not complete, for instance
-  because a source it needs is unreachable. Both move the ticket back
-  to `Todo`, label it `needs-attention` and post a `factory: escalation`
-  with stage `researching` (see "Escalation comments"). Like a dropped
+  because a source it needs is unreachable. On both, `research-ticket`
+  moves the ticket back to `Todo`, labels it `needs-attention` and posts
+  a `factory: escalation` with stage `researching` (see "Escalation
+  comments"). Like a dropped
   planning ticket, it is then in `Todo` with the label, so the human
   answers it by editing the ticket and clearing the label, and the next
   run picks it again; never with a `factory: decision`: none of the
@@ -517,8 +519,9 @@ asking does.
 
 ## Where this skill lives
 
-The canonical copy of `orchestrate`, `implement-ticket`,
-`adversarial-review`, `merge-queue`, and `decision-queue` lives once,
+The canonical copy of `orchestrate`, `plan-ticket`, `research-ticket`,
+`implement-ticket`, `adversarial-review`, `merge-queue`, and
+`decision-queue` lives once,
 in the `mattwalters/skills` plugin marketplace repo, at
 `plugins/factory/skills/<name>/`. There is deliberately no per-project
 fork to keep in sync. Edit it there, and the change reaches every repo
@@ -530,7 +533,8 @@ Two mechanisms carry it into a project repo:
   marketplace. It is installed once per machine, at user scope; a
   project repo declares neither the marketplace nor the plugin in its
   `.claude/settings.json` (see the README's "Installing"). A plugin namespaces its skills, so in Claude Code these
-  five are invoked as `/factory:orchestrate`, `/factory:implement-ticket`,
+  seven are invoked as `/factory:orchestrate`, `/factory:plan-ticket`,
+  `/factory:research-ticket`, `/factory:implement-ticket`,
   `/factory:adversarial-review`, `/factory:merge-queue` and
   `/factory:decision-queue`. Everywhere else in these files they are
   referred to by their bare names, which is what the other harnesses
@@ -752,11 +756,10 @@ instead — there is nothing to label or comment on in Linear.
 records (adding a label, where one applies) — the skill that causes a
 stop is the one that records it, so the two can never drift apart:
 
-- Planner unplannable or blocked (a dropped ticket): `orchestrate`, in
-  Phase 3.
-- Research `blocked` or `failed`: `orchestrate`, in Phase 6 (there is no
-  separate stage skill for it), which also moves the ticket back to
-  `Todo`. Answered the planning way, by editing the ticket and clearing
+- Planner unplannable or blocked (a dropped ticket): `plan-ticket`.
+- Research `blocked` or `failed`: `research-ticket`, which also moves
+  the ticket back to `Todo`. Answered the planning way, by editing the
+  ticket and clearing
   `needs-attention` so the next run picks it again, never by a `factory:
   decision`.
 - Implement `blocked` or `failed`: `implement-ticket`.
@@ -774,16 +777,18 @@ stop is the one that records it, so the two can never drift apart:
   still never runs the `Next` invocation itself.
 
 This is the canonical reference for what these comments look like, the
-way "Models and effort" is for models — `implement-ticket`,
-`adversarial-review`, and `merge-queue` point back here rather than
+way "Models and effort" is for models — `plan-ticket`,
+`research-ticket`, `implement-ticket`, `adversarial-review`, and
+`merge-queue` point back here rather than
 each carrying their own copy of the templates.
 
 ## Telemetry
 
 A repo can opt in to a stage-level record of every run: one row when a
 stage attempt ends, and one row per review finding. This section is the
-canonical reference; `implement-ticket`, `adversarial-review` and
-`merge-queue` point back here, the way they do for "Escalation
+canonical reference; `plan-ticket`, `research-ticket`,
+`implement-ticket`, `adversarial-review` and `merge-queue` point back
+here, the way they do for "Escalation
 comments". It carries no token spend (that flows through Claude Code's
 own export) and no finding text.
 
@@ -981,53 +986,38 @@ straight to Phase 3.
 
 ## Phase 3 — Plan each ticket
 
-For each pick, re-read its labels immediately before spawning (a human
-may have added one since Phase 1), then spawn a planner subagent with
-`prompts/planner.md` — strongest reasoning model available (see Models
-and effort below): planning is scope judgment. For a pick carrying
-`research`, fill in the planner brief's optional RESEARCH line
-(`prompts/planner.md`) at spawn so the planner knows its plan is a
-research plan: the questions to answer and where to look, with
-`FILES: none` and `STOPLIST: none`. It is not unplannable for lacking a
-change to make. For any other pick, leave RESEARCH out. Planners are read-only, so run them all in
-parallel. Record `started_at` at each planner's spawn (see
-"Telemetry"); after each planner's report, post a `plan` row with its
-`planned`, `unplannable` or `blocked`.
+Invoke the `plan-ticket` skill once for every pick together. Its own
+instructions cover the planner subagent, re-reading each ticket's labels
+immediately before spawning, setting the planner's RESEARCH line for a
+pick carrying `research`, and running the planners in parallel, so
+nothing here duplicates them. Tell it the run id. It posts its own `plan` rows (see
+"Telemetry"), and you post none for this phase.
 
 Each planner writes its plan into the ticket's own description under a
-`## Plan` heading — replacing an existing `## Plan` section, touching
-nothing above it — and returns a short report with a summary and the
-files the change will touch. The description is the brief every later
-subagent reads, so a plan there is read by construction; never put a
-plan in a comment, where it sinks under later traffic.
-
-Each planner also checks the files it expects to touch against the
-repo's stop-list and reports what they hit. Hold it for the plan gate;
-that's what you present there. At that same point, re-read each
-ticket's labels (a human may have added one since the spawn) and record
-which carry `hold-plan` or `hold-merge`. If a ticket's `research` label
-differs from what its planner was spawned with (added or removed since),
-its plan is the wrong kind and must not reach Phase 6: drop it from the
+`## Plan` heading, and `plan-ticket` relays a short report with a
+summary, the files the change will touch, and the stop-list entries
+those files hit. Hold the stop-list hits for the plan gate; that's what
+you present there. At that same point, re-read each ticket's labels (a
+human may have added one since the spawn) and record which carry
+`hold-plan` or `hold-merge`. If a ticket's `research` label differs from
+its report's `RESEARCH` line (added or removed since the planner was
+spawned), its plan is the wrong kind and must not reach Phase 6: drop it from the
 batch, leave it in `Todo` without `needs-attention`, and say at the plan
 gate that the next run will re-plan it with the label as it now stands.
 
-A planner that finds a ticket too vague, or big enough to be several
-tickets, reports it unplannable instead of guessing. A planner that
-finds the ticket's premise doesn't match the code — the bug it
-describes doesn't reproduce, the feature already exists — reports it
-blocked instead, and has already commented the mismatch on the ticket.
-Drop both kinds from the batch and say why at the plan gate; they
-read differently to the human (unplannable needs more scoping,
-blocked needs someone to look at what the planner found) so don't
-merge them into one line.
+On `RESULT: unplannable` (too vague, or big enough to be several
+tickets) or `blocked` (the premise doesn't match the code),
+`plan-ticket` has already labelled the ticket `needs-attention` and
+posted the `factory: escalation` comment with the planner's options.
+Drop both kinds from the batch and say why at the plan gate. They read
+differently to the human (unplannable needs more scoping, blocked needs
+someone to look at what the planner found), so don't merge them into
+one line.
 
-Both come back with options and a pick attached. Label the dropped
-ticket `needs-attention` and post a `factory: escalation` comment
-(see "Escalation comments") with stage `planning`, result `unplannable`
-or `blocked`, and the planner's `OPTIONS` verbatim — that is what turns
-"WRIT-88 is unplannable" into a question somebody can answer in one
-line, and the planner that wrote it is gone. The planner's own comment
-on the ticket stays as is; this is in addition to it.
+On `RESULT: skipped`, the ticket was not in `Todo` or `Backlog` when
+`plan-ticket` reached it, which can only be a ticket added at a gate or
+moved by a human mid-run. Drop it from the batch, leave it as it is, and
+name it at the plan gate with `plan-ticket`'s reason.
 
 ## Phase 4 — Plan the waves
 
@@ -1094,32 +1084,36 @@ plan, until the human approves it in chat or removes the label.
 
 ## Phase 6 — Implement
 
-**Research tickets** don't go to `implement-ticket`. For each one, move
-it to `In Progress` (unless it already is), record `started_at`, and
-spawn a researcher subagent with `prompts/researcher.md`, filling in
-TICKET and the repo's team key and base branch — strongest reasoning
-model available, high effort (see Models and effort below). Researchers
-are read-only, so run them in parallel with each other and with the
-wave's implementers. When the report arrives, post a `research` row with
-its `reported`, `blocked` or `failed` (see "Telemetry"). On `reported`,
-move the ticket to `In Review`; its report is already in the
-description, and it waits there for the human to accept it (see
-"Research tickets"). On `blocked` or `failed`, move the ticket back to `Todo` (so that
-clearing the label makes it pickable again), label it
-`needs-attention` and post a `factory: escalation` with stage
-`researching`, the result, and the researcher's `OPTIONS` verbatim (a
-failed result that returned none records "none recorded"); relay which one it was —
-blocked means the question needs a human's call, failed means the
-research hit a wall — and carry on with the rest of the batch. The
-researcher has already commented the mismatch on the ticket.
+**Research tickets** don't go to `implement-ticket`. Invoke the
+`research-ticket` skill once for all of this wave's research tickets
+together, alongside the wave's `implement-ticket` invocation, since
+researchers are read-only. Its own instructions cover moving each
+ticket to `In Progress`, the researcher subagent, and the status moves
+and escalations on its result, so nothing here duplicates them. Tell it
+the run id. It posts its own `research` rows (see "Telemetry"), and you
+post none.
+
+On `RESULT: reported`, `research-ticket` has moved the ticket to `In
+Review`, where it waits for the human to accept it (see "Research
+tickets"). On `blocked` or `failed`, it has moved the ticket back to
+`Todo`, labelled it `needs-attention` and posted the `factory:
+escalation` with stage `researching`. Relay which one it was (blocked
+means the question needs a human's call, failed means the research hit
+a wall) and carry on with the rest of the batch.
+
+On `RESULT: skipped`, the ticket changed under the run after its plan
+gate: a human removed its `research` label or moved it. Nothing was
+written. Leave it as it is, without `needs-attention`, and name it in
+the end-of-run report with `research-ticket`'s reason. If it is still in
+`Todo`, the next run picks it again and re-plans it with its labels as
+they now stand, the same as a Phase 3 label change.
 
 Invoke the `implement-ticket` skill once for the current wave's ticket
 ids (research tickets excluded) together — its own instructions cover the worktree, the subagent,
 the three-attempt CI rule, and running the wave concurrently, so
 nothing here duplicates them. Tell it the run id; it posts its own
-`implement` rows (see "Telemetry"), and you post no `implement` rows
-yourself (your `research` rows, above, are the only ones you post in
-this phase).
+`implement` rows (see "Telemetry"), and you post no rows yourself in
+this phase.
 
 For each report it returns, note its worktree path, branch, and PR URL
 in your own context. On `RESULT: blocked` or `failed`, `implement-ticket`
@@ -1343,8 +1337,8 @@ whether a resolution dropped somebody's meaning — so it goes in the
 strong tier despite being a single scoped pass.
 
 Effort high everywhere. Map by harness — this table is the canonical
-reference; `implement-ticket`, `adversarial-review`, and `merge-queue`
-all point back to it:
+reference; `plan-ticket`, `research-ticket`, `implement-ticket`,
+`adversarial-review`, and `merge-queue` all point back to it:
 
 | Phase                     | Claude Code  | Antigravity            | Codex                     |
 | ------------------------- | ------------ | ---------------------- | ------------------------- |
@@ -1419,11 +1413,13 @@ there too, not only in this table.
 
 ## Escalation
 
-The planner, `implement-ticket`, `adversarial-review`, and
-`merge-queue` each handle their own stall — a bad report from any of
-them already means the ticket's been commented on (planner and
-implement-ticket comment directly for a blocked report) and left
-somewhere sane: labelled `needs-attention` for an implement
+`plan-ticket`, `research-ticket`, `implement-ticket`,
+`adversarial-review`, and `merge-queue` each handle their own stall — a
+bad report from any of them already means the ticket's been commented
+on (their planner, researcher and implementer comment directly for a
+blocked report) and left somewhere sane: labelled `needs-attention` in
+`Todo` for a dropped plan or a stopped research ticket, labelled
+`needs-attention` for an implement
 blocked/failed, `In Review` with findings posted for a capped review,
 or untouched with the conflict named for a merge blocked/failed. Your
 job on any of those reports: say what stopped it, and carry on with

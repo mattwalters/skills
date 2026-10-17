@@ -9,14 +9,17 @@ skills in the `factory` plugin. You can read the
 [repository README](https://github.com/mattwalters/skills#readme) for how it
 is installed.
 
-## The five skills
+## The skills
 
 `orchestrate` is the policy layer. It picks tickets from Linear, plans them,
 orders them into waves, holds or releases the gates, and tracks the batch to
 merged pull requests. See
 [orchestrate](skills/orchestrate/SKILL.md).
 
-Three skills are the per-ticket stages, and each is also usable on its own.
+Five skills are the per-ticket stages, and each is also usable on its own.
+[plan-ticket](skills/plan-ticket/SKILL.md) writes a ticket's `## Plan` into its
+description. [research-ticket](skills/research-ticket/SKILL.md) answers a
+planned `research` ticket with a `## Report`.
 [implement-ticket](skills/implement-ticket/SKILL.md) takes one ticket to a
 CI-green draft pull request.
 [adversarial-review](skills/adversarial-review/SKILL.md) runs fresh-reviewer
@@ -70,13 +73,13 @@ They are the human's labels: the pipeline never adds or removes them. A
 
 A ticket carrying the `research` label has a report, not a pull request, as
 its deliverable. It is picked and planned like any other. After the plan gate
-a single researcher subagent answers it and writes a `## Report` section into
+`research-ticket` has a single researcher subagent answer it and write a `## Report` section into
 the ticket's description. There is no review and no merge, and the ticket
 rests in `In Review` until the human accepts the report by moving it to
 `Done`. No mode does that for them. The human owns the label, and
 `hold-merge` and `approved-to-merge` do nothing for such a ticket. When a
-researcher reports `blocked` or `failed`, orchestrate (not the researcher)
-moves the ticket back to `Todo`, labels it `needs-attention` and posts an
+researcher reports `blocked` or `failed`, `research-ticket` (not the
+researcher) moves the ticket back to `Todo`, labels it `needs-attention` and posts an
 escalation with stage `researching`; clearing the label makes it pickable
 again. See "Research tickets" in
 [orchestrate](skills/orchestrate/SKILL.md).
